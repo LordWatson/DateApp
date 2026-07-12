@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        $alex = User::create([
+        /*$alex = User::create([
             'name' => 'Alex Watson',
             'email' => 'squatty.watson@gmail.com',
             'email_verified_at' => now(),
@@ -43,7 +43,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $alex->update(['partner_id' => $eliza->id]);
-        $eliza->update(['partner_id' => $alex->id]);
+        $eliza->update(['partner_id' => $alex->id]);*/
 
         $this->call([
             RoleSeeder::class,
@@ -58,7 +58,7 @@ class DatabaseSeeder extends Seeder
 
         // Assign super admin role to Alex
         $superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
-        $alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
-        $eliza->update(['onboarding_completed' => true]);
+        /*$alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
+        $eliza->update(['onboarding_completed' => true]);*/
     }
 }
