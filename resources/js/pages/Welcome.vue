@@ -7,7 +7,6 @@ import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import { login, register } from '@/routes';
 
-defineProps<{ canLogin?: boolean; canRegister?: boolean }>();
 </script>
 
 <template>
@@ -29,14 +28,14 @@ defineProps<{ canLogin?: boolean; canRegister?: boolean }>();
                 <span class="gradient-text font-semibold">Date Night</span>
             </div>
 
-            <nav v-if="canLogin" class="flex items-center gap-3">
+            <nav class="flex items-center gap-3">
                 <Link
                     :href="login()"
                     class="rounded-lg px-2 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                 >
                     Sign in
                 </Link>
-                <Link v-if="canRegister" :href="register()">
+                <Link :href="register()">
                     <SecondaryButton size="sm" variant="outline"
                         >Get started</SecondaryButton
                     >
@@ -69,19 +68,6 @@ defineProps<{ canLogin?: boolean; canRegister?: boolean }>();
                             makes the perfect date night — together.
                         </p>
                     </div>
-                </div>
-
-                <div class="space-y-3">
-                    <Link v-if="canRegister" :href="register()" class="block">
-                        <PrimaryButton full-width size="lg">
-                            Start your journey ❤️
-                        </PrimaryButton>
-                    </Link>
-                    <Link v-if="canLogin" :href="login()" class="block">
-                        <SecondaryButton full-width variant="ghost">
-                            Already have an account? Sign in
-                        </SecondaryButton>
-                    </Link>
                 </div>
 
                 <div
