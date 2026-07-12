@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { BookHeart, LayoutGrid, LogOut, Sparkles, Trophy, User } from '@lucide/vue';
+import { Bell, BookHeart, LayoutGrid, LogOut, Sparkles, Trophy, User } from '@lucide/vue';
+import { computed } from 'vue';
 import AchievementController from '@/actions/App/Http/Controllers/AchievementController';
 import DashboardController from '@/actions/App/Http/Controllers/DashboardController';
+import NotificationController from '@/actions/App/Http/Controllers/NotificationController';
 import QuestionnaireController from '@/actions/App/Http/Controllers/QuestionnaireController';
 import RelationshipHubController from '@/actions/App/Http/Controllers/RelationshipHubController';
 import AnimatedBackground from '@/components/AnimatedBackground.vue';
@@ -25,6 +27,8 @@ const navItems: NavItem[] = [
 ];
 
 const page = usePage();
+
+const unreadCount = computed(() => (page.props as Record<string, unknown>).unreadNotificationsCount as number ?? 0);
 
 function handleLogout(): void {
     router.post(logout().url);
@@ -56,14 +60,27 @@ function isActive(href: string): boolean {
                 </Link>
 
                 <slot name="header-actions">
-                    <button
-                        type="button"
-                        class="flex h-9 w-9 items-center justify-center rounded-2xl text-muted-foreground transition-all duration-200 hover:bg-primary/10 hover:text-primary active:scale-95"
-                        aria-label="Log out"
-                        @click="handleLogout"
-                    >
-                        <LogOut class="size-5" aria-hidden="true" />
-                    </button>
+                    <div class="flex items-center gap-1">
+                        <Link
+                            :href="NotificationController.index().url"
+                            class="relative flex h-9 w-9 items-center justify-center rounded-2xl text-muted-foreground transition-all duration-200 hover:bg-primary/10 hover:text-primary active:scale-95"
+                            aria-label="Notifications"
+                        >
+                            <Bell class="size-5" aria-hidden="true" />
+                            <span
+                                v-if="unreadCount > 0"
+                                class="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[10px] font-bold text-white"
+                            >{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+                        </Link>
+                        <button
+                            type="button"
+                            class="flex h-9 w-9 items-center justify-center rounded-2xl text-muted-foreground transition-all duration-200 hover:bg-primary/10 hover:text-primary active:scale-95"
+                            aria-label="Log out"
+                            @click="handleLogout"
+                        >
+                            <LogOut class="size-5" aria-hidden="true" />
+                        </button>
+                    </div>
                 </slot>
             </div>
         </header>
