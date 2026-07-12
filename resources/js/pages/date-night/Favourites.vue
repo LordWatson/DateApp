@@ -28,23 +28,23 @@ function formatDate(iso: string): string {
 
     <div class="min-h-screen px-4 py-6 pb-28">
         <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-gray-900">💛 Favourites</h1>
-            <p class="mt-1 text-sm text-gray-500">Your saved Date Night plans</p>
+            <h1 class="text-2xl font-semibold text-foreground">💛 Favourites</h1>
+            <p class="mt-1 text-sm text-muted-foreground">Your saved Date Night plans</p>
         </div>
 
         <div v-if="plans.length > 0" class="space-y-3">
             <div
                 v-for="plan in plans"
                 :key="plan.id"
-                class="cursor-pointer rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]"
+                class="card-premium card-hover cursor-pointer p-5"
                 @click="router.visit(`/date-night/${plan.id}`)"
             >
                 <div class="flex items-start justify-between">
                     <div class="flex items-center gap-3">
                         <span class="text-3xl">{{ plan.theme_emoji ?? '❤️' }}</span>
                         <div>
-                            <p class="font-semibold text-gray-900">{{ plan.theme }}</p>
-                            <p class="text-xs text-gray-400">{{ formatDate(plan.created_at) }}</p>
+                            <p class="font-semibold text-foreground">{{ plan.theme }}</p>
+                            <p class="text-xs text-muted-foreground">{{ formatDate(plan.created_at) }}</p>
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-1">
@@ -52,7 +52,7 @@ function formatDate(iso: string): string {
                         <span class="text-sm">💛</span>
                     </div>
                 </div>
-                <p v-if="plan.questionnaire_title" class="mt-2 text-xs text-gray-400">
+                <p v-if="plan.questionnaire_title" class="mt-2 text-xs text-muted-foreground">
                     {{ plan.questionnaire_title }}
                 </p>
             </div>

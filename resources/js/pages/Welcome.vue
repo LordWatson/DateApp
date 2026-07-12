@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import AnimatedBackground from '@/components/AnimatedBackground.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
+import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import { login, register } from '@/routes';
 
@@ -28,12 +29,6 @@ import { login, register } from '@/routes';
             </div>
 
             <nav class="flex items-center gap-3">
-                <Link
-                    :href="login()"
-                    class="rounded-lg px-2 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
-                >
-                    Sign in
-                </Link>
                 <Link :href="register()">
                     <SecondaryButton size="sm" variant="outline"
                         >Get started</SecondaryButton
@@ -67,6 +62,15 @@ import { login, register } from '@/routes';
                             makes the perfect date night — together.
                         </p>
                     </div>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <Link :href="login()" class="block">
+                        <PrimaryButton size="lg" full-width>Sign in</PrimaryButton>
+                    </Link>
+                    <Link :href="register()" class="block">
+                        <SecondaryButton size="lg" full-width>Create account</SecondaryButton>
+                    </Link>
                 </div>
 
                 <div

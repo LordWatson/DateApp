@@ -31,7 +31,7 @@ class InsightsService
 
         $mostCompletedMonth = Response::where('user_id', $user->id)
             ->where('status', 'completed')
-            ->selectRaw($this->extractMonth('created_at') . " as month, COUNT(*) as count")
+            ->selectRaw($this->extractMonth('created_at').' as month, COUNT(*) as count')
             ->groupBy('month')
             ->orderByDesc('count')
             ->first();
@@ -59,7 +59,7 @@ class InsightsService
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
         })
-            ->selectRaw($this->extractYearMonth('created_at') . " as month, AVG(compatibility_score) as avg_score")
+            ->selectRaw($this->extractYearMonth('created_at').' as month, AVG(compatibility_score) as avg_score')
             ->groupBy('month')
             ->orderBy('month')
             ->limit(12)

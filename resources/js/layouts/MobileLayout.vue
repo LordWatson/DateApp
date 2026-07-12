@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Heart, LayoutGrid, LogOut, Sparkles, User, Users } from '@lucide/vue';
+import { BookHeart, LayoutGrid, LogOut, Sparkles, Trophy, User } from '@lucide/vue';
+import AchievementController from '@/actions/App/Http/Controllers/AchievementController';
 import DashboardController from '@/actions/App/Http/Controllers/DashboardController';
-import PartnerController from '@/actions/App/Http/Controllers/PartnerController';
+import QuestionnaireController from '@/actions/App/Http/Controllers/QuestionnaireController';
+import RelationshipHubController from '@/actions/App/Http/Controllers/RelationshipHubController';
 import AnimatedBackground from '@/components/AnimatedBackground.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
@@ -16,9 +18,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { label: 'Home', href: DashboardController.index().url, icon: LayoutGrid },
-    { label: 'Tonight', href: DashboardController.index().url, icon: Heart },
-    { label: 'Challenges', href: DashboardController.index().url, icon: Sparkles },
-    { label: 'Partner', href: PartnerController.index().url, icon: Users },
+    { label: 'Tonight', href: QuestionnaireController.index().url, icon: BookHeart },
+    { label: 'Hub', href: RelationshipHubController.index().url, icon: Sparkles },
+    { label: 'Wins', href: AchievementController.index().url, icon: Trophy },
     { label: 'Profile', href: '/settings/profile', icon: User },
 ];
 
@@ -73,6 +75,7 @@ function isActive(href: string): boolean {
         <nav
             class="sticky bottom-0 z-40 border-t border-border/50 bg-background/90 backdrop-blur-md"
             aria-label="Main navigation"
+            style="padding-bottom: env(safe-area-inset-bottom, 0px)"
         >
             <div class="flex items-center justify-around px-2 py-2">
                 <Link

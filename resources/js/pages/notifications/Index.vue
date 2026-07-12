@@ -74,8 +74,8 @@ function markAllRead(): void {
     <div class="min-h-screen px-4 py-6 pb-28">
         <div class="mb-6 flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-semibold text-gray-900">🔔 Notifications</h1>
-                <p class="mt-1 text-sm text-gray-500">Stay up to date</p>
+                <h1 class="text-2xl font-semibold text-foreground">🔔 Notifications</h1>
+                <p class="mt-1 text-sm text-muted-foreground">Stay up to date</p>
             </div>
             <button
                 v-if="notifications.some(n => !n.read_at)"
@@ -92,16 +92,16 @@ function markAllRead(): void {
                 :key="notification.id"
                 :class="[
                     'cursor-pointer rounded-3xl p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]',
-                    notification.read_at ? 'bg-white' : 'bg-pink-50 border border-pink-100',
+                    notification.read_at ? 'bg-card' : 'bg-primary/5 border border-primary/20',
                 ]"
                 @click="handleNotificationClick(notification)"
             >
                 <div class="flex items-start gap-3">
                     <span class="text-2xl">{{ typeEmoji(notification.type) }}</span>
                     <div class="flex-1">
-                        <p class="text-sm font-semibold text-gray-900">{{ notification.title }}</p>
-                        <p v-if="notification.body" class="mt-1 text-xs text-gray-500">{{ notification.body }}</p>
-                        <p class="mt-1 text-xs text-gray-400">{{ formatTime(notification.created_at) }}</p>
+                        <p class="text-sm font-semibold text-foreground">{{ notification.title }}</p>
+                        <p v-if="notification.body" class="mt-1 text-xs text-muted-foreground">{{ notification.body }}</p>
+                        <p class="mt-1 text-xs text-muted-foreground">{{ formatTime(notification.created_at) }}</p>
                     </div>
                     <div v-if="!notification.read_at" class="mt-1 h-2 w-2 rounded-full bg-pink-500" />
                 </div>

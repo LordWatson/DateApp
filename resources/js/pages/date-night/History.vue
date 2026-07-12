@@ -57,8 +57,8 @@ function scoreColour(score: number): string {
 
     <div class="min-h-screen px-4 py-6 pb-28">
         <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-gray-900">📖 History</h1>
-            <p class="mt-1 text-sm text-gray-500">All your Date Night plans</p>
+            <h1 class="text-2xl font-semibold text-foreground">📖 History</h1>
+            <p class="mt-1 text-sm text-muted-foreground">All your Date Night plans</p>
         </div>
 
         <!-- Filters -->
@@ -67,7 +67,7 @@ function scoreColour(score: number): string {
                 v-model="search"
                 type="text"
                 placeholder="Search plans..."
-                class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 @input="applyFilters"
             />
 
@@ -78,8 +78,8 @@ function scoreColour(score: number): string {
                     :class="[
                         'flex-1 rounded-2xl px-3 py-2 text-xs font-semibold transition-all',
                         compatibility === option.value
-                            ? 'bg-pink-500 text-white shadow-md'
-                            : 'bg-white text-gray-600 shadow-sm',
+                            ? 'gradient-primary text-white shadow-md'
+                            : 'bg-card text-muted-foreground shadow-sm',
                     ]"
                     @click="compatibility = option.value; applyFilters()"
                 >
@@ -93,15 +93,15 @@ function scoreColour(score: number): string {
             <div
                 v-for="plan in plans"
                 :key="plan.id"
-                class="cursor-pointer rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]"
+                class="card-premium card-hover cursor-pointer p-5"
                 @click="router.visit(`/date-night/${plan.id}`)"
             >
                 <div class="flex items-start justify-between">
                     <div class="flex items-center gap-3">
                         <span class="text-3xl">{{ plan.theme_emoji ?? '❤️' }}</span>
                         <div>
-                            <p class="font-semibold text-gray-900">{{ plan.theme }}</p>
-                            <p class="text-xs text-gray-400">{{ formatDate(plan.created_at) }}</p>
+                            <p class="font-semibold text-foreground">{{ plan.theme }}</p>
+                            <p class="text-xs text-muted-foreground">{{ formatDate(plan.created_at) }}</p>
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-1">
@@ -111,7 +111,7 @@ function scoreColour(score: number): string {
                         <span v-if="plan.is_favourite" class="text-sm">💛</span>
                     </div>
                 </div>
-                <p v-if="plan.questionnaire_title" class="mt-2 text-xs text-gray-400">
+                <p v-if="plan.questionnaire_title" class="mt-2 text-xs text-muted-foreground">
                     {{ plan.questionnaire_title }}
                 </p>
             </div>

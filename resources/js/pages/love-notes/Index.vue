@@ -79,18 +79,18 @@ function formatTime(iso: string): string {
 
     <div class="min-h-screen px-4 py-6 pb-28">
         <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-gray-900">💌 Love Notes</h1>
-            <p class="mt-1 text-sm text-gray-500">Send a little love to your partner</p>
+            <h1 class="text-2xl font-semibold text-foreground">💌 Love Notes</h1>
+            <p class="mt-1 text-sm text-muted-foreground">Send a little love to your partner</p>
         </div>
 
         <!-- Tabs -->
-        <div class="mb-6 flex rounded-2xl bg-gray-100 p-1">
+        <div class="mb-6 flex rounded-2xl bg-muted p-1">
             <button
                 v-for="tab in [{ key: 'send', label: '✉️ Send' }, { key: 'received', label: '📥 Received' }, { key: 'sent', label: '📤 Sent' }]"
                 :key="tab.key"
                 :class="[
                     'flex-1 rounded-xl py-2 text-xs font-semibold transition-all',
-                    activeTab === tab.key ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500',
+                    activeTab === tab.key ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground',
                 ]"
                 @click="activeTab = tab.key as 'send' | 'received' | 'sent'"
             >
@@ -100,10 +100,10 @@ function formatTime(iso: string): string {
 
         <!-- Send Tab -->
         <div v-if="activeTab === 'send'">
-            <div v-if="!partner" class="rounded-3xl bg-white p-6 text-center shadow-xl">
+            <div v-if="!partner" class="card-premium p-6 text-center">
                 <p class="text-4xl">💔</p>
-                <p class="mt-2 font-semibold text-gray-800">No partner connected</p>
-                <p class="mt-1 text-sm text-gray-500">Connect with your partner to send love notes.</p>
+                <p class="mt-2 font-semibold text-foreground">No partner connected</p>
+                <p class="mt-1 text-sm text-muted-foreground">Connect with your partner to send love notes.</p>
                 <div class="mt-4">
                     <PrimaryButton full-width @click="router.visit('/partner')">
                         Connect Partner
@@ -112,7 +112,7 @@ function formatTime(iso: string): string {
             </div>
 
             <div v-else class="space-y-4">
-                <p class="text-sm font-semibold text-gray-600">Quick messages</p>
+                <p class="text-sm font-semibold text-foreground">Quick messages</p>
                 <div class="grid grid-cols-2 gap-2">
                     <button
                         v-for="msg in default_messages"
@@ -120,8 +120,8 @@ function formatTime(iso: string): string {
                         :class="[
                             'rounded-2xl border p-3 text-left text-sm transition-all',
                             form.message === msg
-                                ? 'border-pink-400 bg-pink-50 text-pink-700'
-                                : 'border-gray-200 bg-white text-gray-700',
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border bg-card text-foreground',
                         ]"
                         @click="selectMessage(msg)"
                     >
@@ -130,15 +130,15 @@ function formatTime(iso: string): string {
                 </div>
 
                 <div>
-                    <p class="mb-2 text-sm font-semibold text-gray-600">Or write your own</p>
+                    <p class="mb-2 text-sm font-semibold text-foreground">Or write your own</p>
                     <textarea
                         v-model="form.message"
                         placeholder="Write something sweet... (max 200 characters)"
                         maxlength="200"
                         rows="3"
-                        class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
-                    <p class="mt-1 text-right text-xs text-gray-400">{{ form.message.length }}/200</p>
+                    <p class="mt-1 text-right text-xs text-muted-foreground">{{ form.message.length }}/200</p>
                 </div>
 
                 <p v-if="form.errors.message" class="text-sm text-red-500">{{ form.errors.message }}</p>
@@ -160,16 +160,15 @@ function formatTime(iso: string): string {
                 <div
                     v-for="note in received"
                     :key="note.id"
-                    class="rounded-3xl bg-white p-5 shadow-xl"
+                    class="card-premium p-5"
                 >
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg"
-                             style="background: linear-gradient(135deg, #EC4899, #9333EA); color: white;">
+                    <div class="flex items-start gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white gradient-primary">
                             {{ note.person_name?.charAt(0) ?? '?' }}
                         </div>
                         <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-800">{{ note.message }}</p>
-                            <p class="mt-1 text-xs text-gray-400">
+                            <p class="text-sm font-medium text-foreground">{{ note.message }}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">
                                 From {{ note.person_name }} · {{ formatTime(note.created_at) }}
                             </p>
                         </div>
@@ -185,12 +184,12 @@ function formatTime(iso: string): string {
                 <div
                     v-for="note in sent"
                     :key="note.id"
-                    class="rounded-3xl bg-white p-5 shadow-xl"
+                    class="card-premium p-5"
                 >
-                    <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3">
                         <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-800">{{ note.message }}</p>
-                            <p class="mt-1 text-xs text-gray-400">
+                            <p class="text-sm font-medium text-foreground">{{ note.message }}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">
                                 To {{ note.person_name }} · {{ formatTime(note.created_at) }}
                                 <span v-if="note.read_at" class="ml-1 text-emerald-500">· Seen ✓</span>
                             </p>

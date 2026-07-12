@@ -105,77 +105,69 @@ function getInitial(name: string): string {
             </div>
 
             <!-- Summary -->
-            <div class="mb-4 rounded-3xl bg-white p-5 shadow-xl">
-                <p class="text-sm leading-relaxed text-gray-600">{{ plan.summary }}</p>
+            <div class="card-premium mb-4 p-5">
+                <p class="text-sm leading-relaxed text-foreground/80">{{ plan.summary }}</p>
             </div>
 
             <!-- Detail Cards -->
             <div class="mb-4 space-y-3">
-                <div v-if="plan.meal_suggestion"
-                     class="flex items-start gap-4 rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]">
-                    <span class="text-2xl">🍽️</span>
+                <div v-if="plan.meal_suggestion" class="card-premium card-hover flex items-start gap-4 p-5">
+                    <span class="text-2xl" aria-hidden="true">🍽️</span>
                     <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Meal Suggestion</p>
-                        <p class="text-sm font-medium text-gray-800">{{ plan.meal_suggestion }}</p>
+                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Meal Suggestion</p>
+                        <p class="text-sm font-medium text-foreground">{{ plan.meal_suggestion }}</p>
                     </div>
                 </div>
 
-                <div v-if="plan.drink_suggestion"
-                     class="flex items-start gap-4 rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]">
-                    <span class="text-2xl">🥂</span>
+                <div v-if="plan.drink_suggestion" class="card-premium card-hover flex items-start gap-4 p-5">
+                    <span class="text-2xl" aria-hidden="true">🥂</span>
                     <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Drink Suggestion</p>
-                        <p class="text-sm font-medium text-gray-800">{{ plan.drink_suggestion }}</p>
+                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Drink Suggestion</p>
+                        <p class="text-sm font-medium text-foreground">{{ plan.drink_suggestion }}</p>
                     </div>
                 </div>
 
-                <div v-if="plan.music_vibe"
-                     class="flex items-start gap-4 rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]">
-                    <span class="text-2xl">🎵</span>
+                <div v-if="plan.music_vibe" class="card-premium card-hover flex items-start gap-4 p-5">
+                    <span class="text-2xl" aria-hidden="true">🎵</span>
                     <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Music Vibe</p>
-                        <p class="text-sm font-medium text-gray-800">{{ plan.music_vibe }}</p>
+                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Music Vibe</p>
+                        <p class="text-sm font-medium text-foreground">{{ plan.music_vibe }}</p>
                     </div>
                 </div>
 
-                <div v-if="plan.atmosphere"
-                     class="flex items-start gap-4 rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]">
-                    <span class="text-2xl">🕯️</span>
+                <div v-if="plan.atmosphere" class="card-premium card-hover flex items-start gap-4 p-5">
+                    <span class="text-2xl" aria-hidden="true">🕯️</span>
                     <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Atmosphere</p>
-                        <p class="text-sm font-medium text-gray-800">{{ plan.atmosphere }}</p>
+                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Atmosphere</p>
+                        <p class="text-sm font-medium text-foreground">{{ plan.atmosphere }}</p>
                     </div>
                 </div>
 
-                <div v-if="plan.activity"
-                     class="flex items-start gap-4 rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]">
-                    <span class="text-2xl">✨</span>
+                <div v-if="plan.activity" class="card-premium card-hover flex items-start gap-4 p-5">
+                    <span class="text-2xl" aria-hidden="true">✨</span>
                     <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Activity</p>
-                        <p class="text-sm font-medium text-gray-800">{{ plan.activity }}</p>
+                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Activity</p>
+                        <p class="text-sm font-medium text-foreground">{{ plan.activity }}</p>
                     </div>
                 </div>
 
-                <div v-if="plan.conversation_prompt"
-                     class="flex items-start gap-4 rounded-3xl bg-white p-5 shadow-xl transition-transform duration-200 hover:scale-[1.01]">
-                    <span class="text-2xl">💬</span>
+                <div v-if="plan.conversation_prompt" class="card-premium card-hover flex items-start gap-4 p-5">
+                    <span class="text-2xl" aria-hidden="true">💬</span>
                     <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Conversation Prompt</p>
-                        <p class="text-sm font-medium italic text-gray-800">"{{ plan.conversation_prompt }}"</p>
+                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Conversation Prompt</p>
+                        <p class="text-sm font-medium italic text-foreground">"{{ plan.conversation_prompt }}"</p>
                     </div>
                 </div>
 
                 <!-- Romantic Challenge — highlighted -->
-                <div v-if="plan.romantic_challenge"
-                     class="rounded-3xl p-5 shadow-xl"
-                     style="background: linear-gradient(135deg, #FDF2F8, #F5F3FF); border: 1px solid #F9A8D4;">
-                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-pink-500">🌹 Tonight's Romantic Challenge</p>
-                    <p class="text-sm font-semibold text-gray-800">{{ plan.romantic_challenge }}</p>
+                <div v-if="plan.romantic_challenge" class="card-premium p-5 gradient-primary-soft">
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">🌹 Tonight's Romantic Challenge</p>
+                    <p class="text-sm font-semibold text-foreground">{{ plan.romantic_challenge }}</p>
                 </div>
             </div>
 
             <!-- Generated time -->
-            <p class="mb-6 text-center text-xs text-gray-400">Generated {{ generatedDate }}</p>
+            <p class="mb-6 text-center text-xs text-muted-foreground">Generated {{ generatedDate }}</p>
 
             <!-- Actions -->
             <div class="space-y-3">
