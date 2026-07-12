@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\AI\NullAIProvider;
 use App\Contracts\AIProvider;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -26,6 +28,16 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerGates();
+    }
+
+    protected function registerGates(): void
+    {
+        Gate::define('access-admin', fn (User $user) => $user->isAdmin());
+        Gate::define('manage-users', fn (User $user) => $user->adminRole()?->canManageUsers() ?? false);
+        Gate::define('manage-content', fn (User $user) => $user->adminRole()?->canManageContent() ?? false);
+        Gate::define('view-analytics', fn (User $user) => $user->adminRole()?->canViewAnalytics() ?? false);
+        Gate::define('super-admin', fn (User $user) => $user->isSuperAdmin());
     }
 
     /**

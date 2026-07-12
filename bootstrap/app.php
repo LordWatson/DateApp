@@ -7,6 +7,7 @@ use App\Console\Commands\RefreshStatisticsCommand;
 use App\Console\Commands\SelectDailyChallengeCommand;
 use App\Console\Commands\SendRemindersCommand;
 use App\Http\Middleware\EnsureOnboardingComplete;
+use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Providers\EventServiceProvider;
@@ -22,7 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         EventServiceProvider::class,
     ])
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
+        web: [__DIR__.'/../routes/web.php', __DIR__.'/../routes/admin.php'],
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'onboarding' => EnsureOnboardingComplete::class,
+            'admin' => EnsureUserIsAdmin::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {

@@ -27,7 +27,11 @@ class Challenge extends Model
         'description',
         'emoji',
         'difficulty',
+        'category',
+        'season',
+        'weight',
         'active',
+        'archived',
         'display_order',
     ];
 
@@ -36,6 +40,8 @@ class Challenge extends Model
         return [
             'difficulty' => ChallengeDifficulty::class,
             'active' => 'boolean',
+            'archived' => 'boolean',
+            'weight' => 'integer',
         ];
     }
 

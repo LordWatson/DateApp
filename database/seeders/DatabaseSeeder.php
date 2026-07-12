@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Enums\Gender;
+use App\Enums\UserRole;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -44,11 +46,19 @@ class DatabaseSeeder extends Seeder
         $eliza->update(['partner_id' => $alex->id]);
 
         $this->call([
+            RoleSeeder::class,
+            FeatureFlagSeeder::class,
+            SystemSettingSeeder::class,
             QuestionnaireSeeder::class,
             SeasonalQuestionnaireSeeder::class,
             ChallengeSeeder::class,
             DateNightThemeSeeder::class,
             AchievementSeeder::class,
         ]);
+
+        // Assign super admin role to Alex
+        $superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
+        $alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
+        $eliza->update(['onboarding_completed' => true]);
     }
 }
