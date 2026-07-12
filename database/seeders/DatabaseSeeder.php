@@ -45,7 +45,10 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             QuestionnaireSeeder::class,
+            SeasonalQuestionnaireSeeder::class,
             ChallengeSeeder::class,
+            DateNightThemeSeeder::class,
+            AchievementSeeder::class,
         ]);
     }
 }

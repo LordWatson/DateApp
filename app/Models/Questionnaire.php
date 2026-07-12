@@ -23,6 +23,8 @@ use Illuminate\Support\Carbon;
  * @property int $display_order
  * @property Carbon|null $active_from
  * @property Carbon|null $active_until
+ * @property string|null $artwork
+ * @property bool $is_seasonal
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -43,6 +45,8 @@ class Questionnaire extends Model
         'display_order',
         'active_from',
         'active_until',
+        'artwork',
+        'is_seasonal',
     ];
 
     protected function casts(): array
@@ -52,6 +56,7 @@ class Questionnaire extends Model
             'visibility' => QuestionnaireVisibility::class,
             'active_from' => 'datetime',
             'active_until' => 'datetime',
+            'is_seasonal' => 'boolean',
         ];
     }
 
