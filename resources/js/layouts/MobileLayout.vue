@@ -1,23 +1,25 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Heart, LayoutGrid, LogOut, Sparkles, Users } from '@lucide/vue';
+import { Heart, LayoutGrid, LogOut, Sparkles, User, Users } from '@lucide/vue';
+import DashboardController from '@/actions/App/Http/Controllers/DashboardController';
+import PartnerController from '@/actions/App/Http/Controllers/PartnerController';
 import AnimatedBackground from '@/components/AnimatedBackground.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
-import { dashboard, logout } from '@/routes';
+import { logout } from '@/routes';
 
 interface NavItem {
     label: string;
     href: string;
     icon: unknown;
-    emoji?: string;
 }
 
 const navItems: NavItem[] = [
-    { label: 'Home', href: dashboard(), icon: LayoutGrid },
-    { label: 'Tonight', href: dashboard(), icon: Heart, emoji: '❤️' },
-    { label: 'Match', href: dashboard(), icon: Sparkles },
-    { label: 'Partner', href: dashboard(), icon: Users },
+    { label: 'Home', href: DashboardController.index().url, icon: LayoutGrid },
+    { label: 'Tonight', href: DashboardController.index().url, icon: Heart },
+    { label: 'Challenges', href: DashboardController.index().url, icon: Sparkles },
+    { label: 'Partner', href: PartnerController.index().url, icon: Users },
+    { label: 'Profile', href: '/settings/profile', icon: User },
 ];
 
 const page = usePage();
@@ -40,7 +42,7 @@ function isActive(href: string): boolean {
             class="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-md"
         >
             <div class="flex h-14 items-center justify-between px-4">
-                <Link :href="dashboard()" class="flex items-center gap-2">
+                <Link :href="DashboardController.index().url" class="flex items-center gap-2">
                     <div
                         class="flex h-8 w-8 items-center justify-center rounded-xl shadow-sm gradient-primary"
                     >
@@ -85,14 +87,8 @@ function isActive(href: string): boolean {
                     ]"
                     :aria-current="isActive(item.href) ? 'page' : undefined"
                 >
-                    <span
-                        v-if="item.emoji && isActive(item.href)"
-                        class="text-xl leading-none"
-                        >{{ item.emoji }}</span
-                    >
                     <component
                         :is="item.icon"
-                        v-else
                         :class="[
                             'size-5',
                             isActive(item.href)

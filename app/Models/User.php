@@ -34,6 +34,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property bool $email_notifications
  * @property bool $push_notifications
  * @property bool $dark_mode
+ * @property bool $onboarding_completed
+ * @property string|null $display_name
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -43,6 +45,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  */
 #[Fillable([
     'name',
+    'display_name',
     'email',
     'password',
     'gender',
@@ -57,6 +60,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'email_notifications',
     'push_notifications',
     'dark_mode',
+    'onboarding_completed',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
@@ -76,12 +80,27 @@ class User extends Authenticatable implements PasskeyUser
             'email_notifications' => 'boolean',
             'push_notifications' => 'boolean',
             'dark_mode' => 'boolean',
+            'onboarding_completed' => 'boolean',
         ];
     }
 
     public function partner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'partner_id');
+    }
+
+    public function sentInvitations(): HasMany
+    {
+        return $this->hasMany(PartnerInvitation::class, 'sender_id');
+    }
+
+    public function pendingInvitation(): ?PartnerInvitation
+    {
+        return $this->sentInvitations()
+            ->whereNull('accepted_at')
+            ->where('expires_at', '>', now())
+            ->latest()
+            ->first();
     }
 
     public function responses(): HasMany
