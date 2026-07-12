@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\Gender;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -20,6 +22,18 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
+ * @property Gender|null $gender
+ * @property int|null $partner_id
+ * @property Carbon|null $date_of_birth
+ * @property string|null $avatar
+ * @property string $timezone
+ * @property Carbon|null $last_completed_questionnaire_at
+ * @property int $current_streak
+ * @property int $longest_streak
+ * @property int $monthly_completion_count
+ * @property bool $email_notifications
+ * @property bool $push_notifications
+ * @property bool $dark_mode
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -27,24 +41,56 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable([
+    'name',
+    'email',
+    'password',
+    'gender',
+    'partner_id',
+    'date_of_birth',
+    'avatar',
+    'timezone',
+    'last_completed_questionnaire_at',
+    'current_streak',
+    'longest_streak',
+    'monthly_completion_count',
+    'email_notifications',
+    'push_notifications',
+    'dark_mode',
+])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'gender' => Gender::class,
+            'date_of_birth' => 'date',
+            'last_completed_questionnaire_at' => 'datetime',
+            'email_notifications' => 'boolean',
+            'push_notifications' => 'boolean',
+            'dark_mode' => 'boolean',
         ];
+    }
+
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'partner_id');
+    }
+
+    public function responses(): HasMany
+    {
+        return $this->hasMany(Response::class);
+    }
+
+    public function savedProfiles(): HasMany
+    {
+        return $this->hasMany(SavedProfile::class);
     }
 }
