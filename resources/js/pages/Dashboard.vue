@@ -113,7 +113,7 @@ function invitePartner(): void {
             <div class="mt-5">
                 <PrimaryButton
                     full-width
-                    class="!bg-white !text-primary hover:!bg-white/90"
+                    class="!bg-white !text-white/70 hover:!bg-white/90"
                 >
                     Start Tonight's Questionnaire ✨
                 </PrimaryButton>
