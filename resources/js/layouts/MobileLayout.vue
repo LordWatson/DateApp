@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
-import { Heart, LayoutGrid, Sparkles, Users } from '@lucide/vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { Heart, LayoutGrid, LogOut, Sparkles, Users } from '@lucide/vue';
 import AnimatedBackground from '@/components/AnimatedBackground.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
-import { dashboard } from '@/routes';
+import { dashboard, logout } from '@/routes';
 
 interface NavItem {
     label: string;
@@ -21,6 +21,10 @@ const navItems: NavItem[] = [
 ];
 
 const page = usePage();
+
+function handleLogout(): void {
+    router.post(logout().url);
+}
 
 function isActive(href: string): boolean {
     return page.url === href || page.url.startsWith(href + '/');
@@ -47,7 +51,16 @@ function isActive(href: string): boolean {
                     >
                 </Link>
 
-                <slot name="header-actions" />
+                <slot name="header-actions">
+                    <button
+                        type="button"
+                        class="flex h-9 w-9 items-center justify-center rounded-2xl text-muted-foreground transition-all duration-200 hover:bg-primary/10 hover:text-primary active:scale-95"
+                        aria-label="Log out"
+                        @click="handleLogout"
+                    >
+                        <LogOut class="size-5" aria-hidden="true" />
+                    </button>
+                </slot>
             </div>
         </header>
 
