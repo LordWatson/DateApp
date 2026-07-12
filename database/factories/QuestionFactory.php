@@ -45,6 +45,15 @@ class QuestionFactory extends Factory
         ]);
     }
 
+    public function multipleChoice(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => QuestionType::MultipleChoice,
+            'minimum_value' => null,
+            'maximum_value' => null,
+        ]);
+    }
+
     public function text(): static
     {
         return $this->state(fn (array $attributes) => [
