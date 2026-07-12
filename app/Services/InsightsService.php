@@ -7,6 +7,7 @@ use App\Models\LoveNote;
 use App\Models\Response;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class InsightsService
 {
@@ -30,7 +31,7 @@ class InsightsService
 
         $mostCompletedMonth = Response::where('user_id', $user->id)
             ->where('status', 'completed')
-            ->selectRaw("strftime('%m', created_at) as month, COUNT(*) as count")
+            ->selectRaw($this->extractMonth('created_at') . " as month, COUNT(*) as count")
             ->groupBy('month')
             ->orderByDesc('count')
             ->first();
@@ -58,7 +59,7 @@ class InsightsService
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
         })
-            ->selectRaw("strftime('%Y-%m', created_at) as month, AVG(compatibility_score) as avg_score")
+            ->selectRaw($this->extractYearMonth('created_at') . " as month, AVG(compatibility_score) as avg_score")
             ->groupBy('month')
             ->orderBy('month')
             ->limit(12)
@@ -88,5 +89,23 @@ class InsightsService
     private function monthName(int|string $month): string
     {
         return Carbon::create()->month((int) $month)->format('F');
+    }
+
+    private function extractMonth(string $column): string
+    {
+        $driver = DB::getDriverName();
+
+        return $driver === 'sqlite'
+            ? "strftime('%m', {$column})"
+            : "MONTH({$column})";
+    }
+
+    private function extractYearMonth(string $column): string
+    {
+        $driver = DB::getDriverName();
+
+        return $driver === 'sqlite'
+            ? "strftime('%Y-%m', {$column})"
+            : "DATE_FORMAT({$column}, '%Y-%m')";
     }
 }

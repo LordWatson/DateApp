@@ -14,19 +14,18 @@ interface Props {
 const props = defineProps<Props>();
 
 const cards = [
-    { emoji: '❤️', title: 'Relationship Overview', description: 'Your love story at a glance', href: route('insights.index'), colour: 'from-pink-500 to-rose-500' },
-    { emoji: '🔥', title: 'Current Streak', description: `${props.stats.current_streak} days`, href: route('dashboard'), colour: 'from-orange-400 to-red-500' },
-    { emoji: '🏆', title: 'Longest Streak', description: `${props.stats.longest_streak} days`, href: route('dashboard'), colour: 'from-yellow-400 to-orange-500' },
-    { emoji: '💕', title: 'Compatibility Average', description: `${props.stats.average_compatibility}%`, href: route('insights.index'), colour: 'from-pink-400 to-purple-500' },
-    { emoji: '📅', title: 'Upcoming Events', description: `${props.upcoming_events.length} upcoming`, href: route('calendar.index'), colour: 'from-blue-400 to-indigo-500' },
-    { emoji: '📖', title: 'Recent Moments', description: `${props.recent_moments.length} captured`, href: route('moments.index'), colour: 'from-emerald-400 to-teal-500' },
-    { emoji: '🎯', title: 'Achievement Progress', description: `${props.achievement_progress.unlocked}/${props.achievement_progress.total} unlocked`, href: route('achievements.index'), colour: 'from-violet-400 to-purple-600' },
-    { emoji: '🎁', title: 'Seasonal Events', description: 'Special questionnaires', href: route('questionnaires.index'), colour: 'from-pink-300 to-rose-400' },
+    { emoji: '❤️', title: 'Relationship Overview', description: 'Your love story at a glance', href: '/insights', colour: 'from-pink-500 to-rose-500' },
+    { emoji: '🔥', title: 'Current Streak', description: `${props.stats.current_streak} days`, href: '/dashboard', colour: 'from-orange-400 to-red-500' },
+    { emoji: '🏆', title: 'Longest Streak', description: `${props.stats.longest_streak} days`, href: '/dashboard', colour: 'from-yellow-400 to-orange-500' },
+    { emoji: '💕', title: 'Compatibility Average', description: `${props.stats.average_compatibility}%`, href: '/insights', colour: 'from-pink-400 to-purple-500' },
+    { emoji: '📅', title: 'Upcoming Events', description: `${props.upcoming_events.length} upcoming`, href: '/calendar', colour: 'from-blue-400 to-indigo-500' },
+    { emoji: '📖', title: 'Recent Moments', description: `${props.recent_moments.length} captured`, href: '/moments', colour: 'from-emerald-400 to-teal-500' },
+    { emoji: '🎯', title: 'Achievement Progress', description: `${props.achievement_progress.unlocked}/${props.achievement_progress.total} unlocked`, href: '/achievements', colour: 'from-violet-400 to-purple-600' },
+    { emoji: '🎁', title: 'Seasonal Events', description: 'Special questionnaires', href: '/questionnaires', colour: 'from-pink-300 to-rose-400' },
 ];
 </script>
 
 <template>
-    <AppLayout>
         <Head title="Relationship Hub" />
 
         <div class="min-h-screen bg-[#FFF7FB] px-4 py-8">
@@ -105,7 +104,7 @@ const cards = [
                 <div class="mt-8 rounded-3xl bg-white p-6 shadow-xl">
                     <div class="mb-4 flex items-center justify-between">
                         <h2 class="text-lg font-semibold text-gray-900">🎯 Achievement Progress</h2>
-                        <Link :href="route('achievements.index')" class="text-sm font-semibold text-pink-500">View all</Link>
+                        <Link href="/achievements" class="text-sm font-semibold text-pink-500">View all</Link>
                     </div>
                     <div class="mb-2 flex justify-between text-sm text-gray-600">
                         <span>{{ achievement_progress.unlocked }} / {{ achievement_progress.total }} unlocked</span>
@@ -127,7 +126,7 @@ const cards = [
                         <Link
                             v-for="q in seasonal_questionnaires"
                             :key="q.id"
-                            :href="route('questionnaires.show', { questionnaire: q.slug })"
+                            :href="`/questionnaires/${q.slug}`"
                             class="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-md transition-all hover:scale-[1.02] hover:shadow-lg"
                         >
                             <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-50 text-xl">
@@ -143,5 +142,4 @@ const cards = [
                 </div>
             </div>
         </div>
-    </AppLayout>
 </template>

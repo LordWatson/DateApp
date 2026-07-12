@@ -56,7 +56,6 @@ function categoryLabel(cat: string): string {
 </script>
 
 <template>
-    <AppLayout>
         <Head title="Achievements" />
 
         <div class="min-h-screen bg-[#FFF7FB] px-4 py-8">
@@ -154,5 +153,4 @@ function categoryLabel(cat: string): string {
                 </div>
             </div>
         </div>
-    </AppLayout>
 </template>

@@ -33,7 +33,6 @@ const statCards = (insights: Insights) => [
 </script>
 
 <template>
-    <AppLayout>
         <Head title="Relationship Insights" />
 
         <div class="min-h-screen bg-[#FFF7FB] px-4 py-8">
@@ -131,5 +130,4 @@ const statCards = (insights: Insights) => [
                 </div>
             </div>
         </div>
-    </AppLayout>
 </template>

@@ -2,7 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
-import AppLayout from '@/layouts/AppLayout.vue';
+import { store, update, destroy } from '@/routes/calendar';
 
 interface CalendarEvent {
     id: number;
@@ -84,13 +84,13 @@ function openEdit(event: CalendarEvent) {
 
 function submit() {
     if (editingEvent.value) {
-        form.put(route('calendar.update', editingEvent.value.id), {
+        form.put(update.url({ calendarEvent: editingEvent.value.id }), {
             onSuccess: () => {
  showForm.value = false; form.reset();
 },
         });
     } else {
-        form.post(route('calendar.store'), {
+        form.post(store.url(), {
             onSuccess: () => {
  showForm.value = false; form.reset();
 },
@@ -100,7 +100,7 @@ function submit() {
 
 function deleteEvent(event: CalendarEvent) {
     if (confirm('Delete this event?')) {
-        router.delete(route('calendar.destroy', event.id));
+        router.delete(destroy.url({ calendarEvent: event.id }));
     }
 }
 
@@ -123,7 +123,6 @@ const reminderOptions = [
 </script>
 
 <template>
-    <AppLayout>
         <Head title="Shared Calendar" />
 
         <div class="min-h-screen bg-[#FFF7FB] px-4 py-8">
@@ -324,5 +323,4 @@ const reminderOptions = [
                 </div>
             </div>
         </Teleport>
-    </AppLayout>
 </template>
