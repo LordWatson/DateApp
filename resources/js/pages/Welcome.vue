@@ -3,7 +3,6 @@ import { Head, Link } from '@inertiajs/vue3';
 import AnimatedBackground from '@/components/AnimatedBackground.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
-import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import { login, register } from '@/routes';
 

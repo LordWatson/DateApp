@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MomentCreated;
 use App\Http\Requests\Moment\StoreMomentRequest;
 use App\Models\Moment;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +38,9 @@ class MomentController extends Controller
             $data['photo'] = $request->file('photo')->store('moments', 'public');
         }
 
-        $request->user()->moments()->create($data);
+        $moment = $request->user()->moments()->create($data);
+
+        MomentCreated::dispatch($request->user(), $moment);
 
         return redirect()->route('moments.index')->with('success', 'Moment captured!');
     }

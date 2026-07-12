@@ -2,11 +2,9 @@
 
 namespace App\Services;
 
-use App\Actions\GenerateDateNightPlanAction;
-use App\Actions\UpdateStreakAction;
 use App\Enums\CompletionStatus;
+use App\Events\QuestionnaireCompleted;
 use App\Models\Answer;
-use App\Models\DateNightPlan;
 use App\Models\Question;
 use App\Models\Questionnaire;
 use App\Models\Response;
@@ -122,40 +120,8 @@ class QuestionnaireService
         ]);
 
         $response->loadMissing(['user', 'questionnaire']);
-        $user = $response->user;
-        $questionnaire = $response->questionnaire;
 
-        app(UpdateStreakAction::class)->execute($user);
-
-        $partner = $user->partner;
-
-        if (! $partner) {
-            return;
-        }
-
-        app(NotificationService::class)->notifyPartnerCompleted($partner, $user, $questionnaire->title);
-
-        $partnerResponse = Response::where('user_id', $partner->id)
-            ->where('questionnaire_id', $questionnaire->id)
-            ->where('status', CompletionStatus::Completed)
-            ->first();
-
-        if (! $partnerResponse) {
-            return;
-        }
-
-        $existingPlan = DateNightPlan::where('questionnaire_id', $questionnaire->id)
-            ->where(function ($q) use ($response) {
-                $q->where('partner_one_response_id', $response->id)
-                    ->orWhere('partner_two_response_id', $response->id);
-            })
-            ->exists();
-
-        if ($existingPlan) {
-            return;
-        }
-
-        app(GenerateDateNightPlanAction::class)->execute($user, $partner, $questionnaire);
+        QuestionnaireCompleted::dispatch($response->user, $response->questionnaire, $response);
     }
 
     public function getAnsweredQuestionIds(Response $response): array

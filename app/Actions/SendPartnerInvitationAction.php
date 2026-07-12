@@ -2,11 +2,10 @@
 
 namespace App\Actions;
 
-use App\Mail\PartnerInvitationMail;
+use App\Events\PartnerInvitationCreated;
 use App\Models\PartnerInvitation;
 use App\Models\User;
 use App\Services\PartnerInvitationService;
-use Illuminate\Support\Facades\Mail;
 
 class SendPartnerInvitationAction
 {
@@ -18,7 +17,7 @@ class SendPartnerInvitationAction
     {
         $invitation = $this->service->createInvitation($sender, $email);
 
-        Mail::to($email)->queue(new PartnerInvitationMail($invitation));
+        PartnerInvitationCreated::dispatch($invitation);
 
         return $invitation;
     }

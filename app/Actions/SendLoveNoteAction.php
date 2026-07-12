@@ -2,16 +2,12 @@
 
 namespace App\Actions;
 
+use App\Events\LoveNoteSent;
 use App\Models\LoveNote;
 use App\Models\User;
-use App\Services\NotificationService;
 
 class SendLoveNoteAction
 {
-    public function __construct(
-        private readonly NotificationService $notificationService,
-    ) {}
-
     public function execute(User $sender, User $recipient, string $message): LoveNote
     {
         $note = LoveNote::create([
@@ -20,7 +16,7 @@ class SendLoveNoteAction
             'message' => $message,
         ]);
 
-        $this->notificationService->notifyLoveNoteReceived($recipient, $note);
+        LoveNoteSent::dispatch($sender, $recipient, $note);
 
         return $note;
     }

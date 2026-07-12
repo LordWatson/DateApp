@@ -5,6 +5,7 @@ use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DateNightPlanController;
 use App\Http\Controllers\DateNightPlanPdfController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InsightsController;
 use App\Http\Controllers\LoveNoteController;
 use App\Http\Controllers\MomentController;
@@ -124,5 +125,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('search', [SearchController::class, 'index'])->name('search.index');
     });
 });
+
+Route::get('/health', HealthController::class)->name('health');
 
 require __DIR__.'/settings.php';

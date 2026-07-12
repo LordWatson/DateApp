@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Actions\SendPartnerInvitationAction;
+use App\Events\PartnerDisconnected;
 use App\Http\Requests\Onboarding\SendInvitationRequest;
-use App\Mail\PartnerInvitationMail;
+use App\Jobs\SendInvitationEmailJob;
 use App\Services\PartnerInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,7 +49,7 @@ class PartnerController extends Controller
         $invitation = $request->user()->pendingInvitation();
 
         if ($invitation) {
-            Mail::to($invitation->email)->queue(new PartnerInvitationMail($invitation));
+            SendInvitationEmailJob::dispatch($invitation);
         }
 
         return back()->with('success', 'Invitation resent!');
@@ -57,7 +57,14 @@ class PartnerController extends Controller
 
     public function disconnect(Request $request): RedirectResponse
     {
-        $this->invitationService->disconnectPartner($request->user());
+        $user = $request->user();
+        $partner = $user->partner;
+
+        $this->invitationService->disconnectPartner($user);
+
+        if ($partner) {
+            PartnerDisconnected::dispatch($user->fresh(), $partner->fresh());
+        }
 
         return redirect()->route('partner.index')->with('success', 'Partner disconnected.');
     }

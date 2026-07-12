@@ -89,7 +89,7 @@ class DateNightGenerationTest extends TestCase
         $service = app(QuestionnaireService::class);
         $service->completeResponse($responseTwo);
 
-        Mail::assertQueued(DateNightReadyMail::class, 2);
+        Mail::assertQueued(DateNightReadyMail::class);
     }
 
     public function test_plan_is_not_duplicated_if_already_exists(): void

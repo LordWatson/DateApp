@@ -2,11 +2,11 @@
 
 namespace App\Actions;
 
-use App\Mail\PartnerConnectedMail;
+use App\Events\PartnerConnected;
+use App\Events\PartnerInvitationAccepted;
 use App\Models\PartnerInvitation;
 use App\Models\User;
 use App\Services\PartnerInvitationService;
-use Illuminate\Support\Facades\Mail;
 
 class AcceptPartnerInvitationAction
 {
@@ -21,7 +21,7 @@ class AcceptPartnerInvitationAction
         $sender = $invitation->sender->fresh();
         $recipient = $recipient->fresh();
 
-        Mail::to($sender->email)->queue(new PartnerConnectedMail($sender, $recipient));
-        Mail::to($recipient->email)->queue(new PartnerConnectedMail($recipient, $sender));
+        PartnerInvitationAccepted::dispatch($invitation, $recipient);
+        PartnerConnected::dispatch($sender, $recipient);
     }
 }

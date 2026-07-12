@@ -2,22 +2,19 @@
 
 namespace App\Actions;
 
-use App\Mail\DateNightReadyMail;
+use App\Events\DateNightPlanGenerated;
 use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
 use App\Models\Response;
 use App\Models\User;
 use App\Services\CompatibilityService;
 use App\Services\DateNightGeneratorService;
-use App\Services\NotificationService;
-use Illuminate\Support\Facades\Mail;
 
 class GenerateDateNightPlanAction
 {
     public function __construct(
         private readonly CompatibilityService $compatibilityService,
         private readonly DateNightGeneratorService $generatorService,
-        private readonly NotificationService $notificationService,
     ) {}
 
     public function execute(
@@ -44,11 +41,7 @@ class GenerateDateNightPlanAction
             $questionnaire,
         );
 
-        $this->notificationService->notifyDateNightPlanReady($userOne, $plan);
-        $this->notificationService->notifyDateNightPlanReady($userTwo, $plan);
-
-        Mail::to($userOne->email)->queue(new DateNightReadyMail($userOne, $plan));
-        Mail::to($userTwo->email)->queue(new DateNightReadyMail($userTwo, $plan));
+        DateNightPlanGenerated::dispatch($userOne, $userTwo, $plan);
 
         return $plan;
     }
