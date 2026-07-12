@@ -13,11 +13,11 @@ class SystemSettingSeeder extends Seeder
             // General
             ['key' => 'app_name', 'label' => 'Application Name', 'description' => 'The name of the application.', 'value' => 'Date Night', 'type' => 'string', 'group' => 'general'],
             ['key' => 'app_tagline', 'label' => 'Tagline', 'description' => 'Short tagline shown on the welcome page.', 'value' => 'Your perfect evening, planned together.', 'type' => 'string', 'group' => 'general'],
-            ['key' => 'support_email', 'label' => 'Support Email', 'description' => 'Email address for support enquiries.', 'value' => 'support@datenightapp.com', 'type' => 'string', 'group' => 'general'],
+            ['key' => 'support_email', 'label' => 'Support Email', 'description' => 'Email address for support enquiries.', 'value' => 'support@datenight.com', 'type' => 'string', 'group' => 'general'],
 
             // Emails
             ['key' => 'mail_from_name', 'label' => 'Mail From Name', 'description' => 'The sender name for outgoing emails.', 'value' => 'Date Night', 'type' => 'string', 'group' => 'email'],
-            ['key' => 'mail_from_address', 'label' => 'Mail From Address', 'description' => 'The sender email address for outgoing emails.', 'value' => 'hello@datenightapp.com', 'type' => 'string', 'group' => 'email'],
+            ['key' => 'mail_from_address', 'label' => 'Mail From Address', 'description' => 'The sender email address for outgoing emails.', 'value' => 'hello@datenight.com', 'type' => 'string', 'group' => 'email'],
 
             // Invitations
             ['key' => 'invitation_expiry_days', 'label' => 'Invitation Expiry (Days)', 'description' => 'Number of days before a partner invitation expires.', 'value' => '7', 'type' => 'integer', 'group' => 'invitations'],
