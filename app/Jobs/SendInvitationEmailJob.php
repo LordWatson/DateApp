@@ -36,6 +36,8 @@ final class SendInvitationEmailJob implements ShouldQueue
             return;
         }
 
+        $this->invitation->loadMissing('sender');
+
         Mail::to($this->invitation->email)->send(new PartnerInvitationMail($this->invitation));
     }
 

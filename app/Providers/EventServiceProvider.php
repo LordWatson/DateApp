@@ -12,7 +12,6 @@ use App\Events\MomentCreated;
 use App\Events\PartnerConnected;
 use App\Events\PartnerDisconnected;
 use App\Events\PartnerInvitationAccepted;
-use App\Events\PartnerInvitationCreated;
 use App\Events\ProfileCompleted;
 use App\Events\QuestionAnswered;
 use App\Events\QuestionnaireCompleted;
@@ -36,7 +35,6 @@ use App\Listeners\NotifyPartnerOnQuestionnaireCompleted;
 use App\Listeners\NotifyPlanReadyOnDateNightPlanGenerated;
 use App\Listeners\RefreshDashboardOnPartnerConnected;
 use App\Listeners\RefreshDashboardOnQuestionnaireCompleted;
-use App\Listeners\SendInvitationEmailOnPartnerInvitationCreated;
 use App\Listeners\SendLoveNoteNotificationOnLoveNoteSent;
 use App\Listeners\SendPartnerConnectedEmailsOnPartnerConnected;
 use App\Listeners\SendPlanEmailsOnDateNightPlanGenerated;
@@ -49,10 +47,6 @@ class EventServiceProvider extends ServiceProvider
         UserRegistered::class => [],
 
         ProfileCompleted::class => [],
-
-        PartnerInvitationCreated::class => [
-            SendInvitationEmailOnPartnerInvitationCreated::class,
-        ],
 
         PartnerInvitationAccepted::class => [],
 

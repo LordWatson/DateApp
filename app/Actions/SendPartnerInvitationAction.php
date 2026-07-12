@@ -2,7 +2,7 @@
 
 namespace App\Actions;
 
-use App\Events\PartnerInvitationCreated;
+use App\Jobs\SendInvitationEmailJob;
 use App\Models\PartnerInvitation;
 use App\Models\User;
 use App\Services\PartnerInvitationService;
@@ -17,7 +17,7 @@ class SendPartnerInvitationAction
     {
         $invitation = $this->service->createInvitation($sender, $email);
 
-        PartnerInvitationCreated::dispatch($invitation);
+        SendInvitationEmailJob::dispatch($invitation);
 
         return $invitation;
     }
