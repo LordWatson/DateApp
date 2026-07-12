@@ -53,9 +53,11 @@ class OnboardingController extends Controller
             return Inertia::render('onboarding/InvalidInvite');
         }
 
-        // If not logged in, redirect to register with token
+        // If not logged in, store token in session and redirect to register
         if (! $request->user()) {
-            return redirect()->route('register', ['invitation_token' => $token]);
+            $request->session()->put('invitation_token', $token);
+
+            return redirect()->route('register');
         }
 
         // If already has a partner, redirect to dashboard

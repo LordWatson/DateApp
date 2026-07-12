@@ -186,6 +186,7 @@ class PartnerInvitationTest extends TestCase
 
         $response = $this->get(route('onboarding.accept-invite', ['token' => $invitation->token]));
 
-        $response->assertRedirect(route('register', ['invitation_token' => $invitation->token]));
+        $response->assertRedirect(route('register'));
+        $response->assertSessionHas('invitation_token', $invitation->token);
     }
 }
