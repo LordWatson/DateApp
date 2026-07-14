@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import PartnerController from '@/actions/App/Http/Controllers/PartnerController';
 import ChallengeCard from '@/components/ChallengeCard.vue';
@@ -61,12 +61,12 @@ const greeting = computed(() => {
     const hour = new Date().getHours();
 
     if (hour < 12) {
-return 'Good morning';
-}
+        return 'Good morning';
+    }
 
     if (hour < 17) {
-return 'Good afternoon';
-}
+        return 'Good afternoon';
+    }
 
     return 'Good evening';
 });
@@ -79,12 +79,12 @@ const firstName = computed(() => {
 
 const partnerStatus = computed(() => {
     if (props.partner) {
-return 'connected';
-}
+        return 'connected';
+    }
 
     if (props.pendingInvitation) {
-return 'pending';
-}
+        return 'pending';
+    }
 
     return 'none';
 });
@@ -99,14 +99,22 @@ function invitePartner(): void {
 
     <div class="space-y-4 px-4 py-6 pb-24">
         <!-- Hero Card -->
-        <div class="card-premium overflow-hidden p-6 text-white gradient-primary">
+        <div
+            class="overflow-hidden card-premium p-6 text-white gradient-primary"
+        >
             <div class="flex items-start justify-between">
                 <div class="space-y-1">
-                    <p class="text-sm font-medium text-white/80">{{ greeting }},</p>
+                    <p class="text-sm font-medium text-white/80">
+                        {{ greeting }},
+                    </p>
                     <h1 class="text-2xl font-semibold">{{ firstName }} ❤️</h1>
-                    <p class="mt-1 text-sm text-white/70">Ready to plan tonight?</p>
+                    <p class="mt-1 text-sm text-white/70">
+                        Ready to plan tonight?
+                    </p>
                 </div>
-                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-3xl">
+                <div
+                    class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-3xl"
+                >
                     {{ user.avatar || '💕' }}
                 </div>
             </div>
@@ -136,18 +144,12 @@ function invitePartner(): void {
                 description="days"
             />
             <StatCard
-                label="This month"
+                :label="new Date().toLocaleString('default', { month: 'short' })"
                 :value="String(stats.monthly_completions)"
                 emoji="📅"
                 description="done"
             />
         </div>
-
-        <!-- Compatibility Card -->
-        <CompatibilityCard
-            :score="null"
-            :partner-name="partner?.display_name ?? partner?.name ?? 'your partner'"
-        />
 
         <!-- Partner Status Card -->
         <div class="card-premium p-6">
@@ -157,23 +159,36 @@ function invitePartner(): void {
             </div>
 
             <!-- Connected -->
-            <div v-if="partnerStatus === 'connected'" class="flex items-center gap-4">
-                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
+            <div
+                v-if="partnerStatus === 'connected'"
+                class="flex items-center gap-4"
+            >
+                <div
+                    class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl"
+                >
                     {{ partner?.avatar || '💕' }}
                 </div>
                 <div class="flex-1">
-                    <p class="font-semibold text-foreground">{{ partner?.display_name ?? partner?.name }}</p>
+                    <p class="font-semibold text-foreground">
+                        {{ partner?.display_name ?? partner?.name }}
+                    </p>
                     <p class="text-sm text-success">● Connected</p>
                 </div>
             </div>
 
             <!-- Pending Invitation -->
             <div v-else-if="partnerStatus === 'pending'" class="space-y-3">
-                <div class="flex items-center gap-3 rounded-2xl bg-warning/10 p-3">
+                <div
+                    class="flex items-center gap-3 rounded-2xl bg-warning/10 p-3"
+                >
                     <span class="text-xl">⏳</span>
                     <div>
-                        <p class="text-sm font-semibold text-foreground">Invitation pending</p>
-                        <p class="text-xs text-muted-foreground">Sent to {{ pendingInvitation?.email }}</p>
+                        <p class="text-sm font-semibold text-foreground">
+                            Invitation pending
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            Sent to {{ pendingInvitation?.email }}
+                        </p>
                     </div>
                 </div>
                 <PrimaryButton full-width @click="invitePartner">
@@ -192,6 +207,14 @@ function invitePartner(): void {
                 />
             </div>
         </div>
+
+        <!-- Compatibility Card -->
+        <CompatibilityCard
+            :score="null"
+            :partner-name="
+                partner?.display_name ?? partner?.name ?? 'your partner'
+            "
+        />
 
         <!-- Today's Challenge -->
         <div v-if="todayChallenge">
@@ -213,8 +236,12 @@ function invitePartner(): void {
         <!-- Saved Profiles -->
         <div class="card-premium p-6">
             <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-foreground">Saved Profiles</h3>
-                <button class="text-sm font-medium text-primary hover:underline focus:outline-none">
+                <h3 class="text-lg font-semibold text-foreground">
+                    Saved Profiles
+                </h3>
+                <button
+                    class="text-sm font-medium text-primary hover:underline focus:outline-none"
+                >
                     Add new
                 </button>
             </div>
@@ -227,7 +254,9 @@ function invitePartner(): void {
                     :style="{ borderLeft: `4px solid ${profile.colour}` }"
                 >
                     <span class="text-2xl">{{ profile.emoji }}</span>
-                    <span class="font-medium text-foreground">{{ profile.name }}</span>
+                    <span class="font-medium text-foreground">{{
+                        profile.name
+                    }}</span>
                 </div>
             </div>
 
@@ -239,10 +268,40 @@ function invitePartner(): void {
             />
         </div>
 
+        <!-- Love Notes -->
+        <Link
+            href="/love-notes"
+            class="group relative block card-hover overflow-hidden card-premium p-6"
+        >
+            <div
+                class="absolute inset-0 bg-gradient-to-br from-pink-500 to-purple-500 opacity-5 transition-opacity group-hover:opacity-10"
+                aria-hidden="true"
+            />
+            <div class="relative flex items-center gap-4">
+                <div
+                    class="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-3xl"
+                    aria-hidden="true"
+                >
+                    💌
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-foreground">
+                        Love Notes
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                        Send a sweet message to your partner
+                    </p>
+                </div>
+                <span class="text-muted-foreground" aria-hidden="true">›</span>
+            </div>
+        </Link>
+
         <!-- Recent Questionnaire -->
         <div class="card-premium p-6">
             <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-foreground">Recent Questionnaire</h3>
+                <h3 class="text-lg font-semibold text-foreground">
+                    Recent Questionnaire
+                </h3>
                 <span class="text-2xl" aria-hidden="true">📋</span>
             </div>
             <EmptyState

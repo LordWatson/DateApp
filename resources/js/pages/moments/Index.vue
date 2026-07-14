@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { route } from 'ziggy-js';
 import EmptyState from '@/components/EmptyState.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { store, update, show } from '@/routes/moments';
 
 defineOptions({ layout: MobileLayout });
 
@@ -36,7 +38,18 @@ const showForm = ref(false);
 const editingMoment = ref<Moment | null>(null);
 const tagInput = ref('');
 
-const moodOptions = ['😍', '😊', '🥰', '😂', '😌', '🔥', '💕', '✨', '🌟', '💫'];
+const moodOptions = [
+    '😍',
+    '😊',
+    '🥰',
+    '😂',
+    '😌',
+    '🔥',
+    '💕',
+    '✨',
+    '🌟',
+    '💫',
+];
 
 const form = useForm({
     title: '',
@@ -85,13 +98,13 @@ function removeTag(tag: string): void {
 
 function submit(): void {
     if (editingMoment.value) {
-        form.put(route('moments.update', editingMoment.value.id), {
+        form.put(update(editingMoment.value.id).url, {
             onSuccess: () => {
                 showForm.value = false;
             },
         });
     } else {
-        form.post(route('moments.store'), {
+        form.post(store().url, {
             onSuccess: () => {
                 showForm.value = false;
                 form.reset();
@@ -124,10 +137,16 @@ function formatDate(dateStr: string): string {
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-semibold text-foreground">📖 Moments</h1>
-                <p class="text-sm text-muted-foreground">Your beautiful memories together</p>
+                <h1 class="text-2xl font-semibold text-foreground">
+                    📖 Moments
+                </h1>
+                <p class="text-sm text-muted-foreground">
+                    Your beautiful memories together
+                </p>
             </div>
-            <PrimaryButton size="sm" @click="openCreate">+ Capture</PrimaryButton>
+            <PrimaryButton size="sm" @click="openCreate"
+                >+ Capture</PrimaryButton
+            >
         </div>
 
         <!-- Moments List -->
@@ -135,25 +154,51 @@ function formatDate(dateStr: string): string {
             <div
                 v-for="moment in moments"
                 :key="moment.id"
-                class="card-premium group overflow-hidden"
+                class="group cursor-pointer overflow-hidden card-premium transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                role="button"
+                :aria-label="`View ${moment.title}`"
+                tabindex="0"
+                @click="router.visit(show(moment.id).url)"
+                @keydown.enter="router.visit(show(moment.id).url)"
             >
                 <!-- Photo -->
                 <div v-if="moment.photo" class="h-48 overflow-hidden">
-                    <img :src="moment.photo" :alt="moment.title" class="h-full w-full object-cover" />
+                    <img
+                        :src="moment.photo"
+                        :alt="moment.title"
+                        class="h-full w-full object-cover"
+                    />
                 </div>
 
                 <div class="p-5">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1">
                             <div class="flex items-center gap-2">
-                                <span v-if="moment.mood" class="text-xl" aria-hidden="true">{{ moment.mood }}</span>
-                                <h3 class="font-semibold text-foreground">{{ moment.title }}</h3>
+                                <span
+                                    v-if="moment.mood"
+                                    class="text-xl"
+                                    aria-hidden="true"
+                                    >{{ moment.mood }}</span
+                                >
+                                <h3 class="font-semibold text-foreground">
+                                    {{ moment.title }}
+                                </h3>
                             </div>
-                            <p class="mt-0.5 text-sm text-muted-foreground">{{ formatDate(moment.date) }}</p>
-                            <p v-if="moment.description" class="mt-2 text-sm text-foreground/80">{{ moment.description }}</p>
+                            <p class="mt-0.5 text-sm text-muted-foreground">
+                                {{ formatDate(moment.date) }}
+                            </p>
+                            <p
+                                v-if="moment.description"
+                                class="mt-2 text-sm text-foreground/80"
+                            >
+                                {{ moment.description }}
+                            </p>
 
                             <!-- Tags -->
-                            <div v-if="moment.tags.length > 0" class="mt-3 flex flex-wrap gap-1">
+                            <div
+                                v-if="moment.tags.length > 0"
+                                class="mt-3 flex flex-wrap gap-1"
+                            >
                                 <span
                                     v-for="tag in moment.tags"
                                     :key="tag"
@@ -164,16 +209,27 @@ function formatDate(dateStr: string): string {
                             </div>
 
                             <!-- Linked Plan -->
-                            <p v-if="moment.date_night_plan" class="mt-2 text-xs text-muted-foreground">
+                            <p
+                                v-if="moment.date_night_plan"
+                                class="mt-2 text-xs text-muted-foreground"
+                            >
                                 🌙 {{ moment.date_night_plan.theme }}
                             </p>
                         </div>
 
                         <button
                             class="shrink-0 text-xl transition-transform hover:scale-125 focus:outline-none"
-                            :class="moment.is_favourite ? 'text-warning' : 'text-muted-foreground/40'"
-                            :aria-label="moment.is_favourite ? 'Remove from favourites' : 'Add to favourites'"
-                            @click="toggleFavourite(moment)"
+                            :class="
+                                moment.is_favourite
+                                    ? 'text-warning'
+                                    : 'text-muted-foreground/40'
+                            "
+                            :aria-label="
+                                moment.is_favourite
+                                    ? 'Remove from favourites'
+                                    : 'Add to favourites'
+                            "
+                            @click.stop="toggleFavourite(moment)"
                         >
                             ⭐
                         </button>
@@ -183,13 +239,13 @@ function formatDate(dateStr: string): string {
                     <div class="mt-4 flex gap-3 border-t border-border pt-3">
                         <button
                             class="text-sm font-semibold text-primary transition-opacity hover:opacity-70"
-                            @click="openEdit(moment)"
+                            @click.stop="openEdit(moment)"
                         >
                             Edit
                         </button>
                         <button
                             class="text-sm font-semibold text-destructive transition-opacity hover:opacity-70"
-                            @click="deleteMoment(moment)"
+                            @click.stop="deleteMoment(moment)"
                         >
                             Delete
                         </button>
@@ -220,11 +276,17 @@ function formatDate(dateStr: string): string {
                 aria-label="Capture a moment"
                 @click.self="showForm = false"
             >
-                <div class="w-full max-w-lg overflow-hidden rounded-3xl bg-card shadow-2xl">
+                <div
+                    class="w-full max-w-lg overflow-hidden rounded-3xl bg-card shadow-2xl"
+                >
                     <div class="max-h-[85vh] overflow-y-auto p-6">
                         <div class="mb-6 flex items-center justify-between">
                             <h2 class="text-xl font-semibold text-foreground">
-                                {{ editingMoment ? 'Edit Moment' : 'Capture a Moment' }}
+                                {{
+                                    editingMoment
+                                        ? 'Edit Moment'
+                                        : 'Capture a Moment'
+                                }}
                             </h2>
                             <button
                                 class="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none"
@@ -237,28 +299,42 @@ function formatDate(dateStr: string): string {
 
                         <form class="space-y-4" @submit.prevent="submit">
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="moment-title">Title *</label>
+                                <label
+                                    class="mb-1 block text-sm font-semibold text-foreground"
+                                    for="moment-title"
+                                    >Title *</label
+                                >
                                 <input
                                     id="moment-title"
                                     v-model="form.title"
                                     type="text"
-                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                                     placeholder="What happened?"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-foreground">Mood</label>
+                                <label
+                                    class="mb-2 block text-sm font-semibold text-foreground"
+                                    >Mood</label
+                                >
                                 <div class="flex flex-wrap gap-2">
                                     <button
                                         v-for="mood in moodOptions"
                                         :key="mood"
                                         type="button"
                                         class="rounded-xl p-2 text-2xl transition-all hover:scale-110 focus:outline-none"
-                                        :class="form.mood === mood ? 'bg-primary/10 ring-2 ring-primary' : 'bg-muted'"
+                                        :class="
+                                            form.mood === mood
+                                                ? 'bg-primary/10 ring-2 ring-primary'
+                                                : 'bg-muted'
+                                        "
                                         :aria-pressed="form.mood === mood"
-                                        @click="form.mood = form.mood === mood ? '' : mood"
+                                        @click="
+                                            form.mood =
+                                                form.mood === mood ? '' : mood
+                                        "
                                     >
                                         {{ mood }}
                                     </button>
@@ -266,34 +342,45 @@ function formatDate(dateStr: string): string {
                             </div>
 
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="moment-date">Date *</label>
+                                <label
+                                    class="mb-1 block text-sm font-semibold text-foreground"
+                                    for="moment-date"
+                                    >Date *</label
+                                >
                                 <input
                                     id="moment-date"
                                     v-model="form.date"
                                     type="date"
-                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="moment-description">Description</label>
+                                <label
+                                    class="mb-1 block text-sm font-semibold text-foreground"
+                                    for="moment-description"
+                                    >Description</label
+                                >
                                 <textarea
                                     id="moment-description"
                                     v-model="form.description"
                                     rows="3"
-                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                                     placeholder="Tell the story..."
                                 />
                             </div>
 
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground">Tags</label>
+                                <label
+                                    class="mb-1 block text-sm font-semibold text-foreground"
+                                    >Tags</label
+                                >
                                 <div class="flex gap-2">
                                     <input
                                         v-model="tagInput"
                                         type="text"
-                                        class="flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        class="flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                                         placeholder="Add a tag..."
                                         @keydown.enter.prevent="addTag"
                                     />
@@ -305,7 +392,10 @@ function formatDate(dateStr: string): string {
                                         Add
                                     </button>
                                 </div>
-                                <div v-if="form.tags.length > 0" class="mt-2 flex flex-wrap gap-1">
+                                <div
+                                    v-if="form.tags.length > 0"
+                                    class="mt-2 flex flex-wrap gap-1"
+                                >
                                     <span
                                         v-for="tag in form.tags"
                                         :key="tag"
@@ -325,12 +415,16 @@ function formatDate(dateStr: string): string {
                             </div>
 
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="moment-notes">Private Notes</label>
+                                <label
+                                    class="mb-1 block text-sm font-semibold text-foreground"
+                                    for="moment-notes"
+                                    >Private Notes</label
+                                >
                                 <textarea
                                     id="moment-notes"
                                     v-model="form.private_notes"
                                     rows="2"
-                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                                     placeholder="Just for you..."
                                 />
                             </div>
@@ -342,7 +436,11 @@ function formatDate(dateStr: string): string {
                                     type="checkbox"
                                     class="h-5 w-5 rounded accent-primary"
                                 />
-                                <label for="favourite" class="text-sm font-semibold text-foreground">Mark as favourite ⭐</label>
+                                <label
+                                    for="favourite"
+                                    class="text-sm font-semibold text-foreground"
+                                    >Mark as favourite ⭐</label
+                                >
                             </div>
 
                             <div class="flex gap-3 pt-2">
@@ -354,8 +452,16 @@ function formatDate(dateStr: string): string {
                                 >
                                     Cancel
                                 </SecondaryButton>
-                                <PrimaryButton type="submit" full-width :loading="form.processing">
-                                    {{ editingMoment ? 'Save Changes' : 'Capture Moment' }}
+                                <PrimaryButton
+                                    type="submit"
+                                    full-width
+                                    :loading="form.processing"
+                                >
+                                    {{
+                                        editingMoment
+                                            ? 'Save Changes'
+                                            : 'Capture Moment'
+                                    }}
                                 </PrimaryButton>
                             </div>
                         </form>

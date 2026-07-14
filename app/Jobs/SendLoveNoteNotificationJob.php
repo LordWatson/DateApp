@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\NotificationType;
+use App\Mail\LoveNoteReceivedMail;
 use App\Models\AppNotification;
 use App\Models\LoveNote;
 use App\Models\User;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 final class SendLoveNoteNotificationJob implements ShouldQueue
 {
@@ -30,13 +32,18 @@ final class SendLoveNoteNotificationJob implements ShouldQueue
 
     public function handle(): void
     {
+        $sender = $this->loveNote->sender;
+
         AppNotification::create([
             'user_id' => $this->recipient->id,
             'type' => NotificationType::LoveNoteReceived,
             'title' => '💌 You received a love note!',
-            'body' => $this->loveNote->message,
+            'body' => ($sender->display_name ?? $sender->name).' sent you a love note. Tap to read it.',
             'data' => ['love_note_id' => $this->loveNote->id],
         ]);
+
+        Mail::to($this->recipient->email)
+            ->queue(new LoveNoteReceivedMail($this->recipient, $sender));
     }
 
     public function failed(\Throwable $e): void

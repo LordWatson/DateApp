@@ -15,18 +15,34 @@ class MomentController extends Controller
 {
     public function index(Request $request): Response
     {
-        $moments = $request->user()->moments()
+        $user = $request->user();
+        $partnerIds = array_filter([$user->partner_id]);
+        $ownerIds = array_merge([$user->id], $partnerIds);
+
+        $moments = Moment::query()
+            ->whereIn('user_id', $ownerIds)
             ->with('dateNightPlan')
             ->orderByDesc('date')
             ->paginate(12);
 
         return Inertia::render('moments/Index', [
-            'moments' => $moments->through(fn ($m) => $this->formatMoment($m)),
+            'moments' => $moments->through(fn ($m) => $this->formatMoment($m, $user->id))->items(),
             'pagination' => [
                 'current_page' => $moments->currentPage(),
                 'last_page' => $moments->lastPage(),
                 'total' => $moments->total(),
             ],
+        ]);
+    }
+
+    public function show(Request $request, Moment $moment): Response
+    {
+        $this->authorize('view', $moment);
+
+        $moment->load('dateNightPlan');
+
+        return Inertia::render('moments/Show', [
+            'moment' => $this->formatMoment($moment, $request->user()->id),
         ]);
     }
 
@@ -84,8 +100,10 @@ class MomentController extends Controller
         return back();
     }
 
-    private function formatMoment(Moment $moment): array
+    private function formatMoment(Moment $moment, int $authUserId): array
     {
+        $isOwner = $moment->user_id === $authUserId;
+
         return [
             'id' => $moment->id,
             'title' => $moment->title,
@@ -94,7 +112,8 @@ class MomentController extends Controller
             'photo' => $moment->photo ? Storage::url($moment->photo) : null,
             'date' => $moment->date->toDateString(),
             'is_favourite' => $moment->is_favourite,
-            'private_notes' => $moment->private_notes,
+            'is_owner' => $isOwner,
+            'private_notes' => $isOwner ? $moment->private_notes : null,
             'tags' => $moment->tags ?? [],
             'date_night_plan' => $moment->dateNightPlan ? [
                 'id' => $moment->dateNightPlan->id,

@@ -7,6 +7,12 @@ use App\Models\User;
 
 class MomentPolicy
 {
+    public function view(User $user, Moment $moment): bool
+    {
+        return $user->id === $moment->user_id
+            || $user->partner_id === $moment->user_id;
+    }
+
     public function update(User $user, Moment $moment): bool
     {
         return $user->id === $moment->user_id;

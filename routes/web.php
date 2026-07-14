@@ -107,6 +107,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('moments')->name('moments.')->group(function () {
             Route::get('/', [MomentController::class, 'index'])->name('index');
             Route::post('/', [MomentController::class, 'store'])->name('store');
+            Route::get('/{moment}', [MomentController::class, 'show'])->name('show');
             Route::put('/{moment}', [MomentController::class, 'update'])->name('update');
             Route::delete('/{moment}', [MomentController::class, 'destroy'])->name('destroy');
             Route::post('/{moment}/favourite', [MomentController::class, 'toggleFavourite'])->name('toggle-favourite');
