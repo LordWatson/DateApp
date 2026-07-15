@@ -4,12 +4,9 @@ namespace App\Listeners;
 
 use App\Events\PartnerConnected;
 use App\Services\ActivityLogService;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class LogActivityOnPartnerConnected implements ShouldQueue
+final class LogActivityOnPartnerConnected
 {
-    public string $queue = 'default';
-
     public function __construct(private readonly ActivityLogService $service) {}
 
     public function handle(PartnerConnected $event): void

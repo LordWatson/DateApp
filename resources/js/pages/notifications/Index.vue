@@ -54,13 +54,20 @@ function typeEmoji(type: string): string {
 }
 
 function handleNotificationClick(notification: NotificationItem): void {
-    router.post(`/notifications/${notification.id}/read`, {}, { preserveScroll: true });
+    const redirect = (): void => {
+        if (notification.type === 'date_night_plan_ready' && notification.data?.plan_id) {
+            router.visit(`/date-night/${notification.data.plan_id}`);
+        } else if (notification.type === 'love_note_received' && notification.data?.love_note_id) {
+            router.visit(`/love-notes/${notification.data.love_note_id}`);
+        } else if (notification.type === 'love_note_received') {
+            router.visit('/love-notes');
+        }
+    };
 
-    if (notification.type === 'date_night_plan_ready' && notification.data?.plan_id) {
-        router.visit(`/date-night/${notification.data.plan_id}`);
-    } else if (notification.type === 'love_note_received') {
-        router.visit('/love-notes');
-    }
+    router.post(`/notifications/${notification.id}/read`, {}, {
+        preserveScroll: true,
+        onSuccess: redirect,
+    });
 }
 
 function markAllRead(): void {

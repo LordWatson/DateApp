@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
         EventServiceProvider::class,
     ])
+    ->withEvents(discover: false)
     ->withRouting(
         web: [__DIR__.'/../routes/web.php', __DIR__.'/../routes/admin.php'],
         commands: __DIR__.'/../routes/console.php',

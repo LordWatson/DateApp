@@ -61,6 +61,23 @@ class LoveNoteController extends Controller
         return back()->with('success', 'Love note sent! 💌');
     }
 
+    public function show(Request $request, LoveNote $loveNote): InertiaResponse
+    {
+        $user = $request->user();
+
+        if ($loveNote->recipient_id !== $user->id && $loveNote->sender_id !== $user->id) {
+            abort(403);
+        }
+
+        if ($loveNote->recipient_id === $user->id) {
+            $loveNote->markAsRead();
+        }
+
+        return Inertia::render('love-notes/Show', [
+            'note' => $this->formatNote($loveNote, $loveNote->sender_id === $user->id ? 'sent' : 'received'),
+        ]);
+    }
+
     public function unreadCount(Request $request): JsonResponse
     {
         $count = LoveNote::where('recipient_id', $request->user()->id)

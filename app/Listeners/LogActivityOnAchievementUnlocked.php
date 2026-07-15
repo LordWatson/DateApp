@@ -4,12 +4,9 @@ namespace App\Listeners;
 
 use App\Events\AchievementUnlocked;
 use App\Services\ActivityLogService;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class LogActivityOnAchievementUnlocked implements ShouldQueue
+final class LogActivityOnAchievementUnlocked
 {
-    public string $queue = 'default';
-
     public function __construct(private readonly ActivityLogService $service) {}
 
     public function handle(AchievementUnlocked $event): void

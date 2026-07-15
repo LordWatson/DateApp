@@ -4,12 +4,9 @@ namespace App\Listeners;
 
 use App\Events\QuestionnaireCompleted;
 use App\Services\ActivityLogService;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class LogActivityOnQuestionnaireCompleted implements ShouldQueue
+final class LogActivityOnQuestionnaireCompleted
 {
-    public string $queue = 'default';
-
     public function __construct(private readonly ActivityLogService $service) {}
 
     public function handle(QuestionnaireCompleted $event): void

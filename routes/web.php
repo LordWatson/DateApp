@@ -65,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [LoveNoteController::class, 'index'])->name('index');
             Route::post('/', [LoveNoteController::class, 'store'])->name('store');
             Route::get('/unread-count', [LoveNoteController::class, 'unreadCount'])->name('unread-count');
+            Route::get('/{loveNote}', [LoveNoteController::class, 'show'])->name('show');
         });
 
         // Notifications
