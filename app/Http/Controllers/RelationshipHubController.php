@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DateNightPlan;
+use App\Models\Moment;
 use App\Models\Questionnaire;
 use App\Services\AchievementService;
 use App\Services\InsightsService;
@@ -34,6 +35,10 @@ class RelationshipHubController extends Controller
                 'date' => $e->date->toDateString(),
                 'colour' => $e->colour,
             ]);
+
+        $partnerIds = $partner ? [$user->id, $partner->id] : [$user->id];
+
+        $momentsCount = Moment::whereIn('user_id', $partnerIds)->count();
 
         $recentMoments = $user->moments()
             ->orderByDesc('date')
@@ -82,6 +87,7 @@ class RelationshipHubController extends Controller
             ],
             'upcoming_events' => $upcomingEvents,
             'recent_moments' => $recentMoments,
+            'moments_count' => $momentsCount,
             'achievement_progress' => $achievementProgress,
             'seasonal_questionnaires' => $seasonalQuestionnaires,
         ]);

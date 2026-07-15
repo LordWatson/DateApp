@@ -11,6 +11,7 @@ interface Props {
     recent_moments: Array<{ id: number; title: string; mood: string | null; date: string; is_favourite: boolean }>;
     achievement_progress: { total: number; unlocked: number; points: number; percentage: number };
     seasonal_questionnaires: Array<{ id: number; title: string; emoji: string; slug: string; description: string }>;
+    moments_count: number;
 }
 
 const props = defineProps<Props>();
@@ -21,7 +22,7 @@ const cards = [
     { emoji: '🏆', title: 'Longest Streak', description: `${props.stats.longest_streak} days`, href: '/dashboard', colour: 'from-yellow-400 to-orange-500' },
     { emoji: '💕', title: 'Compatibility', description: `${props.stats.average_compatibility}%`, href: '/insights', colour: 'from-pink-400 to-purple-500' },
     { emoji: '📅', title: 'Upcoming Events', description: `${props.upcoming_events.length} upcoming`, href: '/calendar', colour: 'from-blue-400 to-indigo-500' },
-    { emoji: '📖', title: 'Recent Moments', description: `${props.recent_moments.length} captured`, href: '/moments', colour: 'from-emerald-400 to-teal-500' },
+    { emoji: '📖', title: 'Recent Moments', description: `${props.moments_count} captured`, href: '/moments', colour: 'from-emerald-400 to-teal-500' },
     { emoji: '🎯', title: 'Achievements', description: `${props.achievement_progress.unlocked}/${props.achievement_progress.total} unlocked`, href: '/achievements', colour: 'from-violet-400 to-purple-600' },
     { emoji: '🎁', title: 'Seasonal Events', description: 'Special questionnaires', href: '/questionnaires', colour: 'from-pink-300 to-rose-400' },
     { emoji: '💌', title: 'Love Notes', description: 'Sweet messages to your partner', href: '/love-notes', colour: 'from-pink-500 to-purple-500' },

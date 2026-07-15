@@ -9,5 +9,6 @@ enum NotificationType: string
     case DailyChallenge = 'daily_challenge';
     case DateNightPlanReady = 'date_night_plan_ready';
     case LoveNoteReceived = 'love_note_received';
+    case MomentCreated = 'moment_created';
     case PartnerViewedPlan = 'partner_viewed_plan';
 }

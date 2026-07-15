@@ -46,6 +46,7 @@ function typeEmoji(type: string): string {
         compatibility_ready: '💕',
         date_night_plan_ready: '❤️',
         love_note_received: '💌',
+        moment_created: '📸',
         partner_viewed_plan: '👀',
         daily_challenge: '✨',
     };
@@ -61,6 +62,10 @@ function handleNotificationClick(notification: NotificationItem): void {
             router.visit(`/love-notes/${notification.data.love_note_id}`);
         } else if (notification.type === 'love_note_received') {
             router.visit('/love-notes');
+        } else if (notification.type === 'moment_created' && notification.data?.moment_id) {
+            router.visit(`/moments/${notification.data.moment_id}`);
+        } else if (notification.type === 'moment_created') {
+            router.visit('/moments');
         }
     };
 

@@ -36,6 +36,7 @@ use App\Listeners\NotifyPlanReadyOnDateNightPlanGenerated;
 use App\Listeners\RefreshDashboardOnPartnerConnected;
 use App\Listeners\RefreshDashboardOnQuestionnaireCompleted;
 use App\Listeners\SendLoveNoteNotificationOnLoveNoteSent;
+use App\Listeners\SendMomentNotificationOnMomentCreated;
 use App\Listeners\SendPartnerConnectedEmailsOnPartnerConnected;
 use App\Listeners\SendPlanEmailsOnDateNightPlanGenerated;
 use App\Listeners\UpdateStreakOnQuestionnairCompleted;
@@ -87,6 +88,7 @@ class EventServiceProvider extends ServiceProvider
         ],
 
         MomentCreated::class => [
+            SendMomentNotificationOnMomentCreated::class,
             LogActivityOnMomentCreated::class,
             EvaluateAchievementsOnMomentCreated::class,
         ],
