@@ -17,7 +17,7 @@ class QuestionnaireSeeder extends Seeder
         $questionnaire = Questionnaire::create([
             'title' => '❤️ Tonight',
             'slug' => 'tonight',
-            'description' => 'Plan the perfect evening together.',
+            'description' => 'Plan a spicy evening together.',
             'emoji' => '❤️',
             'cover_image' => null,
             'status' => QuestionnaireStatus::Active,

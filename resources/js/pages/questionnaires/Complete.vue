@@ -69,11 +69,28 @@ const completedTime = props.completed_at
             <!-- Actions -->
             <div class="mt-8 w-full space-y-3">
                 <PrimaryButton
+                    v-if="partner_completed"
+                    full-width
+                    @click="router.visit(`/questionnaires/${questionnaire.slug}/partner-answers`)"
+                >
+                    💕 See Partner's Answers
+                </PrimaryButton>
+
+                <PrimaryButton
+                    v-else
                     full-width
                     @click="router.visit(`/questionnaires/${questionnaire.slug}/summary`)"
                 >
                     View Summary
                 </PrimaryButton>
+
+                <SecondaryButton
+                    v-if="partner_completed"
+                    full-width
+                    @click="router.visit(`/questionnaires/${questionnaire.slug}/summary`)"
+                >
+                    View My Summary
+                </SecondaryButton>
 
                 <SecondaryButton
                     full-width

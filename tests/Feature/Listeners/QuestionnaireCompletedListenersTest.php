@@ -4,10 +4,13 @@ namespace Tests\Feature\Listeners;
 
 use App\Events\QuestionnaireCompleted;
 use App\Jobs\GenerateDateNightPlanJob;
+use App\Jobs\SendQuestionnaireCompletedNotificationJob;
 use App\Listeners\DispatchDateNightPlanOnQuestionnaireCompleted;
 use App\Listeners\EvaluateAchievementsOnQuestionnaireCompleted;
+use App\Listeners\NotifyPartnerOnQuestionnaireCompleted;
 use App\Listeners\RefreshDashboardOnQuestionnaireCompleted;
 use App\Listeners\UpdateStreakOnQuestionnairCompleted;
+use App\Models\AppNotification;
 use App\Models\Questionnaire;
 use App\Models\Response;
 use App\Models\User;
@@ -72,5 +75,50 @@ class QuestionnaireCompletedListenersTest extends TestCase
         $listener->handle(new QuestionnaireCompleted($user, $questionnaire, $response));
 
         Queue::assertNotPushed(GenerateDateNightPlanJob::class);
+    }
+
+    public function test_notify_partner_creates_app_notification_and_dispatches_email_job(): void
+    {
+        Queue::fake();
+
+        $partner = User::factory()->create();
+        $user = User::factory()->create(['partner_id' => $partner->id]);
+        $questionnaire = Questionnaire::factory()->create();
+        $response = Response::factory()->create([
+            'user_id' => $user->id,
+            'questionnaire_id' => $questionnaire->id,
+        ]);
+
+        $listener = new NotifyPartnerOnQuestionnaireCompleted;
+        $listener->handle(new QuestionnaireCompleted($user, $questionnaire, $response));
+
+        $this->assertDatabaseHas('app_notifications', [
+            'user_id' => $partner->id,
+            'type' => 'partner_completed',
+        ]);
+
+        Queue::assertPushed(SendQuestionnaireCompletedNotificationJob::class, function ($job) use ($partner, $user, $questionnaire) {
+            return $job->recipient->id === $partner->id
+                && $job->sender->id === $user->id
+                && $job->questionnaire->id === $questionnaire->id;
+        });
+    }
+
+    public function test_notify_partner_does_nothing_when_no_partner(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create(['partner_id' => null]);
+        $questionnaire = Questionnaire::factory()->create();
+        $response = Response::factory()->create([
+            'user_id' => $user->id,
+            'questionnaire_id' => $questionnaire->id,
+        ]);
+
+        $listener = new NotifyPartnerOnQuestionnaireCompleted;
+        $listener->handle(new QuestionnaireCompleted($user, $questionnaire, $response));
+
+        $this->assertDatabaseCount('app_notifications', 0);
+        Queue::assertNotPushed(SendQuestionnaireCompletedNotificationJob::class);
     }
 }

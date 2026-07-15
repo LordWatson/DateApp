@@ -248,6 +248,57 @@ class QuestionnaireController extends Controller
         ]);
     }
 
+    public function partnerAnswers(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
+    {
+        $user = $request->user();
+        $partner = $user->partner;
+
+        if (! $partner) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
+        $userResponse = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
+        $partnerResponse = $this->questionnaireService->getResponseWithAnswers($partner, $questionnaire);
+
+        if ($userResponse?->status !== CompletionStatus::Completed || $partnerResponse?->status !== CompletionStatus::Completed) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
+        $questions = $questionnaire->questions()->with('options')->get();
+        $userAnswers = $this->questionnaireService->getAnswersForResponse($userResponse);
+        $partnerAnswers = $this->questionnaireService->getAnswersForResponse($partnerResponse);
+
+        $grouped = $questions->map(function ($question) use ($userAnswers, $partnerAnswers) {
+            $mapAnswer = fn ($answers) => $answers->where('question_id', $question->id)->map(fn ($a) => [
+                'value' => $a->value,
+                'option_title' => $a->questionOption?->title,
+                'option_emoji' => $a->questionOption?->emoji,
+            ])->values();
+
+            return [
+                'question' => [
+                    'id' => $question->id,
+                    'title' => $question->title,
+                    'emoji' => $question->emoji,
+                    'type' => $question->type->value,
+                    'display_order' => $question->display_order,
+                ],
+                'my_answers' => $mapAnswer($userAnswers),
+                'partner_answers' => $mapAnswer($partnerAnswers),
+            ];
+        });
+
+        return Inertia::render('questionnaires/PartnerAnswers', [
+            'questionnaire' => [
+                'id' => $questionnaire->id,
+                'title' => $questionnaire->title,
+                'slug' => $questionnaire->slug,
+            ],
+            'partner_name' => $partner->display_name ?? $partner->name,
+            'grouped_answers' => $grouped,
+        ]);
+    }
+
     public function compatibility(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
     {
         $user = $request->user();

@@ -562,4 +562,92 @@ class QuestionnaireFlowTest extends TestCase
         $this->assertNotNull($result);
         $this->assertEquals(0, $result['percentage']);
     }
+
+    // ─── Partner Answers ──────────────────────────────────────────────────────
+
+    public function test_partner_answers_redirects_when_no_partner(): void
+    {
+        $this->actingAs($this->user)
+            ->get(route('questionnaires.partner-answers', $this->questionnaire->slug))
+            ->assertRedirect(route('questionnaires.show', $this->questionnaire->slug));
+    }
+
+    public function test_partner_answers_redirects_when_user_not_completed(): void
+    {
+        $partner = User::factory()->create(['onboarding_completed' => true]);
+        $this->user->update(['partner_id' => $partner->id]);
+
+        Response::factory()->create([
+            'user_id' => $partner->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('questionnaires.partner-answers', $this->questionnaire->slug))
+            ->assertRedirect(route('questionnaires.show', $this->questionnaire->slug));
+    }
+
+    public function test_partner_answers_redirects_when_partner_not_completed(): void
+    {
+        $partner = User::factory()->create(['onboarding_completed' => true]);
+        $this->user->update(['partner_id' => $partner->id]);
+
+        Response::factory()->create([
+            'user_id' => $this->user->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+        ]);
+
+        Response::factory()->create([
+            'user_id' => $partner->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::InProgress,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('questionnaires.partner-answers', $this->questionnaire->slug))
+            ->assertRedirect(route('questionnaires.show', $this->questionnaire->slug));
+    }
+
+    public function test_partner_answers_shown_when_both_completed(): void
+    {
+        $partner = User::factory()->create(['onboarding_completed' => true]);
+        $this->user->update(['partner_id' => $partner->id]);
+
+        $userResponse = Response::factory()->create([
+            'user_id' => $this->user->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+        ]);
+
+        $partnerResponse = Response::factory()->create([
+            'user_id' => $partner->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+        ]);
+
+        Answer::factory()->create([
+            'response_id' => $userResponse->id,
+            'question_id' => $this->question->id,
+            'question_option_id' => $this->option->id,
+            'value' => 'dominant',
+        ]);
+
+        Answer::factory()->create([
+            'response_id' => $partnerResponse->id,
+            'question_id' => $this->question->id,
+            'question_option_id' => $this->option->id,
+            'value' => 'dominant',
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('questionnaires.partner-answers', $this->questionnaire->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('questionnaires/PartnerAnswers')
+                ->has('grouped_answers')
+                ->has('partner_name')
+            );
+    }
 }
