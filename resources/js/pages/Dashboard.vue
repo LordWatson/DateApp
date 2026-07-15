@@ -45,12 +45,21 @@ interface SavedProfile {
     colour: string;
 }
 
+interface RecentQuestionnaire {
+    id: number;
+    title: string;
+    emoji: string;
+    slug: string;
+    completed_at: string | null;
+}
+
 interface Props {
     partner: Partner | null;
     pendingInvitation: PendingInvitation | null;
     stats: Stats;
     todayChallenge: TodayChallenge | null;
     savedProfiles: SavedProfile[];
+    recentQuestionnaires: RecentQuestionnaire[];
 }
 
 const props = defineProps<Props>();
@@ -129,28 +138,6 @@ function invitePartner(): void {
             </div>
         </div>
 
-        <!-- Stats Row -->
-        <div class="grid grid-cols-3 gap-3">
-            <StatCard
-                label="Streak"
-                :value="String(stats.current_streak)"
-                emoji="🔥"
-                description="days"
-            />
-            <StatCard
-                label="Best"
-                :value="String(stats.longest_streak)"
-                emoji="🏆"
-                description="days"
-            />
-            <StatCard
-                :label="new Date().toLocaleString('default', { month: 'short' })"
-                :value="String(stats.monthly_completions)"
-                emoji="📅"
-                description="done"
-            />
-        </div>
-
         <!-- Partner Status Card -->
         <div class="card-premium p-6">
             <div class="mb-4 flex items-center justify-between">
@@ -208,13 +195,29 @@ function invitePartner(): void {
             </div>
         </div>
 
-        <!-- Compatibility Card -->
-        <CompatibilityCard
-            :score="null"
-            :partner-name="
-                partner?.display_name ?? partner?.name ?? 'your partner'
-            "
-        />
+        <!-- Stats Row -->
+        <div class="grid grid-cols-3 gap-3">
+            <StatCard
+                label="Streak"
+                :value="String(stats.current_streak)"
+                emoji="🔥"
+                description="days"
+            />
+            <StatCard
+                label="Best"
+                :value="String(stats.longest_streak)"
+                emoji="🏆"
+                description="days"
+            />
+            <StatCard
+                :label="
+                    new Date().toLocaleString('default', { month: 'short' })
+                "
+                :value="String(stats.monthly_completions)"
+                emoji="📅"
+                description="done"
+            />
+        </div>
 
         <!-- Today's Challenge -->
         <div v-if="todayChallenge">
@@ -230,41 +233,6 @@ function invitePartner(): void {
                 emoji="✨"
                 title="No challenge today"
                 description="Check back soon for your daily romantic challenge."
-            />
-        </div>
-
-        <!-- Saved Profiles -->
-        <div class="card-premium p-6">
-            <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-foreground">
-                    Saved Profiles
-                </h3>
-                <button
-                    class="text-sm font-medium text-primary hover:underline focus:outline-none"
-                >
-                    Add new
-                </button>
-            </div>
-
-            <div v-if="savedProfiles.length > 0" class="space-y-3">
-                <div
-                    v-for="profile in savedProfiles"
-                    :key="profile.id"
-                    class="flex cursor-pointer items-center gap-3 rounded-2xl p-3 transition-all hover:bg-muted/50 active:scale-[0.98]"
-                    :style="{ borderLeft: `4px solid ${profile.colour}` }"
-                >
-                    <span class="text-2xl">{{ profile.emoji }}</span>
-                    <span class="font-medium text-foreground">{{
-                        profile.name
-                    }}</span>
-                </div>
-            </div>
-
-            <EmptyState
-                v-else
-                emoji="💕"
-                title="No saved profiles"
-                description="Save your favourite questionnaire answers to reuse them on future date nights."
             />
         </div>
 
@@ -304,11 +272,82 @@ function invitePartner(): void {
                 </h3>
                 <span class="text-2xl" aria-hidden="true">📋</span>
             </div>
+
+            <div v-if="recentQuestionnaires.length > 0" class="space-y-3">
+                <Link
+                    v-for="q in recentQuestionnaires"
+                    :key="q.id"
+                    :href="`/questionnaires/${q.slug}/partner-answers`"
+                    class="flex cursor-pointer items-center gap-3 rounded-2xl p-3 transition-all hover:bg-muted/50 active:scale-[0.98]"
+                >
+                    <span class="text-2xl" aria-hidden="true">{{
+                        q.emoji
+                    }}</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate font-medium text-foreground">
+                            {{ q.title }}
+                        </p>
+                        <p
+                            v-if="q.completed_at"
+                            class="text-xs text-muted-foreground"
+                        >
+                            {{ new Date(q.completed_at).toLocaleDateString() }}
+                        </p>
+                    </div>
+                    <span class="text-muted-foreground" aria-hidden="true"
+                        >›</span
+                    >
+                </Link>
+            </div>
+
             <EmptyState
+                v-else
                 emoji="📝"
                 title="Tonight is waiting ❤️"
                 description="Complete your first questionnaire to see your history here."
-                action-label="Start Questionnaire"
+            />
+        </div>
+
+        <!-- Compatibility Card -->
+        <CompatibilityCard
+            :score="null"
+            :partner-name="
+                partner?.display_name ?? partner?.name ?? 'your partner'
+            "
+        />
+
+        <!-- Saved Profiles -->
+        <div class="card-premium p-6">
+            <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-foreground">
+                    Saved Profiles
+                </h3>
+                <button
+                    class="text-sm font-medium text-primary hover:underline focus:outline-none"
+                >
+                    Add new
+                </button>
+            </div>
+
+            <div v-if="savedProfiles.length > 0" class="space-y-3">
+                <div
+                    v-for="profile in savedProfiles"
+                    :key="profile.id"
+                    class="flex cursor-pointer items-center gap-3 rounded-2xl p-3 transition-all hover:bg-muted/50 active:scale-[0.98]"
+                    :style="{ borderLeft: `4px solid ${profile.colour}` }"
+                >
+                    <span class="text-2xl">{{ profile.emoji }}</span>
+                    <span class="font-medium text-foreground">{{
+                        profile.name
+                    }}</span>
+                </div>
+            </div>
+
+            <EmptyState
+                v-else
+                emoji="💕"
+                title="No saved profiles"
+                description="Save your favourite questionnaire answers to reuse them on future date nights."
             />
         </div>
     </div>
