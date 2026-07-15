@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
-import { route } from 'ziggy-js'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user)
@@ -13,22 +12,23 @@ const toggleSidebar = () => {
 }
 
 const navItems = [
-  { label: 'Dashboard', href: route('admin.dashboard'), icon: '📊' },
-  { label: 'Users', href: route('admin.users.index'), icon: '👥' },
-  { label: 'Couples', href: route('admin.couples.index'), icon: '💑' },
-  { label: 'Questionnaires', href: route('admin.questionnaires.index'), icon: '📝' },
-  { label: 'Challenges', href: route('admin.challenges.index'), icon: '🎯' },
-  { label: 'Achievements', href: route('admin.achievements.index'), icon: '🏆' },
-  { label: 'Feature Flags', href: route('admin.feature-flags.index'), icon: '🚩' },
-  { label: 'Settings', href: route('admin.settings.index'), icon: '⚙️' },
-  { label: 'Email Templates', href: route('admin.email-templates.index'), icon: '📧' },
-  { label: 'AI Prompts', href: route('admin.ai-prompts.index'), icon: '🤖' },
-  { label: 'Media Library', href: route('admin.media.index'), icon: '🖼️' },
-  { label: 'Analytics', href: route('admin.analytics.index'), icon: '📈' },
-  { label: 'Audit Logs', href: route('admin.audit-logs.index'), icon: '🔍' },
+  { label: 'Dashboard', href: '/admin', icon: '📊', exact: true },
+  { label: 'Users', href: '/admin/users', icon: '👥' },
+  { label: 'Couples', href: '/admin/couples', icon: '💑' },
+  { label: 'Questionnaires', href: '/admin/questionnaires', icon: '📝' },
+  { label: 'Challenges', href: '/admin/challenges', icon: '🎯' },
+  { label: 'Achievements', href: '/admin/achievements', icon: '🏆' },
+  { label: 'Feature Flags', href: '/admin/feature-flags', icon: '🚩' },
+  { label: 'Settings', href: '/admin/settings', icon: '⚙️' },
+  { label: 'Email Templates', href: '/admin/email-templates', icon: '📧' },
+  { label: 'AI Prompts', href: '/admin/ai-prompts', icon: '🤖' },
+  { label: 'Media Library', href: '/admin/media', icon: '🖼️' },
+  { label: 'Analytics', href: '/admin/analytics', icon: '📈' },
+  { label: 'Audit Logs', href: '/admin/audit-logs', icon: '🔍' },
 ]
 
-const isActive = (href: string) => page.url.startsWith(new URL(href).pathname)
+const isActive = (href: string, exact = false) =>
+  exact ? page.url === href || page.url.startsWith(`${href}?`) : page.url.startsWith(href)
 </script>
 
 <template>
@@ -54,7 +54,7 @@ const isActive = (href: string) => page.url.startsWith(new URL(href).pathname)
           :href="item.href"
           :class="[
             'flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors rounded-lg mx-2 mb-1',
-            isActive(item.href)
+            isActive(item.href, item.exact)
               ? 'bg-pink-50 text-pink-600'
               : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
           ]"
@@ -72,7 +72,7 @@ const isActive = (href: string) => page.url.startsWith(new URL(href).pathname)
           </div>
           <div v-if="sidebarOpen" class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-900 truncate">{{ user?.name }}</p>
-            <Link :href="route('dashboard')" class="text-xs text-gray-500 hover:text-pink-500">← Back to app</Link>
+            <Link href="/dashboard" class="text-xs text-gray-500 hover:text-pink-500">← Back to app</Link>
           </div>
         </div>
       </div>

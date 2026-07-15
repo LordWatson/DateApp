@@ -16,16 +16,16 @@ class AdminAnalyticsController extends AdminController
     {
         $dau = User::select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
             ->where('created_at', '>=', now()->subDays(30))
-            ->groupBy('date')->orderBy('date')->get();
+            ->groupBy(DB::raw('DATE(created_at)'))->orderBy('date')->get();
 
         $mau = User::select(DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'), DB::raw('COUNT(*) as count'))
             ->where('created_at', '>=', now()->subMonths(12))
-            ->groupBy('month')->orderBy('month')->get();
+            ->groupBy(DB::raw('DATE_FORMAT(created_at, "%Y-%m")'))->orderBy('month')->get();
 
         $completions = Response::select(DB::raw('DATE(completed_at) as date'), DB::raw('COUNT(*) as count'))
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', now()->subDays(30))
-            ->groupBy('date')->orderBy('date')->get();
+            ->groupBy(DB::raw('DATE(completed_at)'))->orderBy('date')->get();
 
         $dropoff = DB::table('answers')
             ->join('questions', 'answers.question_id', '=', 'questions.id')
@@ -40,11 +40,11 @@ class AdminAnalyticsController extends AdminController
 
         $love_note_activity = LoveNote::select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
             ->where('created_at', '>=', now()->subDays(30))
-            ->groupBy('date')->orderBy('date')->get();
+            ->groupBy(DB::raw('DATE(created_at)'))->orderBy('date')->get();
 
         $moment_activity = Moment::select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
             ->where('created_at', '>=', now()->subDays(30))
-            ->groupBy('date')->orderBy('date')->get();
+            ->groupBy(DB::raw('DATE(created_at)'))->orderBy('date')->get();
 
         return Inertia::render('admin/analytics/Index', [
             'dau' => $dau,
