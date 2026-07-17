@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\CompletionStatus;
 use App\Models\Challenge;
+use App\Models\DateNightPlan;
 use App\Models\Response as QuestionnaireResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -37,6 +38,25 @@ class DashboardController extends Controller
                 ]);
         }
 
+        $userResponseIds = QuestionnaireResponse::where('user_id', $user->id)->pluck('id');
+
+        $recentDateNights = DateNightPlan::with('questionnaire')
+            ->where(function ($query) use ($userResponseIds) {
+                $query->whereIn('partner_one_response_id', $userResponseIds)
+                    ->orWhereIn('partner_two_response_id', $userResponseIds);
+            })
+            ->orderByDesc('created_at')
+            ->take(3)
+            ->get()
+            ->map(fn (DateNightPlan $plan) => [
+                'id' => $plan->id,
+                'theme' => $plan->theme,
+                'theme_emoji' => $plan->theme_emoji,
+                'compatibility_score' => $plan->compatibility_score,
+                'questionnaire_title' => $plan->questionnaire?->title,
+                'created_at' => $plan->created_at?->toISOString(),
+            ]);
+
         $todayChallenge = Challenge::inRandomOrder()->first();
 
         $pendingInvitation = $user->pendingInvitation();
@@ -60,6 +80,7 @@ class DashboardController extends Controller
                 'difficulty' => $todayChallenge->difficulty->value,
             ] : null,
             'recentQuestionnaires' => $recentQuestionnaires,
+            'recentDateNights' => $recentDateNights,
             'savedProfiles' => $user->savedProfiles->map(fn ($p) => [
                 'id' => $p->id,
                 'name' => $p->name,

@@ -162,7 +162,7 @@ function getInitial(name: string): string {
                 <!-- Romantic Challenge — highlighted -->
                 <div v-if="plan.romantic_challenge" class="card-premium p-5 gradient-primary-soft">
                     <p class="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">🌹 Tonight's Romantic Challenge</p>
-                    <p class="text-sm font-semibold text-foreground">{{ plan.romantic_challenge }}</p>
+                    <p class="text-sm font-semibold text-secondary">{{ plan.romantic_challenge }}</p>
                 </div>
             </div>
 
