@@ -33,20 +33,29 @@ final class GenerateDateNightPlanJob implements ShouldQueue
 
     public function handle(GenerateDateNightPlanAction $action): void
     {
-        $bothCompleted = Response::where('questionnaire_id', $this->questionnaire->id)
-            ->whereIn('user_id', [$this->userOne->id, $this->userTwo->id])
+        $latestOne = Response::where('user_id', $this->userOne->id)
+            ->where('questionnaire_id', $this->questionnaire->id)
             ->where('status', CompletionStatus::Completed)
-            ->count() === 2;
+            ->latest('completed_at')
+            ->latest('id')
+            ->first();
 
-        if (! $bothCompleted) {
+        $latestTwo = Response::where('user_id', $this->userTwo->id)
+            ->where('questionnaire_id', $this->questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->latest('completed_at')
+            ->latest('id')
+            ->first();
+
+        if (! $latestOne || ! $latestTwo) {
             return;
         }
 
+        $latestIds = [$latestOne->id, $latestTwo->id];
+
         $existingPlan = DateNightPlan::where('questionnaire_id', $this->questionnaire->id)
-            ->where(function ($q): void {
-                $q->whereHas('partnerOneResponse', fn ($r) => $r->whereIn('user_id', [$this->userOne->id, $this->userTwo->id]))
-                    ->orWhereHas('partnerTwoResponse', fn ($r) => $r->whereIn('user_id', [$this->userOne->id, $this->userTwo->id]));
-            })
+            ->whereIn('partner_one_response_id', $latestIds)
+            ->whereIn('partner_two_response_id', $latestIds)
             ->exists();
 
         if ($existingPlan) {

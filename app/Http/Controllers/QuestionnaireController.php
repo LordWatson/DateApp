@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\CompletionStatus;
 use App\Enums\QuestionnaireStatus;
 use App\Http\Requests\Questionnaire\SaveAnswerRequest;
+use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
+use App\Models\Response as QuestionnaireResponse;
+use App\Models\User;
 use App\Services\CompatibilityService;
 use App\Services\QuestionnaireService;
 use Illuminate\Http\JsonResponse;
@@ -49,8 +52,8 @@ class QuestionnaireController extends Controller
         $user = $request->user();
         $response = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
         $partner = $user->partner;
-        $partnerResponse = $partner
-            ? $this->questionnaireService->getResponseWithAnswers($partner, $questionnaire)
+        $latestPartnerCompleted = $partner
+            ? $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire)
             : null;
 
         return Inertia::render('questionnaires/Show', [
@@ -68,7 +71,7 @@ class QuestionnaireController extends Controller
                 'answered_count' => count($this->questionnaireService->getAnsweredQuestionIds($response)),
                 'resume_order' => $this->questionnaireService->getFirstUnansweredOrder($questionnaire, $response),
             ] : null,
-            'partner_completed' => $partnerResponse?->status === CompletionStatus::Completed,
+            'partner_completed' => $latestPartnerCompleted !== null,
             'current_streak' => $user->current_streak,
             'saved_profiles' => $user->savedProfiles->map(fn ($p) => [
                 'id' => $p->id,
@@ -76,7 +79,65 @@ class QuestionnaireController extends Controller
                 'emoji' => $p->emoji,
                 'colour' => $p->colour,
             ]),
+            'past_attempts' => $this->buildPastAttempts($user, $questionnaire),
         ]);
+    }
+
+    public function restart(Request $request, Questionnaire $questionnaire): RedirectResponse
+    {
+        $user = $request->user();
+        $this->questionnaireService->startNewResponse($user, $questionnaire);
+
+        return redirect()->route('questionnaires.question', [$questionnaire->slug, 1]);
+    }
+
+    /**
+     * @return array<int, array{id:int, completed_at:string|null, partner_completed:bool}>
+     */
+    private function buildPastAttempts(User $user, Questionnaire $questionnaire): array
+    {
+        $partner = $user->partner;
+
+        if (! $partner) {
+            return [];
+        }
+
+        $userResponseIds = QuestionnaireResponse::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->pluck('id');
+
+        if ($userResponseIds->isEmpty()) {
+            return [];
+        }
+
+        $plans = DateNightPlan::where('questionnaire_id', $questionnaire->id)
+            ->where(function ($query) use ($userResponseIds): void {
+                $query->whereIn('partner_one_response_id', $userResponseIds)
+                    ->orWhereIn('partner_two_response_id', $userResponseIds);
+            })
+            ->with(['partnerOneResponse', 'partnerTwoResponse'])
+            ->get();
+
+        return $plans
+            ->map(function (DateNightPlan $plan) use ($user): ?array {
+                $userResponse = $plan->partnerOneResponse?->user_id === $user->id
+                    ? $plan->partnerOneResponse
+                    : $plan->partnerTwoResponse;
+
+                if (! $userResponse || $userResponse->user_id !== $user->id) {
+                    return null;
+                }
+
+                return [
+                    'id' => $userResponse->id,
+                    'completed_at' => $userResponse->completed_at?->toISOString(),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('completed_at')
+            ->values()
+            ->all();
     }
 
     public function start(Request $request, Questionnaire $questionnaire): RedirectResponse
@@ -167,7 +228,7 @@ class QuestionnaireController extends Controller
 
         $partner = $user->partner;
         $partnerResponse = $partner
-            ? $this->questionnaireService->getResponseWithAnswers($partner, $questionnaire)
+            ? $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire)
             : null;
 
         return Inertia::render('questionnaires/Complete', [
@@ -178,7 +239,7 @@ class QuestionnaireController extends Controller
             ],
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
-            'partner_completed' => $partnerResponse?->status === CompletionStatus::Completed,
+            'partner_completed' => $partnerResponse !== null,
         ]);
     }
 
@@ -257,12 +318,15 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
-        $userResponse = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
-        $partnerResponse = $this->questionnaireService->getResponseWithAnswers($partner, $questionnaire);
+        $userResponse = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire);
+        $partnerResponse = $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire);
 
-        if ($userResponse?->status !== CompletionStatus::Completed || $partnerResponse?->status !== CompletionStatus::Completed) {
+        if (! $userResponse || ! $partnerResponse) {
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
+
+        $userResponse->load('answers.question', 'answers.questionOption');
+        $partnerResponse->load('answers.question', 'answers.questionOption');
 
         $questions = $questionnaire->questions()->with('options')->get();
         $userAnswers = $this->questionnaireService->getAnswersForResponse($userResponse);
@@ -305,10 +369,10 @@ class QuestionnaireController extends Controller
         $partner = $user->partner;
 
         $partnerResponse = $partner
-            ? $this->questionnaireService->getResponseWithAnswers($partner, $questionnaire)
+            ? $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire)
             : null;
 
-        $partnerCompleted = $partnerResponse?->status === CompletionStatus::Completed;
+        $partnerCompleted = $partnerResponse !== null;
 
         $compatibility = $partnerCompleted
             ? $this->compatibilityService->calculate($user, $questionnaire)
@@ -323,6 +387,79 @@ class QuestionnaireController extends Controller
             'partner_name' => $partner?->display_name ?? $partner?->name,
             'partner_completed' => $partnerCompleted,
             'compatibility' => $compatibility,
+        ]);
+    }
+
+    public function pastAttempt(Request $request, Questionnaire $questionnaire, QuestionnaireResponse $response): Response|RedirectResponse
+    {
+        $user = $request->user();
+        $partner = $user->partner;
+
+        if (! $partner || $response->user_id !== $user->id || $response->questionnaire_id !== $questionnaire->id) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
+        if ($response->status !== CompletionStatus::Completed) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
+        $plan = DateNightPlan::where('questionnaire_id', $questionnaire->id)
+            ->where(function ($query) use ($response): void {
+                $query->where('partner_one_response_id', $response->id)
+                    ->orWhere('partner_two_response_id', $response->id);
+            })
+            ->with(['partnerOneResponse.answers.questionOption', 'partnerTwoResponse.answers.questionOption'])
+            ->first();
+
+        if (! $plan) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
+        $partnerResponse = $plan->partnerOneResponse?->id === $response->id
+            ? $plan->partnerTwoResponse
+            : $plan->partnerOneResponse;
+
+        if (! $partnerResponse || $partnerResponse->user_id !== $partner->id) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
+        $response->load('answers.question', 'answers.questionOption');
+        $partnerResponse->load('answers.question', 'answers.questionOption');
+
+        $questions = $questionnaire->questions()->with('options')->get();
+        $userAnswers = $this->questionnaireService->getAnswersForResponse($response);
+        $partnerAnswers = $this->questionnaireService->getAnswersForResponse($partnerResponse);
+
+        $grouped = $questions->map(function ($question) use ($userAnswers, $partnerAnswers) {
+            $mapAnswer = fn ($answers) => $answers->where('question_id', $question->id)->map(fn ($a) => [
+                'value' => $a->value,
+                'option_title' => $a->questionOption?->title,
+                'option_emoji' => $a->questionOption?->emoji,
+            ])->values();
+
+            return [
+                'question' => [
+                    'id' => $question->id,
+                    'title' => $question->title,
+                    'emoji' => $question->emoji,
+                    'type' => $question->type->value,
+                    'display_order' => $question->display_order,
+                ],
+                'my_answers' => $mapAnswer($userAnswers),
+                'partner_answers' => $mapAnswer($partnerAnswers),
+            ];
+        });
+
+        return Inertia::render('questionnaires/PartnerAnswers', [
+            'questionnaire' => [
+                'id' => $questionnaire->id,
+                'title' => $questionnaire->title,
+                'slug' => $questionnaire->slug,
+            ],
+            'partner_name' => $partner->display_name ?? $partner->name,
+            'grouped_answers' => $grouped,
+            'completed_at' => $response->completed_at?->toISOString(),
+            'is_past_attempt' => true,
         ]);
     }
 }

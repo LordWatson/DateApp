@@ -21,11 +21,13 @@ class CompatibilityService
         $userResponse = Response::with('answers.question', 'answers.questionOption')
             ->where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
+            ->latest('id')
             ->first();
 
         $partnerResponse = Response::with('answers.question', 'answers.questionOption')
             ->where('user_id', $partner->id)
             ->where('questionnaire_id', $questionnaire->id)
+            ->latest('id')
             ->first();
 
         if (! $userResponse || ! $partnerResponse) {

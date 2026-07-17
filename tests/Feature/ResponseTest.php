@@ -9,7 +9,6 @@ use App\Models\Questionnaire;
 use App\Models\QuestionOption;
 use App\Models\Response;
 use App\Models\User;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -33,7 +32,7 @@ class ResponseTest extends TestCase
         $this->assertEquals(CompletionStatus::InProgress, $response->status);
     }
 
-    public function test_only_one_response_per_user_per_questionnaire(): void
+    public function test_multiple_responses_are_allowed_per_user_per_questionnaire(): void
     {
         $user = User::factory()->create();
         $questionnaire = Questionnaire::factory()->create();
@@ -41,14 +40,21 @@ class ResponseTest extends TestCase
         Response::factory()->create([
             'user_id' => $user->id,
             'questionnaire_id' => $questionnaire->id,
+            'status' => CompletionStatus::Completed,
         ]);
-
-        $this->expectException(QueryException::class);
 
         Response::factory()->create([
             'user_id' => $user->id,
             'questionnaire_id' => $questionnaire->id,
+            'status' => CompletionStatus::InProgress,
         ]);
+
+        $this->assertSame(
+            2,
+            Response::where('user_id', $user->id)
+                ->where('questionnaire_id', $questionnaire->id)
+                ->count(),
+        );
     }
 
     public function test_response_belongs_to_user(): void

@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Enums\CompletionStatus;
 use App\Events\DateNightPlanGenerated;
 use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
@@ -25,11 +26,17 @@ class GenerateDateNightPlanAction
         $responseOne = Response::with('answers.questionOption')
             ->where('user_id', $userOne->id)
             ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->latest('completed_at')
+            ->latest('id')
             ->firstOrFail();
 
         $responseTwo = Response::with('answers.questionOption')
             ->where('user_id', $userTwo->id)
             ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->latest('completed_at')
+            ->latest('id')
             ->firstOrFail();
 
         $compatibility = $this->compatibilityService->calculate($userOne, $questionnaire);

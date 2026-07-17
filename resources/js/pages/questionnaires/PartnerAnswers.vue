@@ -36,9 +36,26 @@ interface Props {
     questionnaire: QuestionnaireData;
     partner_name: string;
     grouped_answers: GroupedAnswer[];
+    completed_at?: string | null;
+    is_past_attempt?: boolean;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    completed_at: null,
+    is_past_attempt: false,
+});
+
+function formatDate(iso: string | null): string {
+    if (!iso) {
+        return '';
+    }
+
+    return new Date(iso).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+}
 
 function formatAnswers(answers: AnswerData[], type: string): string {
     if (answers.length === 0) {
@@ -75,6 +92,9 @@ function answersMatch(group: GroupedAnswer): boolean {
         <div class="space-y-1">
             <h1 class="text-2xl font-semibold text-foreground">💕 Partner's Answers</h1>
             <p class="text-sm text-muted-foreground">See how you and {{ partner_name }} compare.</p>
+            <p v-if="props.is_past_attempt && props.completed_at" class="text-xs text-muted-foreground">
+                Completed on {{ formatDate(props.completed_at) }}
+            </p>
         </div>
 
         <!-- Legend -->
@@ -132,11 +152,18 @@ function answersMatch(group: GroupedAnswer): boolean {
         <!-- Actions -->
         <div class="space-y-3 pt-2">
             <PrimaryButton
+                v-if="!props.is_past_attempt"
                 full-width
                 @click="router.visit(`/questionnaires/${questionnaire.slug}/compatibility`)"
             >
                 View Compatibility Score 💕
             </PrimaryButton>
+            <SecondaryButton
+                full-width
+                @click="router.visit(`/questionnaires/${questionnaire.slug}`)"
+            >
+                Back to Questionnaire
+            </SecondaryButton>
             <SecondaryButton full-width @click="router.visit('/dashboard')">
                 Return Home ❤️
             </SecondaryButton>

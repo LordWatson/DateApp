@@ -43,6 +43,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [QuestionnaireController::class, 'index'])->name('index');
             Route::get('/{questionnaire:slug}', [QuestionnaireController::class, 'show'])->name('show');
             Route::post('/{questionnaire:slug}/start', [QuestionnaireController::class, 'start'])->name('start');
+            Route::post('/{questionnaire:slug}/restart', [QuestionnaireController::class, 'restart'])->name('restart');
+            Route::get('/{questionnaire:slug}/past-attempts/{response}', [QuestionnaireController::class, 'pastAttempt'])->name('past-attempt');
             Route::get('/{questionnaire:slug}/question/{order}', [QuestionnaireController::class, 'question'])->name('question');
             Route::post('/{questionnaire:slug}/question/{order}/answer', [QuestionnaireController::class, 'answer'])->name('answer');
             Route::get('/{questionnaire:slug}/complete', [QuestionnaireController::class, 'complete'])->name('complete');

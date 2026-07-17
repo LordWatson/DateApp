@@ -17,10 +17,37 @@ class QuestionnaireService
 {
     public function findOrCreateResponse(User $user, Questionnaire $questionnaire): Response
     {
-        return Response::firstOrCreate(
-            ['user_id' => $user->id, 'questionnaire_id' => $questionnaire->id],
-            ['status' => CompletionStatus::InProgress, 'started_at' => Carbon::now()],
-        );
+        $inProgress = Response::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::InProgress)
+            ->latest('id')
+            ->first();
+
+        if ($inProgress) {
+            return $inProgress;
+        }
+
+        return Response::create([
+            'user_id' => $user->id,
+            'questionnaire_id' => $questionnaire->id,
+            'status' => CompletionStatus::InProgress,
+            'started_at' => Carbon::now(),
+        ]);
+    }
+
+    public function startNewResponse(User $user, Questionnaire $questionnaire): Response
+    {
+        Response::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::InProgress)
+            ->delete();
+
+        return Response::create([
+            'user_id' => $user->id,
+            'questionnaire_id' => $questionnaire->id,
+            'status' => CompletionStatus::InProgress,
+            'started_at' => Carbon::now(),
+        ]);
     }
 
     public function getResponseWithAnswers(User $user, Questionnaire $questionnaire): ?Response
@@ -28,7 +55,29 @@ class QuestionnaireService
         return Response::with('answers')
             ->where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
+            ->latest('id')
             ->first();
+    }
+
+    public function getLatestCompletedResponse(User $user, Questionnaire $questionnaire): ?Response
+    {
+        return Response::with('answers')
+            ->where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->latest('completed_at')
+            ->latest('id')
+            ->first();
+    }
+
+    public function getCompletedResponses(User $user, Questionnaire $questionnaire): Collection
+    {
+        return Response::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->orderByDesc('completed_at')
+            ->orderByDesc('id')
+            ->get();
     }
 
     public function saveAnswer(Response $response, Question $question, mixed $value): void
