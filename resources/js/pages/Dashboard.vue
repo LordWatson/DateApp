@@ -140,7 +140,7 @@ function invitePartner(): void {
             <div class="mt-5">
                 <PrimaryButton
                     full-width
-                    class="!bg-white !text-pink-600 hover:!bg-white/90"
+                    class="!bg-white text-white/80 hover:!bg-white/90"
                     @click="router.visit('/questionnaires')"
                 >
                     Start Tonight's Questionnaire ✨
