@@ -97,6 +97,10 @@ class QuestionnaireCompletedListenersTest extends TestCase
             'type' => 'partner_completed',
         ]);
 
+        $notification = AppNotification::where('user_id', $partner->id)->firstOrFail();
+        $this->assertSame($questionnaire->id, $notification->data['questionnaire_id']);
+        $this->assertSame($questionnaire->slug, $notification->data['questionnaire_slug']);
+
         Queue::assertPushed(SendQuestionnaireCompletedNotificationJob::class, function ($job) use ($partner, $user, $questionnaire) {
             return $job->recipient->id === $partner->id
                 && $job->sender->id === $user->id

@@ -27,7 +27,10 @@ final class NotifyPartnerOnQuestionnaireCompleted implements ShouldQueue
             'type' => NotificationType::PartnerCompleted,
             'title' => "💕 {$senderName} completed the questionnaire!",
             'body' => "Your partner has finished \"{$event->questionnaire->title}\". Check back soon for your compatibility results.",
-            'data' => ['questionnaire_id' => $event->questionnaire->id],
+            'data' => [
+                'questionnaire_id' => $event->questionnaire->id,
+                'questionnaire_slug' => $event->questionnaire->slug,
+            ],
         ]);
 
         SendQuestionnaireCompletedNotificationJob::dispatch($partner, $event->user, $event->questionnaire);
