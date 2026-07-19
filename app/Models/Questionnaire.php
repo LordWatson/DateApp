@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $active_until
  * @property string|null $artwork
  * @property bool $is_seasonal
+ * @property bool $is_intimacy
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -47,6 +48,7 @@ class Questionnaire extends Model
         'active_until',
         'artwork',
         'is_seasonal',
+        'is_intimacy',
     ];
 
     protected function casts(): array
@@ -57,6 +59,7 @@ class Questionnaire extends Model
             'active_from' => 'datetime',
             'active_until' => 'datetime',
             'is_seasonal' => 'boolean',
+            'is_intimacy' => 'boolean',
         ];
     }
 

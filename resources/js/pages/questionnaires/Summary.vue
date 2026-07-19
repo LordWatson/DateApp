@@ -166,10 +166,6 @@ function completeQuestionnaire(): void {
 
         <!-- Actions -->
         <div class="space-y-3 pt-2">
-            <SecondaryButton full-width @click="showSaveModal = true">
-                💾 Save as Favourite Profile
-            </SecondaryButton>
-
             <PrimaryButton
                 full-width
                 :loading="finishing"
@@ -177,6 +173,10 @@ function completeQuestionnaire(): void {
             >
                 Complete Questionnaire ❤️
             </PrimaryButton>
+
+            <SecondaryButton full-width @click="showSaveModal = true">
+                💾 Save as Favourite Profile
+            </SecondaryButton>
         </div>
     </div>
 

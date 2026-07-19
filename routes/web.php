@@ -7,6 +7,7 @@ use App\Http\Controllers\DateNightPlanController;
 use App\Http\Controllers\DateNightPlanPdfController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InsightsController;
+use App\Http\Controllers\IntimacyController;
 use App\Http\Controllers\LoveNoteController;
 use App\Http\Controllers\MomentController;
 use App\Http\Controllers\NotificationController;
@@ -98,6 +99,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Relationship Hub
         Route::get('relationship-hub', [RelationshipHubController::class, 'index'])->name('relationship-hub.index');
+
+        // Intimacy
+        Route::prefix('intimacy')->name('intimacy.')->group(function () {
+            Route::get('/', [IntimacyController::class, 'index'])->name('index');
+            Route::get('/games/{intimacyGame:slug}', [IntimacyController::class, 'show'])->name('games.show');
+        });
 
         // Calendar
         Route::prefix('calendar')->name('calendar.')->group(function () {

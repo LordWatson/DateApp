@@ -51,6 +51,8 @@ class DatabaseSeeder extends Seeder
             SystemSettingSeeder::class,
             QuestionnaireSeeder::class,
             SeasonalQuestionnaireSeeder::class,
+            IntimacyQuestionnaireSeeder::class,
+            IntimacyGameSeeder::class,
             ChallengeSeeder::class,
             DateNightThemeSeeder::class,
             AchievementSeeder::class,

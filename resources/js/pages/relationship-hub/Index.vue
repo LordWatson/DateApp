@@ -26,6 +26,7 @@ const cards = [
     { emoji: '🎯', title: 'Achievements', description: `${props.achievement_progress.unlocked}/${props.achievement_progress.total} unlocked`, href: '/achievements', colour: 'from-violet-400 to-purple-600' },
     { emoji: '🎁', title: 'Seasonal Events', description: 'Special questionnaires', href: '/questionnaires', colour: 'from-pink-300 to-rose-400' },
     { emoji: '💌', title: 'Love Notes', description: 'Sweet messages to your partner', href: '/love-notes', colour: 'from-pink-500 to-purple-500' },
+    { emoji: '🔥', title: 'Intimacy', description: 'Playful nights, just for two', href: '/intimacy', colour: 'from-rose-500 to-fuchsia-600' },
 ];
 </script>
 
