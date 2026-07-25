@@ -16,20 +16,20 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        /*$alex = User::create([
-            'name' => 'Alex Watson',
+        $alex = User::create([
+            'name' => 'Linda',
             'email' => 'squatty.watson@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
             'gender' => Gender::Male,
-            'date_of_birth' => '1990-06-15',
+            'date_of_birth' => '1993-10-16',
             'timezone' => 'UTC',
             'email_notifications' => true,
             'push_notifications' => true,
             'dark_mode' => false,
         ]);
 
-        $eliza = User::create([
+        /*$eliza = User::create([
             'name' => 'Eliza Watson',
             'email' => 'alexander.watson.work@gmail.com',
             'email_verified_at' => now(),
@@ -61,7 +61,7 @@ class DatabaseSeeder extends Seeder
 
         // Assign super admin role to Alex
         $superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
-        /*$alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
-        $eliza->update(['onboarding_completed' => true]);*/
+        $alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
+        // $eliza->update(['onboarding_completed' => true]);
     }
 }
