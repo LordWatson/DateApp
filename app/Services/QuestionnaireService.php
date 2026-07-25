@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\CompletionStatus;
 use App\Events\QuestionnaireCompleted;
 use App\Models\Answer;
+use App\Models\DateNightPlan;
 use App\Models\Question;
 use App\Models\Questionnaire;
 use App\Models\Response;
@@ -176,6 +177,47 @@ class QuestionnaireService
     public function getAnsweredQuestionIds(Response $response): array
     {
         return $response->answers()->pluck('question_id')->unique()->values()->toArray();
+    }
+
+    /**
+     * Determine whether the partner has a completed response for the questionnaire
+     * that has NOT yet been paired with any of the given user's completed responses
+     * in an existing DateNightPlan.
+     *
+     * This distinguishes between "partner has completed for this cycle" (true) and
+     * "partner's latest completion was already consumed by a previous plan, so the
+     * user is waiting for the partner to restart" (false).
+     */
+    public function partnerHasFreshCompletedResponse(User $user, User $partner, Questionnaire $questionnaire): bool
+    {
+        $partnerLatest = $this->getLatestCompletedResponse($partner, $questionnaire);
+
+        if (! $partnerLatest) {
+            return false;
+        }
+
+        $userResponseIds = Response::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->pluck('id');
+
+        if ($userResponseIds->isEmpty()) {
+            return true;
+        }
+
+        $alreadyPaired = DateNightPlan::query()
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where(function ($query) use ($partnerLatest): void {
+                $query->where('partner_one_response_id', $partnerLatest->id)
+                    ->orWhere('partner_two_response_id', $partnerLatest->id);
+            })
+            ->where(function ($query) use ($userResponseIds): void {
+                $query->whereIn('partner_one_response_id', $userResponseIds)
+                    ->orWhereIn('partner_two_response_id', $userResponseIds);
+            })
+            ->exists();
+
+        return ! $alreadyPaired;
     }
 
     public function getFirstUnansweredOrder(Questionnaire $questionnaire, Response $response): int

@@ -52,9 +52,9 @@ class QuestionnaireController extends Controller
         $user = $request->user();
         $response = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
         $partner = $user->partner;
-        $latestPartnerCompleted = $partner
-            ? $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire)
-            : null;
+        $partnerCompleted = $partner
+            ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
+            : false;
 
         return Inertia::render('questionnaires/Show', [
             'questionnaire' => [
@@ -71,7 +71,7 @@ class QuestionnaireController extends Controller
                 'answered_count' => count($this->questionnaireService->getAnsweredQuestionIds($response)),
                 'resume_order' => $this->questionnaireService->getFirstUnansweredOrder($questionnaire, $response),
             ] : null,
-            'partner_completed' => $latestPartnerCompleted !== null,
+            'partner_completed' => $partnerCompleted,
             'current_streak' => $user->current_streak,
             'saved_profiles' => $user->savedProfiles->map(fn ($p) => [
                 'id' => $p->id,
@@ -227,9 +227,9 @@ class QuestionnaireController extends Controller
         }
 
         $partner = $user->partner;
-        $partnerResponse = $partner
-            ? $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire)
-            : null;
+        $partnerCompleted = $partner
+            ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
+            : false;
 
         return Inertia::render('questionnaires/Complete', [
             'questionnaire' => [
@@ -239,7 +239,7 @@ class QuestionnaireController extends Controller
             ],
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
-            'partner_completed' => $partnerResponse !== null,
+            'partner_completed' => $partnerCompleted,
         ]);
     }
 
@@ -325,6 +325,10 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
+        if (! $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)) {
+            return redirect()->route('questionnaires.complete', $questionnaire->slug);
+        }
+
         $userResponse->load('answers.question', 'answers.questionOption');
         $partnerResponse->load('answers.question', 'answers.questionOption');
 
@@ -368,11 +372,9 @@ class QuestionnaireController extends Controller
         $user = $request->user();
         $partner = $user->partner;
 
-        $partnerResponse = $partner
-            ? $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire)
-            : null;
-
-        $partnerCompleted = $partnerResponse !== null;
+        $partnerCompleted = $partner
+            ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
+            : false;
 
         $compatibility = $partnerCompleted
             ? $this->compatibilityService->calculate($user, $questionnaire)
