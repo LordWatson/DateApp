@@ -220,6 +220,48 @@ class QuestionnaireService
         return ! $alreadyPaired;
     }
 
+    /**
+     * Determine whether the user should be automatically moved into a new questionnaire
+     * attempt because their partner has already started a new cycle.
+     *
+     * Returns true when:
+     *  - the user has no in-progress response for this questionnaire,
+     *  - the user's latest completed response has already been paired in a DateNightPlan,
+     *  - the partner has a completed response that has not yet been paired with any of
+     *    the user's completed responses (i.e. the partner has restarted and completed).
+     */
+    public function shouldAutoStartNewCycle(User $user, User $partner, Questionnaire $questionnaire): bool
+    {
+        $userInProgress = Response::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::InProgress)
+            ->exists();
+
+        if ($userInProgress) {
+            return false;
+        }
+
+        $userLatestCompleted = $this->getLatestCompletedResponse($user, $questionnaire);
+
+        if (! $userLatestCompleted) {
+            return false;
+        }
+
+        $userLatestPaired = DateNightPlan::query()
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where(function ($query) use ($userLatestCompleted): void {
+                $query->where('partner_one_response_id', $userLatestCompleted->id)
+                    ->orWhere('partner_two_response_id', $userLatestCompleted->id);
+            })
+            ->exists();
+
+        if (! $userLatestPaired) {
+            return false;
+        }
+
+        return $this->partnerHasFreshCompletedResponse($user, $partner, $questionnaire);
+    }
+
     public function getFirstUnansweredOrder(Questionnaire $questionnaire, Response $response): int
     {
         $answeredIds = $this->getAnsweredQuestionIds($response);

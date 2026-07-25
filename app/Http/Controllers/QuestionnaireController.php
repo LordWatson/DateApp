@@ -47,11 +47,18 @@ class QuestionnaireController extends Controller
         ]);
     }
 
-    public function show(Request $request, Questionnaire $questionnaire): Response
+    public function show(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
     {
         $user = $request->user();
-        $response = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
         $partner = $user->partner;
+
+        if ($partner && $this->questionnaireService->shouldAutoStartNewCycle($user, $partner, $questionnaire)) {
+            $this->questionnaireService->startNewResponse($user, $questionnaire);
+
+            return redirect()->route('questionnaires.question', [$questionnaire->slug, 1]);
+        }
+
+        $response = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
         $partnerCompleted = $partner
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;
