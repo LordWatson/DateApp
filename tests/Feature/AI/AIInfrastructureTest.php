@@ -31,7 +31,7 @@ class AIInfrastructureTest extends TestCase
         config()->set('ai.provider', 'deepseek');
         config()->set('ai.providers.deepseek.api_key', 'test-key');
         config()->set('ai.providers.deepseek.base_url', 'https://api.deepseek.test');
-        config()->set('ai.providers.deepseek.model', 'deepseek-chat');
+        config()->set('ai.providers.deepseek.model', 'deepseek-v4-flash');
         config()->set('ai.providers.deepseek.chat_endpoint', '/chat/completions');
         config()->set('ai.defaults.temperature', 0.7);
         config()->set('ai.defaults.max_tokens', 1200);
@@ -182,7 +182,7 @@ class AIInfrastructureTest extends TestCase
     {
         Http::fake([
             'api.deepseek.test/*' => Http::response([
-                'model' => 'deepseek-chat',
+                'model' => 'deepseek-v4-flash',
                 'usage' => ['total_tokens' => 42],
                 'choices' => [[
                     'message' => ['content' => json_encode(['prompt' => 'Hi'])],
@@ -196,7 +196,7 @@ class AIInfrastructureTest extends TestCase
 
         $this->assertTrue($response->successful);
         $this->assertSame(['prompt' => 'Hi'], $response->data);
-        $this->assertSame('deepseek-chat', $response->model);
+        $this->assertSame('deepseek-v4-flash', $response->model);
         $this->assertSame(42, $response->usage['total_tokens']);
     }
 
@@ -204,7 +204,7 @@ class AIInfrastructureTest extends TestCase
     {
         Http::fake([
             'api.deepseek.test/*' => Http::response([
-                'model' => 'deepseek-chat',
+                'model' => 'deepseek-v4-flash',
                 'choices' => [[
                     'message' => ['content' => 'not json at all'],
                 ]],
@@ -284,7 +284,7 @@ class AIInfrastructureTest extends TestCase
 
             return $request->url() === 'https://api.deepseek.test/chat/completions'
                 && $request->hasHeader('Authorization', 'Bearer test-key')
-                && $body['model'] === 'deepseek-chat'
+                && $body['model'] === 'deepseek-v4-flash'
                 && $body['temperature'] === 0.7
                 && $body['max_tokens'] === 1200
                 && $body['response_format'] === ['type' => 'json_object']

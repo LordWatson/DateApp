@@ -52,12 +52,16 @@ class DateNightPlan extends Model
         'conversation_prompt',
         'romantic_challenge',
         'is_favourite',
+        'ai_enhanced',
+        'fallback_used',
     ];
 
     protected function casts(): array
     {
         return [
             'is_favourite' => 'boolean',
+            'ai_enhanced' => 'boolean',
+            'fallback_used' => 'boolean',
             'compatibility_score' => 'integer',
         ];
     }

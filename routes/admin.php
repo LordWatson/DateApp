@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminAchievementController;
 use App\Http\Controllers\Admin\AdminAiPromptController;
+use App\Http\Controllers\Admin\AdminAiSettingController;
 use App\Http\Controllers\Admin\AdminAnalyticsController;
 use App\Http\Controllers\Admin\AdminAuditLogController;
 use App\Http\Controllers\Admin\AdminChallengeController;
@@ -117,6 +118,15 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::post('/', [AdminAiPromptController::class, 'store'])->name('store');
         Route::put('/{aiPrompt}', [AdminAiPromptController::class, 'update'])->name('update');
         Route::delete('/{aiPrompt}', [AdminAiPromptController::class, 'destroy'])->name('destroy');
+    });
+
+    // AI Settings (provider, model, tokens, retries, plus test/preview + analytics)
+    Route::prefix('ai-settings')->name('ai-settings.')->group(function () {
+        Route::get('/', [AdminAiSettingController::class, 'index'])->name('index');
+        Route::put('/', [AdminAiSettingController::class, 'update'])->name('update');
+        Route::post('/test-connection', [AdminAiSettingController::class, 'testConnection'])->name('test-connection');
+        Route::get('/preview-prompt', [AdminAiSettingController::class, 'previewPrompt'])->name('preview-prompt');
+        Route::post('/preview-response', [AdminAiSettingController::class, 'previewResponse'])->name('preview-response');
     });
 
     // Media Library

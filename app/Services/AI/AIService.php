@@ -10,6 +10,7 @@ use App\DTOs\AI\AIResponse;
 use App\Enums\AI\AIUseCase;
 use App\Models\AiPromptTemplate;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Database\Eloquent\Model;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -30,6 +31,7 @@ final readonly class AIService
         private AIProvider $provider,
         private ConfigRepository $config,
         private LoggerInterface $logger,
+        private AIAnalyticsRecorder $analytics,
     ) {}
 
     public function generateDateNightPlan(array $context = []): AIResponse
@@ -68,10 +70,29 @@ final readonly class AIService
     }
 
     /**
+     * Public entry point that lets callers attach a subject model and
+     * user id for analytics without changing the semantic methods above.
+     *
      * @param  array<string, mixed>  $context
      */
-    private function run(AIUseCase $useCase, array $context): AIResponse
-    {
+    public function generate(
+        AIUseCase $useCase,
+        array $context = [],
+        ?Model $subject = null,
+        ?int $userId = null,
+    ): AIResponse {
+        return $this->run($useCase, $context, $subject, $userId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function run(
+        AIUseCase $useCase,
+        array $context,
+        ?Model $subject = null,
+        ?int $userId = null,
+    ): AIResponse {
         $template = $this->loadTemplate($useCase);
 
         $request = new AIRequest(
@@ -91,7 +112,9 @@ final readonly class AIService
             responseFormat: (string) $this->config->get('ai.defaults.response_format', 'json_object'),
         );
 
+        $startedAt = hrtime(true);
         $response = $this->provider->complete($request);
+        $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
 
         if (! $response->successful) {
             $this->logger->warning('AI request failed.', [
@@ -101,6 +124,15 @@ final readonly class AIService
                 'error_message' => $response->errorMessage,
             ]);
         }
+
+        $this->analytics->record(
+            request: $request,
+            response: $response,
+            durationMs: $durationMs,
+            fallbackUsed: ! $response->successful,
+            subject: $subject,
+            userId: $userId,
+        );
 
         return $response;
     }
