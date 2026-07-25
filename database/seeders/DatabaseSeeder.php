@@ -56,6 +56,7 @@ class DatabaseSeeder extends Seeder
             ChallengeSeeder::class,
             DateNightThemeSeeder::class,
             AchievementSeeder::class,
+            AiPromptTemplateSeeder::class,
         ]);
 
         // Assign super admin role to Alex
