@@ -2,17 +2,37 @@
 
 namespace App\Services;
 
-use App\Contracts\AIProvider;
 use App\Models\DateNightPlan;
 use App\Models\DateNightTheme;
 use App\Models\Questionnaire;
 use App\Models\Response;
+use App\Services\AI\AIService;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 class DateNightGeneratorService
 {
+    /**
+     * Fields the AI is allowed to rewrite. The Rule Engine remains
+     * authoritative — AI can only enhance wording of these keys.
+     *
+     * @var list<string>
+     */
+    private const ENHANCEABLE_FIELDS = [
+        'summary',
+        'meal_suggestion',
+        'drink_suggestion',
+        'music_vibe',
+        'atmosphere',
+        'activity',
+        'conversation_prompt',
+        'romantic_challenge',
+    ];
+
     public function __construct(
         private readonly RuleEngineService $ruleEngine,
-        private readonly AIProvider $aiProvider,
+        private readonly AIService $ai,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -37,15 +57,20 @@ class DateNightGeneratorService
 
         $context = $this->ruleEngine->deriveContext($userAnswers, $partnerAnswers, $score);
 
-        $plan = $this->buildPlan($theme, $context, $score, $questionnaire);
+        // 1. Deterministic plan (authoritative).
+        $deterministicPlan = $this->buildPlan($theme, $context, $score, $questionnaire);
 
-        if ($this->aiProvider->isConfigured()) {
-            $plan = $this->aiProvider->enhancePlan($plan, [
-                'compatibility' => $compatibility,
-                'questionnaire' => $questionnaire->title,
-            ]);
-        }
+        // 2. Optional AI enhancement (wording only).
+        [$plan, $aiEnhanced, $fallbackUsed] = $this->enhanceWithAI(
+            $deterministicPlan,
+            $compatibility,
+            $questionnaire,
+        );
 
+        // 3. Validation — reject anything the Rule Engine didn't authorise.
+        $plan = $this->validateEnhancement($deterministicPlan, $plan);
+
+        // 4. Persist.
         return DateNightPlan::create([
             'questionnaire_id' => $questionnaire->id,
             'partner_one_response_id' => $partnerOneResponse->id,
@@ -62,7 +87,75 @@ class DateNightGeneratorService
             'activity' => $plan['activity'],
             'conversation_prompt' => $plan['conversation_prompt'],
             'romantic_challenge' => $plan['romantic_challenge'],
+            'ai_enhanced' => $aiEnhanced,
+            'fallback_used' => $fallbackUsed,
         ]);
+    }
+
+    /**
+     * Attempt to enhance the deterministic plan wording via AI.
+     * Never lets AI failures surface — always returns a usable plan.
+     *
+     * @param  array<string, string|null>  $plan
+     * @param  array<string, mixed>  $compatibility
+     * @return array{0: array<string, string|null>, 1: bool, 2: bool}
+     */
+    private function enhanceWithAI(array $plan, array $compatibility, Questionnaire $questionnaire): array
+    {
+        try {
+            $response = $this->ai->generateDateNightPlan([
+                'plan' => $plan,
+                'compatibility' => $compatibility,
+                'questionnaire' => $questionnaire->title,
+                'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
+            ]);
+        } catch (Throwable $e) {
+            $this->logger->warning('AI enhancement threw; falling back to deterministic plan.', [
+                'exception' => $e->getMessage(),
+                'questionnaire_id' => $questionnaire->id,
+            ]);
+
+            return [$plan, false, true];
+        }
+
+        if (! $response->successful) {
+            $this->logger->warning('AI enhancement unsuccessful; using deterministic plan.', [
+                'error_code' => $response->errorCode,
+                'questionnaire_id' => $questionnaire->id,
+            ]);
+
+            return [$plan, false, true];
+        }
+
+        $enhanced = $plan;
+        $touched = false;
+        foreach (self::ENHANCEABLE_FIELDS as $field) {
+            $value = $response->data[$field] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                $enhanced[$field] = $value;
+                $touched = true;
+            }
+        }
+
+        return [$enhanced, $touched, false];
+    }
+
+    /**
+     * Ensure AI enhancement never mutates fields it is not allowed to.
+     *
+     * @param  array<string, string|null>  $deterministic
+     * @param  array<string, string|null>  $enhanced
+     * @return array<string, string|null>
+     */
+    private function validateEnhancement(array $deterministic, array $enhanced): array
+    {
+        foreach ($deterministic as $key => $value) {
+            if (! in_array($key, self::ENHANCEABLE_FIELDS, true)) {
+                $enhanced[$key] = $value;
+            }
+        }
+
+        return $enhanced;
     }
 
     /**

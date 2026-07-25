@@ -6,6 +6,7 @@ use App\Enums\CompletionStatus;
 use App\Enums\QuestionnaireStatus;
 use App\Enums\QuestionnaireVisibility;
 use App\Models\Answer;
+use App\Models\DateNightPlan;
 use App\Models\Question;
 use App\Models\Questionnaire;
 use App\Models\QuestionOption;
@@ -110,6 +111,86 @@ class QuestionnaireFlowTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('response.status', 'in_progress')
             );
+    }
+
+    public function test_show_auto_starts_new_response_when_partner_has_restarted(): void
+    {
+        $partner = User::factory()->create(['onboarding_completed' => true]);
+        $this->user->update(['partner_id' => $partner->id]);
+        $partner->update(['partner_id' => $this->user->id]);
+
+        // Previous completed cycle: both partners have a completed response and a plan exists.
+        $userOldResponse = Response::factory()->create([
+            'user_id' => $this->user->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+            'completed_at' => now()->subDay(),
+        ]);
+        $partnerOldResponse = Response::factory()->create([
+            'user_id' => $partner->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+            'completed_at' => now()->subDay(),
+        ]);
+        DateNightPlan::factory()->create([
+            'questionnaire_id' => $this->questionnaire->id,
+            'partner_one_response_id' => $userOldResponse->id,
+            'partner_two_response_id' => $partnerOldResponse->id,
+        ]);
+
+        // Partner has restarted and completed again.
+        Response::factory()->create([
+            'user_id' => $partner->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('questionnaires.show', $this->questionnaire->slug))
+            ->assertRedirect(route('questionnaires.question', [$this->questionnaire->slug, 1]));
+
+        $this->assertDatabaseHas('responses', [
+            'user_id' => $this->user->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::InProgress->value,
+        ]);
+    }
+
+    public function test_show_does_not_auto_start_when_partner_has_not_restarted(): void
+    {
+        $partner = User::factory()->create(['onboarding_completed' => true]);
+        $this->user->update(['partner_id' => $partner->id]);
+        $partner->update(['partner_id' => $this->user->id]);
+
+        $userOldResponse = Response::factory()->create([
+            'user_id' => $this->user->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+            'completed_at' => now()->subDay(),
+        ]);
+        $partnerOldResponse = Response::factory()->create([
+            'user_id' => $partner->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::Completed,
+            'completed_at' => now()->subDay(),
+        ]);
+        DateNightPlan::factory()->create([
+            'questionnaire_id' => $this->questionnaire->id,
+            'partner_one_response_id' => $userOldResponse->id,
+            'partner_two_response_id' => $partnerOldResponse->id,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('questionnaires.show', $this->questionnaire->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('questionnaires/Show'));
+
+        $this->assertDatabaseMissing('responses', [
+            'user_id' => $this->user->id,
+            'questionnaire_id' => $this->questionnaire->id,
+            'status' => CompletionStatus::InProgress->value,
+        ]);
     }
 
     // ─── Start ───────────────────────────────────────────────────────────────
