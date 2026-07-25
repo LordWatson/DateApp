@@ -33,20 +33,27 @@ class AiPromptTemplateSeeder extends Seeder
                 'description' => 'Generates a romantic, mood-appropriate date night plan for a couple.',
                 'system_prompt' => $safety."\n\nYou craft romantic, playful and thoughtful date night plans that respect both partners' preferences and consent.",
                 'user_prompt_template' => <<<'PROMPT'
-Given the couple's shared context below, propose a single date night plan.
+Given the couple's shared context below, enhance the existing date night plan
+by rewriting every field in warm, playful, evocative language. Keep the theme
+consistent across all fields and make each suggestion concrete and inviting.
 
 Context:
 {{context}}
 
-Respond as JSON with:
+Respond as strict JSON matching exactly this shape (all fields required, all
+strings must be non-empty, concise, and free of markdown):
 {
-  "title": string,
-  "summary": string,
-  "activities": [ { "title": string, "description": string, "duration_minutes": integer } ],
-  "vibe": string
+  "summary": string,               // 1–3 sentences describing the overall evening
+  "meal_suggestion": string,       // a specific dish or shared food idea
+  "drink_suggestion": string,      // a specific drink pairing (alcoholic or not)
+  "music_vibe": string,            // genre, mood or example artists/playlist idea
+  "atmosphere": string,            // lighting, scent, setting cues
+  "activity": string,              // the main shared activity for the evening
+  "conversation_prompt": string,   // one gentle, open-ended question for the couple
+  "romantic_challenge": string     // one small, playful romantic challenge to try
 }
 PROMPT,
-                'version' => 1,
+                'version' => 2,
                 'active' => true,
             ],
             [
