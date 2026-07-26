@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\SummariseCoupleAnswersAction;
 use App\Models\DateNightPlan;
 use App\Services\AI\AIService;
 use Illuminate\Bus\Queueable;
@@ -49,19 +50,54 @@ final class EnhanceDateNightPlanWithAIJob implements ShouldQueue
         $this->onQueue('ai');
     }
 
-    public function handle(AIService $ai): void
+    public function handle(AIService $ai, SummariseCoupleAnswersAction $summariseCoupleAnswers): void
     {
         /** @var DateNightPlan|null $plan */
-        $plan = DateNightPlan::find($this->planId);
+        $plan = DateNightPlan::with([
+            'questionnaire',
+            'partnerOneResponse.user',
+            'partnerOneResponse.answers.question',
+            'partnerOneResponse.answers.questionOption',
+            'partnerTwoResponse.user',
+            'partnerTwoResponse.answers.question',
+            'partnerTwoResponse.answers.questionOption',
+        ])->find($this->planId);
         if ($plan === null || $plan->ai_enhanced) {
             return;
         }
 
+        $coupleSummary = null;
+        if ($plan->questionnaire !== null
+            && $plan->partnerOneResponse !== null
+            && $plan->partnerTwoResponse !== null
+        ) {
+            $coupleSummary = $summariseCoupleAnswers->execute(
+                $plan->questionnaire,
+                $plan->partnerOneResponse,
+                $plan->partnerTwoResponse,
+            );
+        }
+
+        $contextPayload = [
+            'plan' => $plan->only([...self::ENHANCEABLE_FIELDS, 'theme']),
+            'compatibility_score' => $plan->compatibility_score,
+            'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
+            'questionnaire' => $coupleSummary['questionnaire'] ?? null,
+            'couple_answers' => $coupleSummary === null
+                ? null
+                : [
+                    'partner_one' => $coupleSummary['partner_one'],
+                    'partner_two' => $coupleSummary['partner_two'],
+                ],
+        ];
+
         try {
             $response = $ai->generateDateNightPlan([
-                'plan' => $plan->only([...self::ENHANCEABLE_FIELDS, 'theme']),
-                'compatibility_score' => $plan->compatibility_score,
-                'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
+                ...$contextPayload,
+                // Also expose the full payload under `context` so the
+                // {{context}} placeholder in the prompt template resolves to
+                // the complete structured context (questionnaire + answers).
+                'context' => $contextPayload,
             ]);
         } catch (Throwable $e) {
             Log::warning('EnhanceDateNightPlanWithAIJob: AI call threw; fallback recorded.', [

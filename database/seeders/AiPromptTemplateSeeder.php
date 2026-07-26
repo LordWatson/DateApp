@@ -33,9 +33,25 @@ class AiPromptTemplateSeeder extends Seeder
                 'description' => 'Generates a romantic, mood-appropriate date night plan for a couple.',
                 'system_prompt' => $safety."\n\nYou craft romantic, playful and thoughtful date night plans that respect both partners' preferences and consent.",
                 'user_prompt_template' => <<<'PROMPT'
-Given the couple's shared context below, enhance the existing date night plan
-by rewriting every field in warm, playful, evocative language. Keep the theme
-consistent across all fields and make each suggestion concrete and inviting.
+You are enhancing a date night plan for a couple who have BOTH just completed
+a specific questionnaire together. The plan you produce MUST match the topic,
+mood and intent of that questionnaire and the couple's actual answers.
+
+Rules you MUST follow:
+  - Anchor every field to the questionnaire's topic (see `questionnaire.title`
+    and `questionnaire.description` inside the context). If the questionnaire
+    is about a games night, produce a games-night plan. If it is about an
+    intimate or sexual evening, keep the plan intimate and sensual (still
+    tasteful and within safety rules). Never invent an unrelated theme
+    (e.g. cooking or star gazing) unless the questionnaire clearly implies it.
+  - Reflect the couple's shared preferences from `couple_answers.partner_one`
+    and `couple_answers.partner_two`. Where both partners agree, lean into it.
+    Where they differ, choose a warm compromise that honours both.
+  - If `questionnaire.is_intimacy` is true, `meal_suggestion` and
+    `drink_suggestion` may be small sensual touches (e.g. a shared bite,
+    a shared sip) rather than a full meal.
+  - Keep the theme consistent across all fields and make each suggestion
+    concrete, inviting and evocative.
 
 Context:
 {{context}}
@@ -43,17 +59,17 @@ Context:
 Respond as strict JSON matching exactly this shape (all fields required, all
 strings must be non-empty, concise, and free of markdown):
 {
-  "summary": string,               // 1–3 sentences describing the overall evening
-  "meal_suggestion": string,       // a specific dish or shared food idea
-  "drink_suggestion": string,      // a specific drink pairing (alcoholic or not)
-  "music_vibe": string,            // genre, mood or example artists/playlist idea
-  "atmosphere": string,            // lighting, scent, setting cues
-  "activity": string,              // the main shared activity for the evening
-  "conversation_prompt": string,   // one gentle, open-ended question for the couple
-  "romantic_challenge": string     // one small, playful romantic challenge to try
+  "summary": string,               // 1–3 sentences describing the overall evening, referencing the questionnaire's topic
+  "meal_suggestion": string,       // a specific dish or shared food idea appropriate to the questionnaire
+  "drink_suggestion": string,      // a specific drink pairing (alcoholic or not) appropriate to the questionnaire
+  "music_vibe": string,            // genre, mood or example artists/playlist idea that fits the evening
+  "atmosphere": string,            // lighting, scent, setting cues that fit the questionnaire's mood
+  "activity": string,              // the main shared activity, aligned to the questionnaire's topic
+  "conversation_prompt": string,   // one gentle, open-ended question tied to the questionnaire's theme
+  "romantic_challenge": string     // one small, playful challenge that fits the couple's answers
 }
 PROMPT,
-                'version' => 2,
+                'version' => 3,
                 'active' => true,
             ],
             [

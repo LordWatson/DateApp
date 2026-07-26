@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\AI;
 
+use App\Actions\SummariseCoupleAnswersAction;
 use App\Contracts\AI\AIProvider;
 use App\DTOs\AI\AIRequest;
 use App\DTOs\AI\AIResponse;
@@ -130,7 +131,10 @@ final class AIIntegrationTest extends TestCase
             }
         });
 
-        (new EnhanceDateNightPlanWithAIJob($plan->id))->handle($this->app->make(AIService::class));
+        (new EnhanceDateNightPlanWithAIJob($plan->id))->handle(
+            $this->app->make(AIService::class),
+            $this->app->make(SummariseCoupleAnswersAction::class),
+        );
 
         $this->assertSame('original', $plan->fresh()->summary);
     }
@@ -157,7 +161,10 @@ final class AIIntegrationTest extends TestCase
             }
         });
 
-        (new EnhanceDateNightPlanWithAIJob($plan->id))->handle($this->app->make(AIService::class));
+        (new EnhanceDateNightPlanWithAIJob($plan->id))->handle(
+            $this->app->make(AIService::class),
+            $this->app->make(SummariseCoupleAnswersAction::class),
+        );
 
         $fresh = $plan->fresh();
         $this->assertFalse($fresh->ai_enhanced);
