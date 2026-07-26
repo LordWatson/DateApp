@@ -86,11 +86,11 @@ function openQuestionnaire(slug: string): void {
 </script>
 
 <template>
-    <Head title="Questionnaires" />
+    <Head title="Plan" />
 
     <div class="space-y-6 px-4 py-6 pb-24">
         <div class="space-y-1">
-            <h1 class="text-2xl font-semibold text-foreground">Questionnaires 📋</h1>
+            <h1 class="text-2xl font-semibold text-foreground">Plan 📋</h1>
             <p class="text-sm text-muted-foreground">Choose a questionnaire to plan your evening.</p>
         </div>
 
