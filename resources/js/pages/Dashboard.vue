@@ -233,50 +233,6 @@ function invitePartner(): void {
             </div>
         </Link>
 
-        <!-- Recent Questionnaire -->
-        <div class="card-premium p-6">
-            <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-foreground">
-                    Recent Questionnaire
-                </h3>
-                <span class="text-2xl" aria-hidden="true">📋</span>
-            </div>
-
-            <div v-if="recentQuestionnaires.length > 0" class="space-y-3">
-                <Link
-                    v-for="q in recentQuestionnaires"
-                    :key="q.id"
-                    :href="`/questionnaires/${q.slug}/partner-answers`"
-                    class="flex cursor-pointer items-center gap-3 rounded-2xl p-3 transition-all hover:bg-muted/50 active:scale-[0.98]"
-                >
-                    <span class="text-2xl" aria-hidden="true">{{
-                        q.emoji
-                    }}</span>
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate font-medium text-foreground">
-                            {{ q.title }}
-                        </p>
-                        <p
-                            v-if="q.completed_at"
-                            class="text-xs text-muted-foreground"
-                        >
-                            {{ new Date(q.completed_at).toLocaleDateString() }}
-                        </p>
-                    </div>
-                    <span class="text-muted-foreground" aria-hidden="true"
-                        >›</span
-                    >
-                </Link>
-            </div>
-
-            <EmptyState
-                v-else
-                emoji="📝"
-                title="Tonight is waiting ❤️"
-                description="Complete your first questionnaire to see your history here."
-            />
-        </div>
-
         <!-- Recent Date Nights -->
         <div class="card-premium p-6">
             <div class="mb-4 flex items-center justify-between">
@@ -333,6 +289,50 @@ function invitePartner(): void {
                 emoji="💖"
                 title="No date nights yet"
                 description="Complete a questionnaire with your partner to generate your first date night plan."
+            />
+        </div>
+
+        <!-- Recent Questionnaire -->
+        <div class="card-premium p-6">
+            <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-foreground">
+                    Recent Questionnaire
+                </h3>
+                <span class="text-2xl" aria-hidden="true">📋</span>
+            </div>
+
+            <div v-if="recentQuestionnaires.length > 0" class="space-y-3">
+                <Link
+                    v-for="q in recentQuestionnaires"
+                    :key="q.id"
+                    :href="`/questionnaires/${q.slug}/partner-answers`"
+                    class="flex cursor-pointer items-center gap-3 rounded-2xl p-3 transition-all hover:bg-muted/50 active:scale-[0.98]"
+                >
+                    <span class="text-2xl" aria-hidden="true">{{
+                            q.emoji
+                        }}</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate font-medium text-foreground">
+                            {{ q.title }}
+                        </p>
+                        <p
+                            v-if="q.completed_at"
+                            class="text-xs text-muted-foreground"
+                        >
+                            {{ new Date(q.completed_at).toLocaleDateString() }}
+                        </p>
+                    </div>
+                    <span class="text-muted-foreground" aria-hidden="true"
+                    >›</span
+                    >
+                </Link>
+            </div>
+
+            <EmptyState
+                v-else
+                emoji="📝"
+                title="Tonight is waiting ❤️"
+                description="Complete your first questionnaire to see your history here."
             />
         </div>
 

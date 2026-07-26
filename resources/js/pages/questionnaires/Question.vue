@@ -94,6 +94,8 @@ return null;
 });
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+let advanceTimeout: ReturnType<typeof setTimeout> | null = null;
+const AUTO_ADVANCE_DELAY_MS = 400;
 
 watch(answer, (newVal) => {
     if (newVal !== null && newVal !== '' && !(Array.isArray(newVal) && newVal.length === 0)) {
@@ -105,7 +107,17 @@ clearTimeout(saveTimeout);
 }
 
     saveTimeout = setTimeout(() => {
-        saveAnswer();
+        saveAnswer().then(() => {
+            if (props.question.type === 'single_choice' && hasAnswer.value) {
+                if (advanceTimeout) {
+                    clearTimeout(advanceTimeout);
+                }
+
+                advanceTimeout = setTimeout(() => {
+                    goNext();
+                }, AUTO_ADVANCE_DELAY_MS);
+            }
+        });
     }, 300);
 });
 
