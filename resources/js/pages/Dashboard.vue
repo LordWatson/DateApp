@@ -127,9 +127,25 @@ function invitePartner(): void {
                         {{ greeting }},
                     </p>
                     <h1 class="text-2xl font-semibold">{{ firstName }} ❤️</h1>
-                    <p class="mt-1 text-sm text-white/70">
-                        Ready to plan tonight?
-                    </p>
+                    <button
+                        type="button"
+                        class="mt-2 flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-left text-xs font-medium text-white/90 backdrop-blur-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                        @click="invitePartner"
+                    >
+                        <template v-if="partnerStatus === 'connected'">
+                            <span class="text-base leading-none" aria-hidden="true">{{ partner?.avatar || '💕' }}</span>
+                            <span class="truncate">with {{ partner?.display_name ?? partner?.name }}</span>
+                            <span class="text-success" aria-hidden="true">●</span>
+                        </template>
+                        <template v-else-if="partnerStatus === 'pending'">
+                            <span class="text-base leading-none" aria-hidden="true">⏳</span>
+                            <span class="truncate">Invitation pending</span>
+                        </template>
+                        <template v-else>
+                            <span class="text-base leading-none" aria-hidden="true">💌</span>
+                            <span>Invite your partner</span>
+                        </template>
+                    </button>
                 </div>
                 <div
                     class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-3xl"
@@ -143,65 +159,8 @@ function invitePartner(): void {
                     class="!bg-white text-white/80 hover:!bg-white/90"
                     @click="router.visit('/questionnaires')"
                 >
-                    Start Tonight's Questionnaire ✨
+                    Plan A Date Night ✨
                 </PrimaryButton>
-            </div>
-        </div>
-
-        <!-- Partner Status Card -->
-        <div class="card-premium p-6">
-            <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-foreground">Partner</h3>
-                <span class="text-2xl" aria-hidden="true">💑</span>
-            </div>
-
-            <!-- Connected -->
-            <div
-                v-if="partnerStatus === 'connected'"
-                class="flex items-center gap-4"
-            >
-                <div
-                    class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl"
-                >
-                    {{ partner?.avatar || '💕' }}
-                </div>
-                <div class="flex-1">
-                    <p class="font-semibold text-foreground">
-                        {{ partner?.display_name ?? partner?.name }}
-                    </p>
-                    <p class="text-sm text-success">● Connected</p>
-                </div>
-            </div>
-
-            <!-- Pending Invitation -->
-            <div v-else-if="partnerStatus === 'pending'" class="space-y-3">
-                <div
-                    class="flex items-center gap-3 rounded-2xl bg-warning/10 p-3"
-                >
-                    <span class="text-xl">⏳</span>
-                    <div>
-                        <p class="text-sm font-semibold text-foreground">
-                            Invitation pending
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                            Sent to {{ pendingInvitation?.email }}
-                        </p>
-                    </div>
-                </div>
-                <PrimaryButton full-width @click="invitePartner">
-                    Manage Invitation
-                </PrimaryButton>
-            </div>
-
-            <!-- No Partner -->
-            <div v-else>
-                <EmptyState
-                    emoji="💌"
-                    title="No partner connected"
-                    description="Invite your partner to start sharing questionnaires and discover your compatibility."
-                    action-label="Invite Partner"
-                    @action="invitePartner"
-                />
             </div>
         </div>
 
