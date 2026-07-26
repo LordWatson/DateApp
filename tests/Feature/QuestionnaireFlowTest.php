@@ -80,7 +80,32 @@ class QuestionnaireFlowTest extends TestCase
         $this->actingAs($this->user)
             ->get(route('questionnaires.index'))
             ->assertInertia(fn ($page) => $page
-                ->has('questionnaires', 1)
+                ->has('questionnaires.data', 1)
+            );
+    }
+
+    public function test_questionnaire_index_can_be_filtered_by_type(): void
+    {
+        Questionnaire::factory()->create([
+            'status' => QuestionnaireStatus::Active,
+            'visibility' => QuestionnaireVisibility::Public,
+            'slug' => 'solo-questionnaire',
+            'is_solo' => true,
+        ]);
+
+        Questionnaire::factory()->create([
+            'status' => QuestionnaireStatus::Active,
+            'visibility' => QuestionnaireVisibility::Public,
+            'slug' => 'intimacy-questionnaire',
+            'is_intimacy' => true,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('questionnaires.index', ['filter' => 'solo']))
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.filter', 'solo')
+                ->has('questionnaires.data', 1)
+                ->where('questionnaires.data.0.slug', 'solo-questionnaire')
             );
     }
 

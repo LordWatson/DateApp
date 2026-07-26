@@ -24,7 +24,7 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                 'status' => QuestionnaireStatus::Active,
                 'visibility' => QuestionnaireVisibility::Public,
                 'estimated_minutes' => 3,
-                'display_order' => 20,
+                'display_order' => 0,
                 'is_seasonal' => false,
                 'is_intimacy' => false,
                 'is_solo' => true,

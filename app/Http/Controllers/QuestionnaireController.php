@@ -27,24 +27,63 @@ class QuestionnaireController extends Controller
 
     public function index(Request $request): Response
     {
-        $questionnaires = Questionnaire::where('status', QuestionnaireStatus::Active)
-            ->orderBy('display_order')
-            ->get();
+        $filter = (string) $request->query('filter', 'all');
+        $allowedFilters = ['all', 'couples', 'solo', 'intimacy', 'seasonal'];
+
+        if (! in_array($filter, $allowedFilters, true)) {
+            $filter = 'all';
+        }
+
+        $query = Questionnaire::query()
+            ->where('status', QuestionnaireStatus::Active)
+            ->withCount('questions')
+            ->orderBy('display_order');
+
+        match ($filter) {
+            'solo' => $query->where('is_solo', true),
+            'intimacy' => $query->where('is_intimacy', true),
+            'seasonal' => $query->where('is_seasonal', true),
+            'couples' => $query
+                ->where('is_solo', false)
+                ->where('is_intimacy', false)
+                ->where('is_seasonal', false),
+            default => null,
+        };
+
+        $paginator = $query
+            ->paginate(10)
+            ->withQueryString();
 
         $user = $request->user();
-        $responses = $user->responses()->whereIn('questionnaire_id', $questionnaires->pluck('id'))->get()->keyBy('questionnaire_id');
+        $responses = $user->responses()
+            ->whereIn('questionnaire_id', collect($paginator->items())->pluck('id'))
+            ->get()
+            ->keyBy('questionnaire_id');
+
+        $paginator->getCollection()->transform(fn (Questionnaire $q) => [
+            'id' => $q->id,
+            'title' => $q->title,
+            'slug' => $q->slug,
+            'description' => $q->description,
+            'emoji' => $q->emoji,
+            'estimated_minutes' => $q->estimated_minutes,
+            'question_count' => $q->questions_count,
+            'response_status' => $responses->get($q->id)?->status->value,
+        ]);
 
         return Inertia::render('questionnaires/Index', [
-            'questionnaires' => $questionnaires->map(fn ($q) => [
-                'id' => $q->id,
-                'title' => $q->title,
-                'slug' => $q->slug,
-                'description' => $q->description,
-                'emoji' => $q->emoji,
-                'estimated_minutes' => $q->estimated_minutes,
-                'question_count' => $q->questions()->count(),
-                'response_status' => $responses->get($q->id)?->status->value,
-            ]),
+            'questionnaires' => [
+                'data' => $paginator->items(),
+                'links' => $paginator->linkCollection()->toArray(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+            ],
+            'filters' => [
+                'filter' => $filter,
+            ],
         ]);
     }
 
