@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import { index } from '@/routes/insights';
 import { regenerate as regenerateRoute } from '@/routes/weekly-reflection';
 
 defineOptions({ layout: MobileLayout });
+
+const regenerating = ref(false);
 
 interface Reflection {
     id: number;
@@ -38,7 +41,19 @@ const formatRange = (start: string | null, end: string | null): string => {
 };
 
 const regenerate = (): void => {
-    router.post(regenerateRoute().url, {}, { preserveScroll: true });
+    if (regenerating.value) {
+        return;
+    }
+
+    router.post(regenerateRoute().url, {}, {
+        preserveScroll: true,
+        onStart: () => {
+            regenerating.value = true;
+        },
+        onFinish: () => {
+            regenerating.value = false;
+        },
+    });
 };
 </script>
 
@@ -54,8 +69,38 @@ const regenerate = (): void => {
         </div>
 
         <!-- Main reflection card -->
-        <div class="card-premium relative overflow-hidden p-6">
+        <div class="card-premium relative overflow-hidden p-6" :aria-busy="regenerating">
             <div class="absolute inset-0 bg-gradient-to-br from-pink-400 to-purple-500 opacity-5" aria-hidden="true" />
+
+            <!-- Loading overlay while AI generates a new reflection -->
+            <transition
+                enter-active-class="transition-opacity duration-300"
+                leave-active-class="transition-opacity duration-300"
+                enter-from-class="opacity-0"
+                leave-to-class="opacity-0"
+            >
+                <div
+                    v-if="regenerating"
+                    class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-3xl bg-card/85 backdrop-blur-sm"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div class="relative flex h-16 w-16 items-center justify-center">
+                        <span class="absolute inset-0 animate-ping rounded-full bg-primary/30" aria-hidden="true" />
+                        <span class="relative text-3xl" aria-hidden="true">💞</span>
+                    </div>
+                    <div class="space-y-1 px-6 text-center">
+                        <p class="text-base font-semibold text-foreground">Crafting your reflection…</p>
+                        <p class="text-sm text-muted-foreground">This can take a few moments while we look back at your week.</p>
+                    </div>
+                    <div class="flex gap-1" aria-hidden="true">
+                        <span class="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+                        <span class="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+                        <span class="h-2 w-2 animate-bounce rounded-full bg-primary" />
+                    </div>
+                    <span class="sr-only">Generating a new weekly reflection, please wait.</span>
+                </div>
+            </transition>
             <div class="relative space-y-4">
                 <div>
                     <p class="text-xs uppercase tracking-wide text-muted-foreground">
@@ -99,10 +144,27 @@ const regenerate = (): void => {
         <div class="flex flex-col gap-3">
             <button
                 type="button"
-                class="min-h-14 rounded-3xl bg-gradient-to-r from-pink-500 to-purple-500 px-6 font-semibold text-white shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                class="flex min-h-14 items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-pink-500 to-purple-500 px-6 font-semibold text-white shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+                :disabled="regenerating"
+                :aria-busy="regenerating"
                 @click="regenerate"
             >
-                Refresh reflection
+                <svg
+                    v-if="regenerating"
+                    class="h-5 w-5 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                </svg>
+                <span>{{ regenerating ? 'Refreshing…' : 'Refresh reflection' }}</span>
             </button>
             <Link
                 :href="index().url"
