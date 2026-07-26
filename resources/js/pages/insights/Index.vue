@@ -1,10 +1,28 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
-import { index } from '@/routes/weekly-reflection';
+import { index as weeklyReflectionIndex } from '@/routes/weekly-reflection';
 
 defineOptions({ layout: MobileLayout });
+
+const loadingReflection = ref(false);
+
+const openWeeklyReflection = (): void => {
+    if (loadingReflection.value) {
+        return;
+    }
+
+    router.visit(weeklyReflectionIndex().url, {
+        onStart: () => {
+            loadingReflection.value = true;
+        },
+        onFinish: () => {
+            loadingReflection.value = false;
+        },
+    });
+};
 
 interface Insights {
     total_questionnaires: number;
@@ -48,11 +66,45 @@ const statCards = [
         </div>
 
         <!-- Weekly Reflection entry -->
-        <Link
-            :href="index().url"
-            class="card-premium relative block overflow-hidden p-6 transition-transform hover:scale-[1.02]"
+        <button
+            type="button"
+            class="card-premium relative block w-full overflow-hidden p-6 text-left transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-90 disabled:hover:scale-100"
+            :disabled="loadingReflection"
+            :aria-busy="loadingReflection"
+            @click="openWeeklyReflection"
         >
             <div class="absolute inset-0 bg-gradient-to-br from-pink-400 to-purple-500 opacity-10" aria-hidden="true" />
+
+            <!-- Loading overlay while AI generates the reflection -->
+            <transition
+                enter-active-class="transition-opacity duration-300"
+                leave-active-class="transition-opacity duration-300"
+                enter-from-class="opacity-0"
+                leave-to-class="opacity-0"
+            >
+                <div
+                    v-if="loadingReflection"
+                    class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-3xl bg-card/85 backdrop-blur-sm"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div class="relative flex h-12 w-12 items-center justify-center">
+                        <span class="absolute inset-0 animate-ping rounded-full bg-primary/30" aria-hidden="true" />
+                        <span class="relative text-2xl" aria-hidden="true">💞</span>
+                    </div>
+                    <div class="space-y-1 px-6 text-center">
+                        <p class="text-base font-semibold text-foreground">Crafting your reflection…</p>
+                        <p class="text-xs text-muted-foreground">This can take a few moments while we look back at your week.</p>
+                    </div>
+                    <div class="flex gap-1" aria-hidden="true">
+                        <span class="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+                        <span class="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+                        <span class="h-2 w-2 animate-bounce rounded-full bg-primary" />
+                    </div>
+                    <span class="sr-only">Generating your weekly reflection, please wait.</span>
+                </div>
+            </transition>
+
             <div class="relative flex items-center gap-4">
                 <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm" aria-hidden="true">💞</div>
                 <div class="flex-1">
@@ -62,7 +114,7 @@ const statCards = [
                 </div>
                 <span class="text-2xl text-muted-foreground" aria-hidden="true">›</span>
             </div>
-        </Link>
+        </button>
 
         <!-- Stat Cards Grid -->
         <div class="grid grid-cols-2 gap-4">
