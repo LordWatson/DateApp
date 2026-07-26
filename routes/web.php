@@ -18,6 +18,7 @@ use App\Http\Controllers\RelationshipHubController;
 use App\Http\Controllers\SavedProfileController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TimelineController;
+use App\Http\Controllers\WeeklyReflectionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -132,6 +133,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Insights
         Route::get('insights', [InsightsController::class, 'index'])->name('insights.index');
+
+        // Weekly Reflection (AI-powered supportive weekly recap)
+        Route::prefix('weekly-reflection')->name('weekly-reflection.')->group(function () {
+            Route::get('/', [WeeklyReflectionController::class, 'index'])->name('index');
+            Route::post('/regenerate', [WeeklyReflectionController::class, 'regenerate'])->name('regenerate');
+        });
 
         // Search
         Route::get('search', [SearchController::class, 'index'])->name('search.index');

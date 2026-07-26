@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import EmptyState from '@/components/EmptyState.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { index } from '@/routes/weekly-reflection';
 
 defineOptions({ layout: MobileLayout });
 
@@ -45,6 +46,23 @@ const statCards = [
             <h1 class="text-2xl font-semibold text-foreground">Relationship Insights</h1>
             <p class="text-sm text-muted-foreground">Your love story in numbers</p>
         </div>
+
+        <!-- Weekly Reflection entry -->
+        <Link
+            :href="index().url"
+            class="card-premium relative block overflow-hidden p-6 transition-transform hover:scale-[1.02]"
+        >
+            <div class="absolute inset-0 bg-gradient-to-br from-pink-400 to-purple-500 opacity-10" aria-hidden="true" />
+            <div class="relative flex items-center gap-4">
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm" aria-hidden="true">💞</div>
+                <div class="flex-1">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-primary">This week together</p>
+                    <p class="text-lg font-semibold text-foreground">Your weekly reflection</p>
+                    <p class="text-sm text-muted-foreground">A gentle, supportive look at your past week.</p>
+                </div>
+                <span class="text-2xl text-muted-foreground" aria-hidden="true">›</span>
+            </div>
+        </Link>
 
         <!-- Stat Cards Grid -->
         <div class="grid grid-cols-2 gap-4">

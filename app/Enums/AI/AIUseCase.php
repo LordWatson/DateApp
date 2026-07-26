@@ -21,4 +21,5 @@ enum AIUseCase: string
     case ThemeDescription = 'theme_description';
     case MomentCaption = 'moment_caption';
     case IntimacyGame = 'intimacy_game';
+    case WeeklyReflection = 'weekly_reflection';
 }

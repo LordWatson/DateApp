@@ -168,6 +168,33 @@ PROMPT,
                 'version' => 1,
                 'active' => true,
             ],
+            [
+                'name' => AIUseCase::WeeklyReflection->value,
+                'description' => 'Writes a short, warm weekly reflection summarising the couple’s shared week.',
+                'system_prompt' => $safety."\n\nYou write supportive, non-judgemental weekly reflections for a couple. Celebrate small wins, notice patterns kindly, and suggest one gentle idea for the week ahead. Avoid diagnosing, ranking, or lecturing. Never mention private message content verbatim.",
+                'user_prompt_template' => <<<'PROMPT'
+Write a short reflection covering the couple's past week based ONLY on the
+aggregated context below. Keep the tone warm, supportive, playful and modern —
+never clinical or corporate. Do not quote private notes or messages verbatim;
+speak in gentle generalities. Do not invent activities that are not implied by
+the data.
+
+Context (aggregated counts and summaries for the past week):
+{{context}}
+
+Respond as strict JSON with exactly this shape (all fields required, all
+strings non-empty, no markdown):
+{
+  "headline": string,          // 3–6 words, warm and inviting
+  "summary": string,           // 2–4 sentences reflecting on the past week together
+  "highlights": [string],      // 1–3 short bullet-style highlights from the week
+  "gentle_suggestion": string, // ONE kind, non-prescriptive idea for next week
+  "encouragement": string      // one short sentence of warm encouragement
+}
+PROMPT,
+                'version' => 1,
+                'active' => true,
+            ],
         ];
     }
 }
