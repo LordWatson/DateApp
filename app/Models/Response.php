@@ -18,6 +18,10 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $started_at
  * @property Carbon|null $completed_at
  * @property int|null $compatibility_score
+ * @property string|null $location_label
+ * @property string|null $location_city
+ * @property string|null $location_region
+ * @property string|null $location_country
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -33,6 +37,10 @@ class Response extends Model
         'started_at',
         'completed_at',
         'compatibility_score',
+        'location_label',
+        'location_city',
+        'location_region',
+        'location_country',
     ];
 
     protected function casts(): array

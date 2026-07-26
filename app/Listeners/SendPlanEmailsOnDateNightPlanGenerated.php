@@ -13,6 +13,9 @@ final class SendPlanEmailsOnDateNightPlanGenerated implements ShouldQueue
     public function handle(DateNightPlanGenerated $event): void
     {
         SendSummaryEmailJob::dispatch($event->userOne, $event->plan);
-        SendSummaryEmailJob::dispatch($event->userTwo, $event->plan);
+
+        if ($event->userTwo !== null) {
+            SendSummaryEmailJob::dispatch($event->userTwo, $event->plan);
+        }
     }
 }

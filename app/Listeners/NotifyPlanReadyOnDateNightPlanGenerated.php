@@ -16,7 +16,10 @@ final class NotifyPlanReadyOnDateNightPlanGenerated implements ShouldQueue
     public function handle(DateNightPlanGenerated $event): void
     {
         $this->notify($event->userOne, $event->plan);
-        $this->notify($event->userTwo, $event->plan);
+
+        if ($event->userTwo !== null) {
+            $this->notify($event->userTwo, $event->plan);
+        }
     }
 
     private function notify(User $user, DateNightPlan $plan): void

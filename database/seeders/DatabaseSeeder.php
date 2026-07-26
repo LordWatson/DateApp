@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         /*$eliza = User::create([
-            'name' => 'Eliza Watson',
+            'name' => 'Fanny',
             'email' => 'alexander.watson.work@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
@@ -52,6 +52,7 @@ class DatabaseSeeder extends Seeder
             QuestionnaireSeeder::class,
             SeasonalQuestionnaireSeeder::class,
             IntimacyQuestionnaireSeeder::class,
+            SoloDatePlannerQuestionnaireSeeder::class,
             IntimacyGameSeeder::class,
             ChallengeSeeder::class,
             DateNightThemeSeeder::class,

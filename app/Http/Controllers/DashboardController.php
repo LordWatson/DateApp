@@ -40,10 +40,12 @@ class DashboardController extends Controller
 
         $userResponseIds = QuestionnaireResponse::where('user_id', $user->id)->pluck('id');
 
+        $userId = $user->id;
         $recentDateNights = DateNightPlan::with('questionnaire')
-            ->where(function ($query) use ($userResponseIds) {
+            ->where(function ($query) use ($userResponseIds, $userId) {
                 $query->whereIn('partner_one_response_id', $userResponseIds)
-                    ->orWhereIn('partner_two_response_id', $userResponseIds);
+                    ->orWhereIn('partner_two_response_id', $userResponseIds)
+                    ->orWhere('partner_user_id', $userId);
             })
             ->orderByDesc('created_at')
             ->take(3)

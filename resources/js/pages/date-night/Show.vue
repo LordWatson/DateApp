@@ -14,6 +14,12 @@ interface Partner {
     avatar?: string;
 }
 
+interface LocalSuggestion {
+    name: string;
+    category: string;
+    description: string;
+}
+
 interface Plan {
     id: number;
     theme: string;
@@ -27,6 +33,9 @@ interface Plan {
     activity: string | null;
     conversation_prompt: string | null;
     romantic_challenge: string | null;
+    is_solo: boolean;
+    location_label: string | null;
+    local_suggestions: LocalSuggestion[];
     is_favourite: boolean;
     created_at: string;
     questionnaire: { id: number; title: string; slug: string } | null;
@@ -163,6 +172,37 @@ function getInitial(name: string): string {
                 <div v-if="plan.romantic_challenge" class="card-premium p-5 gradient-primary-soft">
                     <p class="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">🌹 Tonight's Romantic Challenge</p>
                     <p class="text-sm font-semibold text-secondary">{{ plan.romantic_challenge }}</p>
+                </div>
+
+                <!-- Local ideas (solo plans only) -->
+                <div v-if="plan.is_solo && plan.local_suggestions.length > 0" class="card-premium p-5">
+                    <div class="mb-3 flex items-start gap-3">
+                        <span class="text-2xl" aria-hidden="true">📍</span>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                Local ideas<span v-if="plan.location_label"> near {{ plan.location_label }}</span>
+                            </p>
+                            <p class="text-xs text-muted-foreground">A few starting points to explore — always double-check opening times.</p>
+                        </div>
+                    </div>
+                    <ul class="space-y-3">
+                        <li
+                            v-for="(suggestion, index) in plan.local_suggestions"
+                            :key="index"
+                            class="rounded-2xl bg-primary/5 p-4"
+                        >
+                            <div class="flex items-baseline justify-between gap-2">
+                                <p class="text-sm font-semibold text-foreground">{{ suggestion.name }}</p>
+                                <span
+                                    v-if="suggestion.category"
+                                    class="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                                >
+                                    {{ suggestion.category }}
+                                </span>
+                            </div>
+                            <p class="mt-1 text-xs text-muted-foreground">{{ suggestion.description }}</p>
+                        </li>
+                    </ul>
                 </div>
             </div>
 

@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $partner_one_response_id
  * @property int $partner_two_response_id
  * @property int|null $date_night_theme_id
+ * @property int|null $partner_user_id
  * @property int $compatibility_score
  * @property string $theme
  * @property string|null $theme_emoji
@@ -26,6 +27,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $activity
  * @property string|null $conversation_prompt
  * @property string|null $romantic_challenge
+ * @property bool $is_solo
+ * @property array<int, array<string, string>>|null $local_suggestions
+ * @property string|null $location_label
  * @property bool $is_favourite
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -40,6 +44,7 @@ class DateNightPlan extends Model
         'partner_one_response_id',
         'partner_two_response_id',
         'date_night_theme_id',
+        'partner_user_id',
         'compatibility_score',
         'theme',
         'theme_emoji',
@@ -51,6 +56,9 @@ class DateNightPlan extends Model
         'activity',
         'conversation_prompt',
         'romantic_challenge',
+        'is_solo',
+        'local_suggestions',
+        'location_label',
         'is_favourite',
         'ai_enhanced',
         'fallback_used',
@@ -62,6 +70,8 @@ class DateNightPlan extends Model
             'is_favourite' => 'boolean',
             'ai_enhanced' => 'boolean',
             'fallback_used' => 'boolean',
+            'is_solo' => 'boolean',
+            'local_suggestions' => 'array',
             'compatibility_score' => 'integer',
         ];
     }
@@ -84,6 +94,11 @@ class DateNightPlan extends Model
     public function dateNightTheme(): BelongsTo
     {
         return $this->belongsTo(DateNightTheme::class, 'date_night_theme_id');
+    }
+
+    public function partnerUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'partner_user_id');
     }
 
     public function scopeFavourites(Builder $query): Builder

@@ -20,7 +20,7 @@ class GenerateDateNightPlanAction
 
     public function execute(
         User $userOne,
-        User $userTwo,
+        ?User $userTwo,
         Questionnaire $questionnaire,
     ): DateNightPlan {
         $responseOne = Response::with('answers.questionOption')
@@ -30,6 +30,27 @@ class GenerateDateNightPlanAction
             ->latest('completed_at')
             ->latest('id')
             ->firstOrFail();
+
+        // Solo questionnaires: the same response is used for both refs and
+        // compatibility is not meaningful, so it is skipped.
+        if ($questionnaire->is_solo || $userTwo === null) {
+            // A solo questionnaire is filled out by one user, but if they have
+            // a partner the resulting date night must appear on the partner's
+            // side too (history, notifications, emails).
+            $partner = $userOne->partner;
+
+            $plan = $this->generatorService->generate(
+                $responseOne,
+                null,
+                ['percentage' => 100, 'matched' => [], 'different' => []],
+                $questionnaire,
+                $partner,
+            );
+
+            DateNightPlanGenerated::dispatch($userOne, $partner, $plan);
+
+            return $plan;
+        }
 
         $responseTwo = Response::with('answers.questionOption')
             ->where('user_id', $userTwo->id)

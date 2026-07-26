@@ -45,6 +45,7 @@ interface QuestionnaireData {
     id: number;
     title: string;
     slug: string;
+    is_solo?: boolean;
 }
 
 interface Props {
@@ -62,6 +63,10 @@ const profileEmoji = ref('❤️');
 const profileColour = ref('#EC4899');
 const saving = ref(false);
 const finishing = ref(false);
+
+const locationCity = ref('');
+const locationRegion = ref('');
+const locationCountry = ref('');
 
 const emojiOptions = ['❤️', '🎬', '🏨', '🌧️', '🎉', '💕', '✨', '🌹'];
 const colourOptions = ['#EC4899', '#9333EA', '#10B981', '#F59E0B', '#3B82F6', '#F43F5E'];
@@ -119,7 +124,31 @@ async function saveProfile(): Promise<void> {
 
 function completeQuestionnaire(): void {
     finishing.value = true;
-    router.post(`/questionnaires/${props.questionnaire.slug}/finish`, {}, {
+
+    const payload: Record<string, string> = {};
+
+    if (props.questionnaire.is_solo) {
+        const city = locationCity.value.trim();
+        const region = locationRegion.value.trim();
+        const country = locationCountry.value.trim();
+
+        if (city !== '') {
+            payload.location_city = city;
+        }
+        if (region !== '') {
+            payload.location_region = region;
+        }
+        if (country !== '') {
+            payload.location_country = country;
+        }
+
+        const label = [city, region, country].filter((v) => v !== '').join(', ');
+        if (label !== '') {
+            payload.location_label = label;
+        }
+    }
+
+    router.post(`/questionnaires/${props.questionnaire.slug}/finish`, payload, {
         onFinish: () => {
             finishing.value = false;
         },
@@ -161,6 +190,40 @@ function completeQuestionnaire(): void {
                 >
                     Edit
                 </button>
+            </div>
+        </div>
+
+        <!-- Location capture (solo questionnaires only) -->
+        <div v-if="questionnaire.is_solo" class="card-premium space-y-4 p-5">
+            <div class="space-y-1">
+                <h2 class="text-lg font-semibold text-foreground">📍 Where's this date?</h2>
+                <p class="text-sm text-muted-foreground">
+                    A rough location helps us suggest local spots, areas or events that fit the vibe. Nothing precise — city is plenty.
+                </p>
+            </div>
+
+            <div class="space-y-3">
+                <input
+                    v-model="locationCity"
+                    type="text"
+                    placeholder="City (e.g. Manchester)"
+                    autocomplete="address-level2"
+                    class="w-full rounded-2xl border-2 border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                />
+                <input
+                    v-model="locationRegion"
+                    type="text"
+                    placeholder="Region or state (optional)"
+                    autocomplete="address-level1"
+                    class="w-full rounded-2xl border-2 border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                />
+                <input
+                    v-model="locationCountry"
+                    type="text"
+                    placeholder="Country (optional)"
+                    autocomplete="country-name"
+                    class="w-full rounded-2xl border-2 border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                />
             </div>
         </div>
 

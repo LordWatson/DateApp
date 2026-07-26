@@ -25,7 +25,7 @@ final class GenerateDateNightPlanJob implements ShouldQueue
 
     public function __construct(
         public readonly User $userOne,
-        public readonly User $userTwo,
+        public readonly ?User $userTwo,
         public readonly Questionnaire $questionnaire,
     ) {
         $this->onQueue('default');
@@ -40,6 +40,26 @@ final class GenerateDateNightPlanJob implements ShouldQueue
             ->latest('id')
             ->first();
 
+        if (! $latestOne) {
+            return;
+        }
+
+        // Solo flow: single user's response is used for both partner refs.
+        if ($this->questionnaire->is_solo || $this->userTwo === null) {
+            $existingSolo = DateNightPlan::where('questionnaire_id', $this->questionnaire->id)
+                ->where('partner_one_response_id', $latestOne->id)
+                ->where('partner_two_response_id', $latestOne->id)
+                ->exists();
+
+            if ($existingSolo) {
+                return;
+            }
+
+            $action->execute($this->userOne, null, $this->questionnaire);
+
+            return;
+        }
+
         $latestTwo = Response::where('user_id', $this->userTwo->id)
             ->where('questionnaire_id', $this->questionnaire->id)
             ->where('status', CompletionStatus::Completed)
@@ -47,7 +67,7 @@ final class GenerateDateNightPlanJob implements ShouldQueue
             ->latest('id')
             ->first();
 
-        if (! $latestOne || ! $latestTwo) {
+        if (! $latestTwo) {
             return;
         }
 
@@ -69,6 +89,7 @@ final class GenerateDateNightPlanJob implements ShouldQueue
     {
         Log::error('GenerateDateNightPlanJob failed', [
             'user_one' => $this->userOne->id,
+            'user_two' => $this->userTwo?->id,
             'questionnaire' => $this->questionnaire->id,
             'error' => $e->getMessage(),
         ]);

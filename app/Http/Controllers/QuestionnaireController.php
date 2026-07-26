@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\CompletionStatus;
 use App\Enums\QuestionnaireStatus;
+use App\Http\Requests\Questionnaire\FinishQuestionnaireRequest;
 use App\Http\Requests\Questionnaire\SaveAnswerRequest;
 use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
@@ -72,6 +73,7 @@ class QuestionnaireController extends Controller
                 'emoji' => $questionnaire->emoji,
                 'estimated_minutes' => $questionnaire->estimated_minutes,
                 'question_count' => $questionnaire->questions()->count(),
+                'is_solo' => $questionnaire->is_solo,
             ],
             'response' => $response ? [
                 'status' => $response->status->value,
@@ -243,6 +245,7 @@ class QuestionnaireController extends Controller
                 'id' => $questionnaire->id,
                 'title' => $questionnaire->title,
                 'slug' => $questionnaire->slug,
+                'is_solo' => $questionnaire->is_solo,
             ],
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
@@ -250,12 +253,21 @@ class QuestionnaireController extends Controller
         ]);
     }
 
-    public function finish(Request $request, Questionnaire $questionnaire): RedirectResponse
+    public function finish(FinishQuestionnaireRequest $request, Questionnaire $questionnaire): RedirectResponse
     {
         $user = $request->user();
         $response = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
 
         if ($response && $response->status !== CompletionStatus::Completed) {
+            if ($questionnaire->is_solo) {
+                $response->fill([
+                    'location_label' => $request->input('location_label'),
+                    'location_city' => $request->input('location_city'),
+                    'location_region' => $request->input('location_region'),
+                    'location_country' => $request->input('location_country'),
+                ])->save();
+            }
+
             $this->questionnaireService->completeResponse($response);
         }
 
@@ -304,6 +316,7 @@ class QuestionnaireController extends Controller
                 'id' => $questionnaire->id,
                 'title' => $questionnaire->title,
                 'slug' => $questionnaire->slug,
+                'is_solo' => $questionnaire->is_solo,
             ],
             'response_status' => $response->status->value,
             'grouped_answers' => $grouped,

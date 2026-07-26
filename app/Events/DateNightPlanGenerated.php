@@ -13,7 +13,7 @@ final class DateNightPlanGenerated
 
     public function __construct(
         public readonly User $userOne,
-        public readonly User $userTwo,
+        public readonly ?User $userTwo,
         public readonly DateNightPlan $plan,
     ) {}
 }

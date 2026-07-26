@@ -24,7 +24,8 @@ class DateNightPlanController extends Controller
             ->pluck('id');
 
         $isParticipant = $userResponseIds->contains($dateNightPlan->partner_one_response_id)
-            || $userResponseIds->contains($dateNightPlan->partner_two_response_id);
+            || $userResponseIds->contains($dateNightPlan->partner_two_response_id)
+            || $dateNightPlan->partner_user_id === $user->id;
 
         if (! $isParticipant) {
             abort(403);
@@ -59,10 +60,12 @@ class DateNightPlanController extends Controller
 
         $responseIds = Response::where('user_id', $user->id)->pluck('id');
 
+        $userId = $user->id;
         $plans = DateNightPlan::with(['questionnaire'])
-            ->where(function ($q) use ($responseIds) {
+            ->where(function ($q) use ($responseIds, $userId) {
                 $q->whereIn('partner_one_response_id', $responseIds)
-                    ->orWhereIn('partner_two_response_id', $responseIds);
+                    ->orWhereIn('partner_two_response_id', $responseIds)
+                    ->orWhere('partner_user_id', $userId);
             })
             ->orderByDesc('created_at')
             ->get();
@@ -105,7 +108,8 @@ class DateNightPlanController extends Controller
         $responseIds = Response::where('user_id', $user->id)->pluck('id');
 
         $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
-            || $responseIds->contains($dateNightPlan->partner_two_response_id);
+            || $responseIds->contains($dateNightPlan->partner_two_response_id)
+            || $dateNightPlan->partner_user_id === $user->id;
 
         if (! $isParticipant) {
             abort(403);
@@ -122,11 +126,13 @@ class DateNightPlanController extends Controller
 
         $responseIds = Response::where('user_id', $user->id)->pluck('id');
 
+        $userId = $user->id;
         $plans = DateNightPlan::with(['questionnaire'])
             ->favourites()
-            ->where(function ($q) use ($responseIds) {
+            ->where(function ($q) use ($responseIds, $userId) {
                 $q->whereIn('partner_one_response_id', $responseIds)
-                    ->orWhereIn('partner_two_response_id', $responseIds);
+                    ->orWhereIn('partner_two_response_id', $responseIds)
+                    ->orWhere('partner_user_id', $userId);
             })
             ->orderByDesc('created_at')
             ->get();
@@ -157,6 +163,9 @@ class DateNightPlanController extends Controller
             'activity' => $plan->activity,
             'conversation_prompt' => $plan->conversation_prompt,
             'romantic_challenge' => $plan->romantic_challenge,
+            'is_solo' => $plan->is_solo,
+            'location_label' => $plan->location_label,
+            'local_suggestions' => $plan->local_suggestions ?? [],
             'is_favourite' => $plan->is_favourite,
             'created_at' => $plan->created_at?->toISOString(),
             'questionnaire' => [

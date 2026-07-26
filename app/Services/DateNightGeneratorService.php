@@ -6,6 +6,7 @@ use App\Models\DateNightPlan;
 use App\Models\DateNightTheme;
 use App\Models\Questionnaire;
 use App\Models\Response;
+use App\Models\User;
 use App\Services\AI\AIService;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -42,12 +43,16 @@ class DateNightGeneratorService
      */
     public function generate(
         Response $partnerOneResponse,
-        Response $partnerTwoResponse,
+        ?Response $partnerTwoResponse,
         array $compatibility,
         Questionnaire $questionnaire,
+        ?User $soloPartner = null,
     ): DateNightPlan {
+        $isSolo = $partnerTwoResponse === null || $questionnaire->is_solo;
+        $secondResponse = $partnerTwoResponse ?? $partnerOneResponse;
+
         $userAnswers = $partnerOneResponse->answers()->with('questionOption')->get();
-        $partnerAnswers = $partnerTwoResponse->answers()->with('questionOption')->get();
+        $partnerAnswers = $secondResponse->answers()->with('questionOption')->get();
         $score = $compatibility['percentage'];
 
         $themes = DateNightTheme::active()->get();
@@ -60,11 +65,13 @@ class DateNightGeneratorService
         // 1. Deterministic plan (authoritative).
         $deterministicPlan = $this->buildPlan($theme, $context, $score, $questionnaire);
 
-        // 2. Optional AI enhancement (wording only).
-        [$plan, $aiEnhanced, $fallbackUsed] = $this->enhanceWithAI(
+        // 2. Optional AI enhancement (wording only + optional local suggestions).
+        [$plan, $aiEnhanced, $fallbackUsed, $localSuggestions] = $this->enhanceWithAI(
             $deterministicPlan,
             $compatibility,
             $questionnaire,
+            $partnerOneResponse,
+            $isSolo,
         );
 
         // 3. Validation — reject anything the Rule Engine didn't authorise.
@@ -74,9 +81,13 @@ class DateNightGeneratorService
         return DateNightPlan::create([
             'questionnaire_id' => $questionnaire->id,
             'partner_one_response_id' => $partnerOneResponse->id,
-            'partner_two_response_id' => $partnerTwoResponse->id,
+            'partner_two_response_id' => $secondResponse->id,
             'date_night_theme_id' => $theme instanceof DateNightTheme ? $theme->id : null,
+            'partner_user_id' => $isSolo ? $soloPartner?->id : null,
             'compatibility_score' => $score,
+            'is_solo' => $isSolo,
+            'location_label' => $isSolo ? $partnerOneResponse->location_label : null,
+            'local_suggestions' => $localSuggestions,
             'theme' => $plan['theme'],
             'theme_emoji' => $plan['theme_emoji'],
             'summary' => $plan['summary'],
@@ -96,17 +107,29 @@ class DateNightGeneratorService
      * Attempt to enhance the deterministic plan wording via AI.
      * Never lets AI failures surface — always returns a usable plan.
      *
+     * For solo (single-user) questionnaires, the user's rough location is
+     * passed to the AI so it can propose local spots / areas / events.
+     *
      * @param  array<string, string|null>  $plan
      * @param  array<string, mixed>  $compatibility
-     * @return array{0: array<string, string|null>, 1: bool, 2: bool}
+     * @return array{0: array<string, string|null>, 1: bool, 2: bool, 3: array<int, array<string, string>>|null}
      */
-    private function enhanceWithAI(array $plan, array $compatibility, Questionnaire $questionnaire): array
-    {
+    private function enhanceWithAI(
+        array $plan,
+        array $compatibility,
+        Questionnaire $questionnaire,
+        Response $primaryResponse,
+        bool $isSolo,
+    ): array {
+        $location = $isSolo ? $this->buildLocationContext($primaryResponse) : null;
+
         try {
             $response = $this->ai->generateDateNightPlan([
                 'plan' => $plan,
                 'compatibility' => $compatibility,
                 'questionnaire' => $questionnaire->title,
+                'is_solo' => $isSolo,
+                'location' => $location,
                 'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
             ]);
         } catch (Throwable $e) {
@@ -115,7 +138,7 @@ class DateNightGeneratorService
                 'questionnaire_id' => $questionnaire->id,
             ]);
 
-            return [$plan, false, true];
+            return [$plan, false, true, null];
         }
 
         if (! $response->successful) {
@@ -124,7 +147,7 @@ class DateNightGeneratorService
                 'questionnaire_id' => $questionnaire->id,
             ]);
 
-            return [$plan, false, true];
+            return [$plan, false, true, null];
         }
 
         $enhanced = $plan;
@@ -137,7 +160,75 @@ class DateNightGeneratorService
             }
         }
 
-        return [$enhanced, $touched, false];
+        $localSuggestions = null;
+        if ($isSolo) {
+            $raw = $response->data['local_suggestions'] ?? null;
+            if (is_array($raw)) {
+                $localSuggestions = $this->sanitiseLocalSuggestions($raw);
+            }
+        }
+
+        return [$enhanced, $touched, false, $localSuggestions];
+    }
+
+    /**
+     * @return array<string, string|null>|null
+     */
+    private function buildLocationContext(Response $response): ?array
+    {
+        $label = $response->location_label;
+        $city = $response->location_city;
+        $region = $response->location_region;
+        $country = $response->location_country;
+
+        if ($label === null && $city === null && $region === null && $country === null) {
+            return null;
+        }
+
+        return [
+            'label' => $label,
+            'city' => $city,
+            'region' => $region,
+            'country' => $country,
+        ];
+    }
+
+    /**
+     * Keep only well-formed suggestions with a name and description; cap at 6.
+     *
+     * @param  array<int|string, mixed>  $raw
+     * @return list<array<string, string>>
+     */
+    private function sanitiseLocalSuggestions(array $raw): array
+    {
+        $suggestions = [];
+
+        foreach ($raw as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $name = isset($item['name']) && is_string($item['name']) ? trim($item['name']) : '';
+            $description = isset($item['description']) && is_string($item['description']) ? trim($item['description']) : '';
+
+            if ($name === '' || $description === '') {
+                continue;
+            }
+
+            $category = isset($item['category']) && is_string($item['category']) ? trim($item['category']) : '';
+
+            $suggestions[] = [
+                'name' => $name,
+                'description' => $description,
+                'category' => $category,
+            ];
+
+            if (count($suggestions) >= 6) {
+                break;
+            }
+        }
+
+        return $suggestions;
     }
 
     /**

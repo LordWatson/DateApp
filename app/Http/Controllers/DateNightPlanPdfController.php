@@ -16,7 +16,8 @@ class DateNightPlanPdfController extends Controller
         $responseIds = Response::where('user_id', $user->id)->pluck('id');
 
         $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
-            || $responseIds->contains($dateNightPlan->partner_two_response_id);
+            || $responseIds->contains($dateNightPlan->partner_two_response_id)
+            || $dateNightPlan->partner_user_id === $user->id;
 
         if (! $isParticipant) {
             abort(403);

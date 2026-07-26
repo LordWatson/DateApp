@@ -33,9 +33,9 @@ class AiPromptTemplateSeeder extends Seeder
                 'description' => 'Generates a romantic, mood-appropriate date night plan for a couple.',
                 'system_prompt' => $safety."\n\nYou craft romantic, playful and thoughtful date night plans that respect both partners' preferences and consent.",
                 'user_prompt_template' => <<<'PROMPT'
-You are enhancing a date night plan for a couple who have BOTH just completed
-a specific questionnaire together. The plan you produce MUST match the topic,
-mood and intent of that questionnaire and the couple's actual answers.
+You are enhancing a date night plan for a couple (or, if `is_solo` is true, for
+one partner planning the date for both of them). The plan you produce MUST
+match the topic, mood and intent of the questionnaire and the actual answers.
 
 Rules you MUST follow:
   - Anchor every field to the questionnaire's topic (see `questionnaire.title`
@@ -50,14 +50,22 @@ Rules you MUST follow:
   - If `questionnaire.is_intimacy` is true, `meal_suggestion` and
     `drink_suggestion` may be small sensual touches (e.g. a shared bite,
     a shared sip) rather than a full meal.
+  - If `is_solo` is true, the plan is generated from ONE user's answers and
+    is intended for a real-world outing rather than an evening in. Anchor the
+    activity, meal and atmosphere to the user's stated timing (day/evening),
+    available time and vibe. Use the provided `location` (rough only — city,
+    region, country) to shape the plan's tone and to propose plausible LOCAL
+    ideas. NEVER invent addresses, precise coordinates, phone numbers or
+    URLs. NEVER claim a venue is open, available or verified. Frame local
+    suggestions as ideas to explore, not confirmed bookings.
   - Keep the theme consistent across all fields and make each suggestion
     concrete, inviting and evocative.
 
 Context:
 {{context}}
 
-Respond as strict JSON matching exactly this shape (all fields required, all
-strings must be non-empty, concise, and free of markdown):
+Respond as strict JSON matching exactly this shape (all string fields required,
+non-empty, concise, and free of markdown):
 {
   "summary": string,               // 1–3 sentences describing the overall evening, referencing the questionnaire's topic
   "meal_suggestion": string,       // a specific dish or shared food idea appropriate to the questionnaire
@@ -66,10 +74,17 @@ strings must be non-empty, concise, and free of markdown):
   "atmosphere": string,            // lighting, scent, setting cues that fit the questionnaire's mood
   "activity": string,              // the main shared activity, aligned to the questionnaire's topic
   "conversation_prompt": string,   // one gentle, open-ended question tied to the questionnaire's theme
-  "romantic_challenge": string     // one small, playful challenge that fits the couple's answers
+  "romantic_challenge": string,    // one small, playful challenge that fits the couple's answers
+  "local_suggestions": [           // ONLY populate when `is_solo` is true AND `location` is provided; otherwise return an empty array
+    {
+      "name": string,              // a plausible local spot, area, neighbourhood or type of event
+      "category": string,          // e.g. "restaurant", "bar", "park", "gallery", "walk", "event", "neighbourhood"
+      "description": string        // 1 sentence explaining why it fits the date's vibe and timing
+    }
+  ]
 }
 PROMPT,
-                'version' => 3,
+                'version' => 4,
                 'active' => true,
             ],
             [
