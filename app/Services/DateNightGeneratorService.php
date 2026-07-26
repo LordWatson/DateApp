@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Answer;
 use App\Models\DateNightPlan;
 use App\Models\DateNightTheme;
 use App\Models\Questionnaire;
@@ -123,8 +124,18 @@ class DateNightGeneratorService
     ): array {
         $location = $isSolo ? $this->buildLocationContext($primaryResponse) : null;
 
+        $context = $this->buildAIContext(
+            plan: $plan,
+            compatibility: $compatibility,
+            questionnaire: $questionnaire,
+            primaryResponse: $primaryResponse,
+            isSolo: $isSolo,
+            location: $location,
+        );
+
         try {
             $response = $this->ai->generateDateNightPlan([
+                'context' => $context,
                 'plan' => $plan,
                 'compatibility' => $compatibility,
                 'questionnaire' => $questionnaire->title,
@@ -169,6 +180,110 @@ class DateNightGeneratorService
         }
 
         return [$enhanced, $touched, false, $localSuggestions];
+    }
+
+    /**
+     * Build a rich, structured context payload for the AI prompt.
+     *
+     * The DB prompt template interpolates `{{context}}` as a JSON blob, so
+     * everything the AI needs to tailor the plan MUST live inside this array.
+     *
+     * @param  array<string, string|null>  $plan
+     * @param  array<string, mixed>  $compatibility
+     * @param  array<string, string|null>|null  $location
+     * @return array<string, mixed>
+     */
+    private function buildAIContext(
+        array $plan,
+        array $compatibility,
+        Questionnaire $questionnaire,
+        Response $primaryResponse,
+        bool $isSolo,
+        ?array $location,
+    ): array {
+        $primaryAnswers = $primaryResponse
+            ->answers()
+            ->with(['question', 'questionOption'])
+            ->get();
+
+        $context = [
+            'questionnaire' => [
+                'title' => $questionnaire->title,
+                'description' => $questionnaire->description,
+                'is_solo' => $isSolo,
+                'is_intimacy' => (bool) $questionnaire->is_intimacy,
+                'is_seasonal' => (bool) $questionnaire->is_seasonal,
+            ],
+            'is_solo' => $isSolo,
+            'compatibility' => $compatibility,
+            'deterministic_plan' => $plan,
+            'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
+        ];
+
+        if ($isSolo) {
+            $context['user_answers'] = $this->formatAnswers($primaryAnswers);
+            $context['location'] = $location;
+        } else {
+            $context['couple_answers'] = [
+                'partner_one' => $this->formatAnswers($primaryAnswers),
+                'partner_two' => $this->formatAnswers(
+                    Response::query()
+                        ->whereKey($this->secondaryResponseIdFor($primaryResponse, $questionnaire))
+                        ->with(['answers.question', 'answers.questionOption'])
+                        ->first()?->answers ?? collect(),
+                ),
+            ];
+        }
+
+        return $context;
+    }
+
+    /**
+     * Turn a collection of Answer models into a compact, self-describing
+     * structure the AI can reason over (question text, selected option,
+     * free-text value, slider value).
+     *
+     * @param  iterable<int, Answer>  $answers
+     * @return list<array<string, mixed>>
+     */
+    private function formatAnswers(iterable $answers): array
+    {
+        $formatted = [];
+
+        foreach ($answers as $answer) {
+            $question = $answer->question;
+            if ($question === null) {
+                continue;
+            }
+
+            $option = $answer->questionOption;
+
+            $formatted[] = [
+                'question' => $question->title,
+                'question_description' => $question->description,
+                'type' => $question->type?->value,
+                'answer' => $option?->title ?? $answer->value,
+                'answer_description' => $option?->description,
+                'answer_value' => $option?->value ?? $answer->value,
+            ];
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * Best-effort lookup of the partner's response id for a couple's
+     * questionnaire, used only to reload answers with their questions when
+     * building AI context. Falls back to null so the AI still gets partner_one
+     * data even if the partner response cannot be resolved here.
+     */
+    private function secondaryResponseIdFor(Response $primary, Questionnaire $questionnaire): ?int
+    {
+        return Response::query()
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('id', '!=', $primary->id)
+            ->orderByDesc('completed_at')
+            ->value('id');
     }
 
     /**

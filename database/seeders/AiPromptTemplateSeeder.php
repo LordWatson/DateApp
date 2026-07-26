@@ -35,7 +35,8 @@ class AiPromptTemplateSeeder extends Seeder
                 'user_prompt_template' => <<<'PROMPT'
 You are enhancing a date night plan for a couple (or, if `is_solo` is true, for
 one partner planning the date for both of them). The plan you produce MUST
-match the topic, mood and intent of the questionnaire and the actual answers.
+match the topic, mood and intent of the questionnaire and the actual answers,
+and MUST NOT be a generic template.
 
 Rules you MUST follow:
   - Anchor every field to the questionnaire's topic (see `questionnaire.title`
@@ -44,22 +45,32 @@ Rules you MUST follow:
     intimate or sexual evening, keep the plan intimate and sensual (still
     tasteful and within safety rules). Never invent an unrelated theme
     (e.g. cooking or star gazing) unless the questionnaire clearly implies it.
-  - Reflect the couple's shared preferences from `couple_answers.partner_one`
-    and `couple_answers.partner_two`. Where both partners agree, lean into it.
-    Where they differ, choose a warm compromise that honours both.
+  - Ground the plan in the ACTUAL ANSWERS. Read every entry in
+    `couple_answers.partner_one`, `couple_answers.partner_two` and, when
+    `is_solo` is true, `user_answers`. Each entry contains the `question` text
+    and the `answer` (option title or free-text value). Reference these
+    preferences concretely — do not invent preferences that aren't there.
+    Where both partners agree, lean into it. Where they differ, choose a warm
+    compromise that honours both.
   - If `questionnaire.is_intimacy` is true, `meal_suggestion` and
     `drink_suggestion` may be small sensual touches (e.g. a shared bite,
     a shared sip) rather than a full meal.
   - If `is_solo` is true, the plan is generated from ONE user's answers and
     is intended for a real-world outing rather than an evening in. Anchor the
-    activity, meal and atmosphere to the user's stated timing (day/evening),
-    available time and vibe. Use the provided `location` (rough only — city,
-    region, country) to shape the plan's tone and to propose plausible LOCAL
-    ideas. NEVER invent addresses, precise coordinates, phone numbers or
-    URLs. NEVER claim a venue is open, available or verified. Frame local
-    suggestions as ideas to explore, not confirmed bookings.
+    activity, meal, drink and atmosphere to the user's stated timing
+    (day/evening), available time, budget and vibe as expressed in
+    `user_answers`. When `location` is provided (rough only — label, city,
+    region, country), you MUST use it to shape the plan and propose plausible
+    LOCAL ideas that fit the region's climate, culture and typical venues.
+    Reference the city/region by name in `summary` and `activity` so the plan
+    feels specific to where the user actually is. NEVER invent addresses,
+    precise coordinates, phone numbers or URLs. NEVER claim a venue is open,
+    available or verified. Frame local suggestions as ideas to explore, not
+    confirmed bookings. If `location` is null, gracefully avoid location
+    references and return an empty `local_suggestions` array.
   - Keep the theme consistent across all fields and make each suggestion
-    concrete, inviting and evocative.
+    concrete, inviting and evocative — never generic filler like "a nice
+    meal" or "a fun activity".
 
 Context:
 {{context}}
@@ -84,7 +95,7 @@ non-empty, concise, and free of markdown):
   ]
 }
 PROMPT,
-                'version' => 4,
+                'version' => 5,
                 'active' => true,
             ],
             [
