@@ -38,6 +38,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-content', fn (User $user) => $user->adminRole()?->canManageContent() ?? false);
         Gate::define('view-analytics', fn (User $user) => $user->adminRole()?->canViewAnalytics() ?? false);
         Gate::define('super-admin', fn (User $user) => $user->isSuperAdmin());
+
+        // Restrict opcodesio/log-viewer to Super Administrators only.
+        Gate::define('viewLogViewer', fn (?User $user) => $user?->isSuperAdmin() ?? false);
     }
 
     /**

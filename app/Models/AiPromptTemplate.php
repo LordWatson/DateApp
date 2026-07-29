@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $description
  * @property int $version
  * @property bool $active
+ * @property int|null $max_tokens
  */
 class AiPromptTemplate extends Model
 {
@@ -29,6 +30,7 @@ class AiPromptTemplate extends Model
         'description',
         'version',
         'active',
+        'max_tokens',
     ];
 
     protected function casts(): array
@@ -36,6 +38,7 @@ class AiPromptTemplate extends Model
         return [
             'version' => 'integer',
             'active' => 'boolean',
+            'max_tokens' => 'integer',
         ];
     }
 

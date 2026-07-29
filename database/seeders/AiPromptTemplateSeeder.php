@@ -122,7 +122,7 @@ non-empty, concise, and free of markdown):
   "activity": string,              // the main shared activity, aligned to the questionnaire's topic
   "conversation_prompt": string,   // one gentle, open-ended question tied to the questionnaire's theme
   "romantic_challenge": string,    // one small, playful challenge that fits the couple's answers
-  "local_suggestions": [           // ONLY populate when `is_solo` is true AND `location` is provided; otherwise return an empty array
+  "local_suggestions": [           // AT MOST 3 items. ONLY populate when `is_solo` is true AND `location` is provided; otherwise return an empty array
     {
       "name": string,              // a plausible local spot, area, neighbourhood or type of event
       "category": string,          // e.g. "restaurant", "bar", "park", "gallery", "walk", "event", "neighbourhood"
@@ -130,9 +130,16 @@ non-empty, concise, and free of markdown):
     }
   ]
 }
+
+Hard limit: `local_suggestions` MUST contain at most 3 entries. Prefer fewer,
+higher-quality picks over padding the list.
 PROMPT,
-                'version' => 9,
+                'version' => 10,
                 'active' => true,
+                // Verbose schema (11 fields incl. a local_suggestions array):
+                // needs a larger output budget than cheaper single-field
+                // prompts to avoid `finish_reason=length` truncation.
+                'max_tokens' => 2500,
             ],
             [
                 'name' => AIUseCase::ConversationPrompt->value,

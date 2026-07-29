@@ -35,6 +35,10 @@ final readonly class DeepSeekProvider implements AIProvider
 
     private const ERROR_INVALID_JSON = 'invalid_json';
 
+    private const ERROR_RESPONSE_TRUNCATED = 'response_truncated';
+
+    private const FINISH_REASON_LENGTH = 'length';
+
     public function __construct(
         private HttpFactory $http,
         private ConfigRepository $config,
@@ -140,11 +144,37 @@ final readonly class DeepSeekProvider implements AIProvider
         }
 
         $content = (string) $body['choices'][0]['message']['content'];
+        $finishReason = (string) ($body['choices'][0]['finish_reason'] ?? '');
+
+        // Detect max_tokens truncation BEFORE attempting to decode. DeepSeek
+        // (like every OpenAI-compatible API) returns `finish_reason: "length"`
+        // when the model hit the output-token cap mid-generation. The content
+        // will almost always be structurally invalid JSON in that case, but
+        // the actual bug is a budget issue — not a model formatting issue —
+        // so we surface it as its own error code so callers/analytics can
+        // distinguish "raise max_tokens" from "prompt the model differently".
+        if ($finishReason === self::FINISH_REASON_LENGTH) {
+            $this->logger->warning('DeepSeek response was truncated (finish_reason=length).', [
+                'use_case' => $request->useCase->value,
+                'max_tokens' => $request->maxTokens,
+                'usage' => $body['usage'] ?? null,
+            ]);
+
+            return AIResponse::failure(
+                useCase: $request->useCase,
+                errorCode: self::ERROR_RESPONSE_TRUNCATED,
+                errorMessage: 'DeepSeek response was truncated because max_tokens was reached.',
+                model: (string) ($body['model'] ?? $model),
+                raw: $body,
+            );
+        }
+
         $decoded = json_decode($content, true);
 
         if (! is_array($decoded)) {
             $this->logger->warning('DeepSeek response content was not valid JSON.', [
                 'use_case' => $request->useCase->value,
+                'finish_reason' => $finishReason,
                 'content' => $content,
             ]);
 

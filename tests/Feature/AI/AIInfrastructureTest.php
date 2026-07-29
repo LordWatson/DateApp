@@ -220,6 +220,67 @@ class AIInfrastructureTest extends TestCase
         $this->assertSame([], $response->data);
     }
 
+    public function test_deepseek_provider_returns_typed_error_when_response_is_truncated_by_max_tokens(): void
+    {
+        // Simulates the production bug: DeepSeek stops mid-string because
+        // max_tokens was reached (finish_reason=length). The content is not
+        // valid JSON but the root cause is a token-budget issue, so the
+        // provider must surface a dedicated `response_truncated` error code
+        // rather than the generic `invalid_json`.
+        Http::fake([
+            'api.deepseek.test/*' => Http::response([
+                'model' => 'deepseek-v4-flash',
+                'usage' => ['completion_tokens' => 1200, 'total_tokens' => 1500],
+                'choices' => [[
+                    'finish_reason' => 'length',
+                    'message' => ['content' => '{"theme": "Cosy Pub", "summary": "Halfway thro'],
+                ]],
+            ], 200),
+        ]);
+
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+
+        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+
+        $this->assertFalse($response->successful);
+        $this->assertSame('response_truncated', $response->errorCode);
+        $this->assertSame([], $response->data);
+    }
+
+    public function test_ai_service_uses_per_template_max_tokens_override_when_set(): void
+    {
+        Http::fake([
+            'api.deepseek.test/*' => Http::response([
+                'choices' => [['message' => ['content' => '{"prompt":"ok"}']]],
+            ], 200),
+        ]);
+
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+            'max_tokens' => 3000,
+        ]);
+
+        $this->app->make(AIService::class)->generateConversationPrompt();
+
+        Http::assertSent(static fn ($request): bool => $request->data()['max_tokens'] === 3000);
+    }
+
+    public function test_ai_service_falls_back_to_config_max_tokens_when_template_override_is_null(): void
+    {
+        Http::fake([
+            'api.deepseek.test/*' => Http::response([
+                'choices' => [['message' => ['content' => '{"prompt":"ok"}']]],
+            ], 200),
+        ]);
+
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+            'max_tokens' => null,
+        ]);
+
+        $this->app->make(AIService::class)->generateConversationPrompt();
+
+        Http::assertSent(static fn ($request): bool => $request->data()['max_tokens'] === 1200);
+    }
+
     public function test_deepseek_provider_returns_typed_error_when_payload_shape_is_wrong(): void
     {
         Http::fake([

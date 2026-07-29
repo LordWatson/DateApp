@@ -100,7 +100,11 @@ final readonly class AIService
             systemPrompt: $template->system_prompt,
             userPrompt: $this->interpolate($template->user_prompt_template, $context),
             temperature: (float) $this->config->get('ai.defaults.temperature'),
-            maxTokens: (int) $this->config->get('ai.defaults.max_tokens'),
+            // Per-template `max_tokens` override wins when set; otherwise fall
+            // back to the global default. This lets verbose use cases like
+            // `date_night_plan` reserve more output tokens without inflating
+            // the budget for cheaper prompts.
+            maxTokens: $template->max_tokens ?? (int) $this->config->get('ai.defaults.max_tokens'),
             timeout: (int) $this->config->get('ai.defaults.timeout'),
             retryAttempts: (int) $this->config->get('ai.defaults.retry_attempts'),
             context: $context,
