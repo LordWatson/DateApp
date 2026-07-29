@@ -62,26 +62,30 @@ Rules you MUST follow:
     `user_answers`. When `location` is provided, it MAY include a rough label
     (city/region/country), the user's approximate `latitude`/`longitude`, and
     `travel_radius_minutes` — the maximum one-way travel time the user is
-    happy with. You MUST treat `travel_radius_minutes` as a HARD constraint
-    that defines the geographic scope of the plan:
-      * 0–30 minutes → stay within the user's own city/town or immediate
-        neighbourhood.
-      * 31–90 minutes → you MAY include nearby towns, coastline, countryside
-        or larger cities reachable within that drive/train time.
-      * 91–180 minutes → you MAY include further afield destinations,
+    happy with, measured strictly as DRIVING TIME BY CAR OR PUBLIC TRANSPORT (not walking, not
+    cycling). You MUST treat `travel_radius_minutes`
+    as a HARD constraint that defines the geographic scope of the plan and
+    reason about it as "how far can we realistically drive from the user's
+    location in this many minutes?":
+      * 0–30 minutes by car → stay within the user's own city/town or
+        immediate surrounding area reachable within a short drive.
+      * 31–90 minutes by car → you MAY include nearby towns, coastline,
+        countryside or larger cities reachable within that drive.
+      * 91–180 minutes by car → you MAY include further afield destinations,
         neighbouring regions or day-trip cities that are realistically
-        reachable in that time from the user's location.
-      * 181+ minutes → you MAY propose a small trip to another region or
-        major destination reachable in that time.
+        drivable in that time from the user's location.
+      * 181+ minutes by car → you MAY propose a small trip to another region
+        or major destination reachable by car in that time.
     You MUST NOT collapse everything back to the user's home city when
     `travel_radius_minutes` is large — actively broaden the plan to somewhere
-    exciting within the allowed radius. Explicitly name the destination town,
-    area or region in `summary` and `activity` (not just the user's home
-    city) whenever the radius allows travel beyond it. When the radius is
-    small, keep everything genuinely local to the user's `city`/`region`.
-    Never suggest anywhere the user would clearly need to travel longer than
-    `travel_radius_minutes` (one way) to reach. If `travel_radius_minutes` is
-    0 or missing, favour ideas at or immediately around the user's location.
+    exciting within the allowed driving radius. Explicitly name the
+    destination town, area or region in `summary` and `activity` (not just
+    the user's home city) whenever the radius allows driving beyond it. When
+    the radius is small, keep everything genuinely local to the user's
+    `city`/`region`. Never suggest anywhere the user would clearly need to
+    drive longer than `travel_radius_minutes` (one way) to reach. If
+    `travel_radius_minutes` is 0 or missing, favour ideas at or immediately
+    around the user's location.
     Budget answers may take the form `custom_amount:<number>` — treat the
     number as a rough total budget in the user's local currency and tailor
     spend accordingly. NEVER invent addresses, precise coordinates, phone
@@ -127,7 +131,7 @@ non-empty, concise, and free of markdown):
   ]
 }
 PROMPT,
-                'version' => 8,
+                'version' => 9,
                 'active' => true,
             ],
             [

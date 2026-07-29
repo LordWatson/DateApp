@@ -577,7 +577,7 @@ function completeQuestionnaire(): void {
             <div class="space-y-2 rounded-2xl bg-background/60 p-4">
                 <div class="flex items-center justify-between">
                     <label for="travel-radius" class="text-sm font-semibold text-foreground">
-                        🚗 How far are you happy to travel?
+                        🚗 How far are you happy to drive?
                     </label>
                     <span class="text-sm font-semibold text-primary">
                         {{ formatMinutes(travelRadiusMinutes) }}
@@ -593,7 +593,7 @@ function completeQuestionnaire(): void {
                     class="w-full accent-primary"
                 />
                 <p class="text-xs text-muted-foreground">
-                    We'll suggest ideas reachable within this travel time from your location.
+                    We'll suggest ideas reachable within this driving time (by car) from your location.
                 </p>
             </div>
         </div>
