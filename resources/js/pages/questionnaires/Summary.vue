@@ -121,7 +121,8 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Reve
         url.searchParams.set('format', 'jsonv2');
         url.searchParams.set('lat', String(latitude));
         url.searchParams.set('lon', String(longitude));
-        url.searchParams.set('zoom', '10');
+        url.searchParams.set('zoom', '14');
+        url.searchParams.set('addressdetails', '1');
 
         const response = await fetch(url.toString(), {
             headers: { Accept: 'application/json' },
@@ -138,6 +139,8 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Reve
                 town?: string;
                 village?: string;
                 municipality?: string;
+                suburb?: string;
+                hamlet?: string;
                 state?: string;
                 region?: string;
                 county?: string;
@@ -146,7 +149,13 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Reve
         };
 
         const address = data.address ?? {};
-        const city = address.city ?? address.town ?? address.village ?? address.municipality ?? null;
+        const city = address.city
+            ?? address.town
+            ?? address.village
+            ?? address.municipality
+            ?? address.suburb
+            ?? address.hamlet
+            ?? null;
         const region = address.state ?? address.region ?? address.county ?? null;
         const country = address.country ?? null;
         const label = [city, region, country].filter((v): v is string => !!v).join(', ') || data.display_name || null;
