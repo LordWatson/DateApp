@@ -83,7 +83,8 @@ function getInitial(name: string): string {
             <div class="mb-6 overflow-hidden rounded-3xl shadow-xl"
                  style="background: linear-gradient(135deg, #EC4899, #9333EA)">
                 <div class="px-6 py-8 text-center text-white">
-                    <div class="mb-3 text-5xl">{{ plan.theme_emoji ?? '❤️' }}</div>
+<!--                    <div class="mb-3 text-5xl">{{ plan.theme_emoji ?? '❤️' }}</div>-->
+                    <div class="mb-3 text-5xl">❤️</div>
                     <h1 class="mb-1 text-2xl font-semibold">Your Perfect Evening</h1>
                     <p class="mb-4 text-sm opacity-85">{{ plan.theme }}</p>
 
