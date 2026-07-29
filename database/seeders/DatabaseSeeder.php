@@ -16,18 +16,18 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        $alex = User::create([
-            'name' => 'Linda',
-            'email' => 'squatty.watson@gmail.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password'),
-            'gender' => Gender::Male,
-            'date_of_birth' => '1993-10-16',
-            'timezone' => 'UTC',
-            'email_notifications' => true,
-            'push_notifications' => true,
-            'dark_mode' => false,
-        ]);
+        //$alex = User::create([
+        //    'name' => 'Linda',
+        //    'email' => 'squatty.watson@gmail.com',
+        //    'email_verified_at' => now(),
+        //    'password' => Hash::make('password'),
+        //    'gender' => Gender::Male,
+        //    'date_of_birth' => '1993-10-16',
+        //    'timezone' => 'UTC',
+        //    'email_notifications' => true,
+        //    'push_notifications' => true,
+        //    'dark_mode' => false,
+        //]);
 
         /*$eliza = User::create([
             'name' => 'Fanny',
@@ -61,8 +61,8 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Assign super admin role to Alex
-        $superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
-        $alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
+        //$superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
+        //$alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
         // $eliza->update(['onboarding_completed' => true]);
     }
 }

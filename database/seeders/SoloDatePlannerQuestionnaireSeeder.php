@@ -137,17 +137,6 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                 ],
             ],
             [
-                'emoji' => '🚗',
-                'title' => 'How far are you happy to travel?',
-                'description' => 'Drag the slider to set a maximum travel time in 30-minute steps.',
-                'type' => QuestionType::Slider,
-                'minimum_value' => 0,
-                'maximum_value' => 240,
-                'step_value' => 30,
-                'unit' => 'minutes',
-                'options' => [],
-            ],
-            [
                 'emoji' => '🌡️',
                 'title' => 'How energetic do you want it to be?',
                 'type' => QuestionType::Slider,

@@ -65,9 +65,10 @@ const profileColour = ref('#EC4899');
 const saving = ref(false);
 const finishing = ref(false);
 
-type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable';
+type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable' | 'manual' | 'searching';
 
 const locationStatus = ref<LocationStatus>('idle');
+const locationSource = ref<'geolocation' | 'manual' | 'fallback' | null>(null);
 const locationLatitude = ref<number | null>(null);
 const locationLongitude = ref<number | null>(null);
 const locationLabel = ref<string | null>(null);
@@ -75,6 +76,37 @@ const locationCity = ref<string | null>(null);
 const locationRegion = ref<string | null>(null);
 const locationCountry = ref<string | null>(null);
 const locationError = ref<string | null>(null);
+const manualLocationQuery = ref<string>('');
+const manualLocationError = ref<string | null>(null);
+
+// Default fallback location — used when geolocation is unavailable (e.g. HTTP
+// local development) so the questionnaire can still be completed end-to-end.
+const FALLBACK_LOCATION = {
+    latitude: 51.4545,
+    longitude: -2.5879,
+    label: 'Bristol, United Kingdom',
+    city: 'Bristol',
+    region: 'England',
+    country: 'United Kingdom',
+} as const;
+
+const DEFAULT_TRAVEL_RADIUS_MINUTES = 60;
+const travelRadiusMinutes = ref<number>(DEFAULT_TRAVEL_RADIUS_MINUTES);
+const TRAVEL_RADIUS_MIN = 0;
+const TRAVEL_RADIUS_MAX = 240;
+const TRAVEL_RADIUS_STEP = 30;
+
+function applyFallbackLocation(reason: string | null): void {
+    locationLatitude.value = FALLBACK_LOCATION.latitude;
+    locationLongitude.value = FALLBACK_LOCATION.longitude;
+    locationLabel.value = FALLBACK_LOCATION.label;
+    locationCity.value = FALLBACK_LOCATION.city;
+    locationRegion.value = FALLBACK_LOCATION.region;
+    locationCountry.value = FALLBACK_LOCATION.country;
+    locationSource.value = 'fallback';
+    locationStatus.value = 'granted';
+    locationError.value = reason;
+}
 
 interface ReverseGeocodeResult {
     label: string | null;
@@ -127,8 +159,7 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Reve
 
 function requestGeolocation(): void {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-        locationStatus.value = 'unavailable';
-        locationError.value = 'Your browser doesn\'t support geolocation.';
+        applyFallbackLocation('Your browser doesn\'t support geolocation, so we\'ve defaulted to Bristol. You can enter a location manually below.');
 
         return;
     }
@@ -147,13 +178,16 @@ function requestGeolocation(): void {
             locationRegion.value = result.region;
             locationCountry.value = result.country;
 
+            locationSource.value = 'geolocation';
             locationStatus.value = 'granted';
+            locationError.value = null;
         },
         (error) => {
-            locationStatus.value = error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable';
-            locationError.value = error.code === error.PERMISSION_DENIED
-                ? 'Location permission was declined. You can still complete without it.'
-                : 'We couldn\'t read your location. You can still complete without it.';
+            const reason = error.code === error.PERMISSION_DENIED
+                ? 'Location permission was declined, so we\'ve defaulted to Bristol. You can enter a location manually below.'
+                : 'We couldn\'t read your location, so we\'ve defaulted to Bristol. You can enter a location manually below.';
+
+            applyFallbackLocation(reason);
         },
         {
             enableHighAccuracy: false,
@@ -163,27 +197,109 @@ function requestGeolocation(): void {
     );
 }
 
-const travelRadiusMinutes = computed<number | null>(() => {
-    for (const group of props.grouped_answers) {
-        if (group.question.type !== 'slider' || group.question.unit !== 'minutes') {
-            continue;
+interface ForwardGeocodeResult {
+    latitude: number;
+    longitude: number;
+    label: string;
+    city: string | null;
+    region: string | null;
+    country: string | null;
+}
+
+async function forwardGeocode(query: string): Promise<ForwardGeocodeResult | null> {
+    try {
+        const url = new URL('https://nominatim.openstreetmap.org/search');
+        url.searchParams.set('format', 'jsonv2');
+        url.searchParams.set('q', query);
+        url.searchParams.set('addressdetails', '1');
+        url.searchParams.set('limit', '1');
+
+        const response = await fetch(url.toString(), {
+            headers: { Accept: 'application/json' },
+        });
+
+        if (!response.ok) {
+            return null;
         }
 
-        const raw = group.answers[0]?.value;
+        const data = (await response.json()) as Array<{
+            lat?: string;
+            lon?: string;
+            display_name?: string;
+            address?: {
+                city?: string;
+                town?: string;
+                village?: string;
+                municipality?: string;
+                state?: string;
+                region?: string;
+                county?: string;
+                country?: string;
+            };
+        }>;
 
-        if (raw === null || raw === undefined || raw === '') {
-            continue;
+        const first = data[0];
+
+        if (!first || !first.lat || !first.lon) {
+            return null;
         }
 
-        const parsed = Number(raw);
+        const address = first.address ?? {};
+        const city = address.city ?? address.town ?? address.village ?? address.municipality ?? null;
+        const region = address.state ?? address.region ?? address.county ?? null;
+        const country = address.country ?? null;
+        const label = [city, region, country].filter((v): v is string => !!v).join(', ') || first.display_name || query;
 
-        if (Number.isFinite(parsed)) {
-            return parsed;
-        }
+        return {
+            latitude: Number(first.lat),
+            longitude: Number(first.lon),
+            label,
+            city,
+            region,
+            country,
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function submitManualLocation(): Promise<void> {
+    const query = manualLocationQuery.value.trim();
+
+    if (query === '') {
+        manualLocationError.value = 'Please enter a place, town or city.';
+
+        return;
     }
 
-    return null;
-});
+    manualLocationError.value = null;
+    locationStatus.value = 'searching';
+
+    const result = await forwardGeocode(query);
+
+    if (!result) {
+        locationStatus.value = locationSource.value ? 'granted' : 'manual';
+        manualLocationError.value = 'We couldn\'t find that place. Try a nearby town or city.';
+
+        return;
+    }
+
+    locationLatitude.value = result.latitude;
+    locationLongitude.value = result.longitude;
+    locationLabel.value = result.label;
+    locationCity.value = result.city;
+    locationRegion.value = result.region;
+    locationCountry.value = result.country;
+    locationSource.value = 'manual';
+    locationStatus.value = 'granted';
+    locationError.value = null;
+    manualLocationQuery.value = '';
+}
+
+function openManualEntry(): void {
+    manualLocationError.value = null;
+    locationStatus.value = 'manual';
+}
 
 const locationCardHeadline = computed(() => {
     if (locationStatus.value === 'granted' && locationLabel.value) {
@@ -194,7 +310,7 @@ const locationCardHeadline = computed(() => {
         return '📍 Location captured';
     }
 
-    return "📍 Where are you starting from?";
+    return '📍 Where are you starting from?';
 });
 
 onMounted(() => {
@@ -330,9 +446,7 @@ function completeQuestionnaire(): void {
             payload.location_country = locationCountry.value;
         }
 
-        if (travelRadiusMinutes.value !== null) {
-            payload.travel_radius_minutes = travelRadiusMinutes.value;
-        }
+        payload.travel_radius_minutes = travelRadiusMinutes.value;
     }
 
     router.post(`/questionnaires/${props.questionnaire.slug}/finish`, payload, {
@@ -380,41 +494,106 @@ function completeQuestionnaire(): void {
             </div>
         </div>
 
-        <!-- Location capture (solo questionnaires only) -->
+        <!-- Combined location + travel radius (solo questionnaires only) -->
         <div v-if="questionnaire.is_solo" class="card-premium space-y-4 p-5">
             <div class="space-y-1">
                 <h2 class="text-lg font-semibold text-foreground">{{ locationCardHeadline }}</h2>
                 <p class="text-sm text-muted-foreground">
-                    We use your device's location to suggest date ideas nearby. Nothing precise is shared — just an approximate area.
+                    We'll plan around this location and stay within your travel radius.
+                    Use your current location, or type in somewhere you'll be visiting.
                 </p>
             </div>
 
+            <!-- Current location summary -->
             <div v-if="locationStatus === 'granted'" class="space-y-2 rounded-2xl bg-primary/5 p-4 text-sm">
                 <p class="font-semibold text-foreground">
-                    ✅ Ready to plan around <span class="text-primary">{{ locationLabel ?? 'your current spot' }}</span>
+                    ✅ Planning around <span class="text-primary">{{ locationLabel ?? 'your current spot' }}</span>
                 </p>
-                <p v-if="travelRadiusMinutes !== null" class="text-muted-foreground">
-                    We'll stay within roughly {{ formatMinutes(travelRadiusMinutes) }} of you.
+                <p v-if="locationSource === 'fallback'" class="text-xs text-muted-foreground">
+                    {{ locationError ?? "We couldn't detect your location, so we've defaulted to Bristol. You can enter one manually below." }}
                 </p>
-                <button
-                    type="button"
-                    class="text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
-                    @click="requestGeolocation"
-                >
-                    Refresh location
-                </button>
+                <p v-else-if="locationSource === 'manual'" class="text-xs text-muted-foreground">
+                    Using the location you entered.
+                </p>
+                <div class="flex flex-wrap gap-3 pt-1">
+                    <button
+                        type="button"
+                        class="text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                        @click="requestGeolocation"
+                    >
+                        📍 Use my current location
+                    </button>
+                    <button
+                        type="button"
+                        class="text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                        @click="openManualEntry"
+                    >
+                        ✏️ Enter a different location
+                    </button>
+                </div>
             </div>
 
             <div v-else-if="locationStatus === 'requesting'" class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">
                 Finding you…
             </div>
 
+            <div v-else-if="locationStatus === 'searching'" class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">
+                Looking up that location…
+            </div>
+
             <div v-else class="space-y-3">
                 <PrimaryButton full-width @click="requestGeolocation">
                     📍 Use my current location
                 </PrimaryButton>
+                <SecondaryButton full-width @click="openManualEntry">
+                    ✏️ Enter a location manually
+                </SecondaryButton>
                 <p v-if="locationError" class="text-xs text-muted-foreground">
                     {{ locationError }}
+                </p>
+            </div>
+
+            <!-- Manual entry form -->
+            <div v-if="locationStatus === 'manual'" class="space-y-2 rounded-2xl bg-muted/40 p-4">
+                <label class="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Enter a town, city or postcode
+                </label>
+                <input
+                    v-model="manualLocationQuery"
+                    type="text"
+                    placeholder="e.g. Bath, United Kingdom"
+                    class="w-full rounded-2xl border-2 border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    @keydown.enter.prevent="submitManualLocation"
+                />
+                <p v-if="manualLocationError" class="text-xs text-warning">
+                    {{ manualLocationError }}
+                </p>
+                <PrimaryButton full-width @click="submitManualLocation">
+                    Use this location
+                </PrimaryButton>
+            </div>
+
+            <!-- Travel radius slider -->
+            <div class="space-y-2 rounded-2xl bg-background/60 p-4">
+                <div class="flex items-center justify-between">
+                    <label for="travel-radius" class="text-sm font-semibold text-foreground">
+                        🚗 How far are you happy to travel?
+                    </label>
+                    <span class="text-sm font-semibold text-primary">
+                        {{ formatMinutes(travelRadiusMinutes) }}
+                    </span>
+                </div>
+                <input
+                    id="travel-radius"
+                    v-model.number="travelRadiusMinutes"
+                    type="range"
+                    :min="TRAVEL_RADIUS_MIN"
+                    :max="TRAVEL_RADIUS_MAX"
+                    :step="TRAVEL_RADIUS_STEP"
+                    class="w-full accent-primary"
+                />
+                <p class="text-xs text-muted-foreground">
+                    We'll suggest ideas reachable within this travel time from your location.
                 </p>
             </div>
         </div>

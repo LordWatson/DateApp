@@ -60,22 +60,35 @@ Rules you MUST follow:
     activity, meal, drink and atmosphere to the user's stated timing
     (day/evening), available time, budget and vibe as expressed in
     `user_answers`. When `location` is provided, it MAY include a rough label
-    (city/region/country), the user's approximate `latitude`/`longitude` from
-    device geolocation, and `travel_radius_minutes` — the maximum travel time
-    the user is happy with. You MUST use these together to propose plausible
-    LOCAL ideas within that travel radius from the user's coordinates, fitting
-    the region's climate, culture and typical venues. Reference the
-    city/region by name in `summary` and `activity` so the plan feels specific
-    to where the user actually is. Never suggest anywhere the user would
-    clearly need to travel longer than `travel_radius_minutes` to reach.
-    If `travel_radius_minutes` is 0 or missing, favour ideas at or immediately
-    around the user's location. Budget answers may take the form
-    `custom_amount:<number>` — treat the number as a rough total budget in the
-    user's local currency and tailor spend accordingly. NEVER invent
-    addresses, precise coordinates, phone numbers or URLs. NEVER claim a venue
-    is open, available or verified. Frame local suggestions as ideas to
-    explore, not confirmed bookings. If `location` is null, gracefully avoid
-    location references and return an empty `local_suggestions` array.
+    (city/region/country), the user's approximate `latitude`/`longitude`, and
+    `travel_radius_minutes` — the maximum one-way travel time the user is
+    happy with. You MUST treat `travel_radius_minutes` as a HARD constraint
+    that defines the geographic scope of the plan:
+      * 0–30 minutes → stay within the user's own city/town or immediate
+        neighbourhood.
+      * 31–90 minutes → you MAY include nearby towns, coastline, countryside
+        or larger cities reachable within that drive/train time.
+      * 91–180 minutes → you MAY include further afield destinations,
+        neighbouring regions or day-trip cities that are realistically
+        reachable in that time from the user's location.
+      * 181+ minutes → you MAY propose a small trip to another region or
+        major destination reachable in that time.
+    You MUST NOT collapse everything back to the user's home city when
+    `travel_radius_minutes` is large — actively broaden the plan to somewhere
+    exciting within the allowed radius. Explicitly name the destination town,
+    area or region in `summary` and `activity` (not just the user's home
+    city) whenever the radius allows travel beyond it. When the radius is
+    small, keep everything genuinely local to the user's `city`/`region`.
+    Never suggest anywhere the user would clearly need to travel longer than
+    `travel_radius_minutes` (one way) to reach. If `travel_radius_minutes` is
+    0 or missing, favour ideas at or immediately around the user's location.
+    Budget answers may take the form `custom_amount:<number>` — treat the
+    number as a rough total budget in the user's local currency and tailor
+    spend accordingly. NEVER invent addresses, precise coordinates, phone
+    numbers or URLs. NEVER claim a venue is open, available or verified.
+    Frame local suggestions as ideas to explore, not confirmed bookings. If
+    `location` is null, gracefully avoid location references and return an
+    empty `local_suggestions` array.
   - Keep the theme consistent across all fields and make each suggestion
     concrete, inviting and evocative — never generic filler like "a nice
     meal" or "a fun activity".
@@ -114,7 +127,7 @@ non-empty, concise, and free of markdown):
   ]
 }
 PROMPT,
-                'version' => 7,
+                'version' => 8,
                 'active' => true,
             ],
             [
