@@ -16,22 +16,24 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        //$alex = User::create([
-        //    'name' => 'Linda',
-        //    'email' => 'squatty.watson@gmail.com',
-        //    'email_verified_at' => now(),
-        //    'password' => Hash::make('password'),
-        //    'gender' => Gender::Male,
-        //    'date_of_birth' => '1993-10-16',
-        //    'timezone' => 'UTC',
-        //    'email_notifications' => true,
-        //    'push_notifications' => true,
-        //    'dark_mode' => false,
-        //]);
+        $alex = User::create([
+            'name' => 'Linda',
+            'email' => 'squatty.watson@gmail.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password'),
+            'gender' => Gender::Male,
+            'date_of_birth' => '1993-10-16',
+            'timezone' => 'UTC',
+            'email_notifications' => true,
+            'push_notifications' => true,
+            'dark_mode' => false,
+        ]);
 
-        /*$eliza = User::create([
+        $elizaEmail = app()->environment('local', 'development') ? 'elizarudowicz@gmail.com' : 'alexander.watson.work@gmail.com';
+
+        $eliza = User::create([
             'name' => 'Fanny',
-            'email' => 'alexander.watson.work@gmail.com',
+            'email' => $elizaEmail,
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
             'gender' => Gender::Female,
@@ -43,7 +45,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $alex->update(['partner_id' => $eliza->id]);
-        $eliza->update(['partner_id' => $alex->id]);*/
+        $eliza->update(['partner_id' => $alex->id]);
 
         $this->call([
             RoleSeeder::class,
@@ -61,8 +63,8 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Assign super admin role to Alex
-        //$superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
-        //$alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
-        // $eliza->update(['onboarding_completed' => true]);
+        $superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
+        $alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
+        $eliza->update(['onboarding_completed' => true]);
     }
 }
