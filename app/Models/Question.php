@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool $required
  * @property int|null $minimum_value
  * @property int|null $maximum_value
+ * @property int|null $step_value
+ * @property string|null $unit
  * @property int $display_order
  */
 class Question extends Model
@@ -35,6 +37,8 @@ class Question extends Model
         'required',
         'minimum_value',
         'maximum_value',
+        'step_value',
+        'unit',
         'display_order',
     ];
 

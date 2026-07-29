@@ -31,6 +31,8 @@ interface Question {
     required: boolean;
     minimum_value: number | null;
     maximum_value: number | null;
+    step_value: number | null;
+    unit: string | null;
     display_order: number;
     options: Option[];
 }
@@ -108,7 +110,10 @@ clearTimeout(saveTimeout);
 
     saveTimeout = setTimeout(() => {
         saveAnswer().then(() => {
-            if (props.question.type === 'single_choice' && hasAnswer.value) {
+            const currentValue = typeof answer.value === 'string' ? answer.value : null;
+            const isCustomBudget = currentValue?.startsWith('custom_amount') ?? false;
+
+            if (props.question.type === 'single_choice' && hasAnswer.value && !isCustomBudget) {
                 if (advanceTimeout) {
                     clearTimeout(advanceTimeout);
                 }
@@ -203,6 +208,8 @@ return;
                         v-model="answer as string"
                         :minimum-value="question.minimum_value"
                         :maximum-value="question.maximum_value"
+                        :step-value="question.step_value"
+                        :unit="question.unit"
                     />
                     <TextQuestion
                         v-else-if="question.type === 'text'"

@@ -232,6 +232,8 @@ class QuestionnaireController extends Controller
                 'required' => $question->required,
                 'minimum_value' => $question->minimum_value,
                 'maximum_value' => $question->maximum_value,
+                'step_value' => $question->step_value,
+                'unit' => $question->unit,
                 'display_order' => $question->display_order,
                 'options' => $question->options->map(fn ($o) => [
                     'id' => $o->id,
@@ -337,6 +339,9 @@ class QuestionnaireController extends Controller
                     'location_city' => $request->input('location_city'),
                     'location_region' => $request->input('location_region'),
                     'location_country' => $request->input('location_country'),
+                    'location_latitude' => $request->input('location_latitude'),
+                    'location_longitude' => $request->input('location_longitude'),
+                    'travel_radius_minutes' => $request->input('travel_radius_minutes'),
                 ])->save();
             }
 
@@ -367,6 +372,7 @@ class QuestionnaireController extends Controller
                     'title' => $question->title,
                     'emoji' => $question->emoji,
                     'type' => $question->type->value,
+                    'unit' => $question->unit,
                     'display_order' => $question->display_order,
                     'options' => $question->options->map(fn ($o) => [
                         'id' => $o->id,

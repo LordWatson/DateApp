@@ -47,6 +47,8 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                 'required' => true,
                 'minimum_value' => $data['minimum_value'] ?? null,
                 'maximum_value' => $data['maximum_value'] ?? null,
+                'step_value' => $data['step_value'] ?? null,
+                'unit' => $data['unit'] ?? null,
                 'display_order' => $order + 1,
             ]);
 
@@ -54,7 +56,7 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                 QuestionOption::create([
                     'question_id' => $question->id,
                     'title' => $option['title'],
-                    'description' => null,
+                    'description' => $option['description'] ?? null,
                     'emoji' => $option['emoji'] ?? null,
                     'value' => $option['value'],
                     'display_order' => $optionOrder + 1,
@@ -126,18 +128,24 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                     ['emoji' => '☕', 'title' => 'Light spend', 'value' => 'light'],
                     ['emoji' => '🍽️', 'title' => 'Comfortable', 'value' => 'comfortable'],
                     ['emoji' => '🥂', 'title' => 'Treat ourselves', 'value' => 'treat'],
+                    [
+                        'emoji' => '💷',
+                        'title' => 'Custom amount',
+                        'description' => 'Tell us exactly what you\'d like to spend',
+                        'value' => 'custom_amount',
+                    ],
                 ],
             ],
             [
                 'emoji' => '🚗',
                 'title' => 'How far are you happy to travel?',
-                'type' => QuestionType::SingleChoice,
-                'options' => [
-                    ['emoji' => '🚶', 'title' => 'Walking distance', 'value' => 'walking'],
-                    ['emoji' => '🚌', 'title' => 'Short trip in town', 'value' => 'in_town'],
-                    ['emoji' => '🚗', 'title' => 'Happy to drive a bit', 'value' => 'drive'],
-                    ['emoji' => '✈️', 'title' => 'Anywhere is fair game', 'value' => 'anywhere'],
-                ],
+                'description' => 'Drag the slider to set a maximum travel time in 30-minute steps.',
+                'type' => QuestionType::Slider,
+                'minimum_value' => 0,
+                'maximum_value' => 240,
+                'step_value' => 30,
+                'unit' => 'minutes',
+                'options' => [],
             ],
             [
                 'emoji' => '🌡️',

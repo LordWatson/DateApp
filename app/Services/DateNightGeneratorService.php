@@ -191,7 +191,7 @@ class DateNightGeneratorService
      *
      * @param  array<string, string|null>  $plan
      * @param  array<string, mixed>  $compatibility
-     * @param  array<string, string|null>|null  $location
+     * @param  array<string, string|int|float|null>|null  $location
      * @return array<string, mixed>
      */
     private function buildAIContext(
@@ -288,7 +288,7 @@ class DateNightGeneratorService
     }
 
     /**
-     * @return array<string, string|null>|null
+     * @return array<string, string|int|float|null>|null
      */
     private function buildLocationContext(Response $response): ?array
     {
@@ -296,8 +296,19 @@ class DateNightGeneratorService
         $city = $response->location_city;
         $region = $response->location_region;
         $country = $response->location_country;
+        $latitude = $response->location_latitude;
+        $longitude = $response->location_longitude;
+        $travelRadius = $response->travel_radius_minutes;
 
-        if ($label === null && $city === null && $region === null && $country === null) {
+        $hasAny = $label !== null
+            || $city !== null
+            || $region !== null
+            || $country !== null
+            || $latitude !== null
+            || $longitude !== null
+            || $travelRadius !== null;
+
+        if (! $hasAny) {
             return null;
         }
 
@@ -306,6 +317,9 @@ class DateNightGeneratorService
             'city' => $city,
             'region' => $region,
             'country' => $country,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'travel_radius_minutes' => $travelRadius,
         ];
     }
 

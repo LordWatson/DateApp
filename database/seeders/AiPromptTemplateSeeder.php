@@ -59,15 +59,23 @@ Rules you MUST follow:
     is intended for a real-world outing rather than an evening in. Anchor the
     activity, meal, drink and atmosphere to the user's stated timing
     (day/evening), available time, budget and vibe as expressed in
-    `user_answers`. When `location` is provided (rough only — label, city,
-    region, country), you MUST use it to shape the plan and propose plausible
-    LOCAL ideas that fit the region's climate, culture and typical venues.
-    Reference the city/region by name in `summary` and `activity` so the plan
-    feels specific to where the user actually is. NEVER invent addresses,
-    precise coordinates, phone numbers or URLs. NEVER claim a venue is open,
-    available or verified. Frame local suggestions as ideas to explore, not
-    confirmed bookings. If `location` is null, gracefully avoid location
-    references and return an empty `local_suggestions` array.
+    `user_answers`. When `location` is provided, it MAY include a rough label
+    (city/region/country), the user's approximate `latitude`/`longitude` from
+    device geolocation, and `travel_radius_minutes` — the maximum travel time
+    the user is happy with. You MUST use these together to propose plausible
+    LOCAL ideas within that travel radius from the user's coordinates, fitting
+    the region's climate, culture and typical venues. Reference the
+    city/region by name in `summary` and `activity` so the plan feels specific
+    to where the user actually is. Never suggest anywhere the user would
+    clearly need to travel longer than `travel_radius_minutes` to reach.
+    If `travel_radius_minutes` is 0 or missing, favour ideas at or immediately
+    around the user's location. Budget answers may take the form
+    `custom_amount:<number>` — treat the number as a rough total budget in the
+    user's local currency and tailor spend accordingly. NEVER invent
+    addresses, precise coordinates, phone numbers or URLs. NEVER claim a venue
+    is open, available or verified. Frame local suggestions as ideas to
+    explore, not confirmed bookings. If `location` is null, gracefully avoid
+    location references and return an empty `local_suggestions` array.
   - Keep the theme consistent across all fields and make each suggestion
     concrete, inviting and evocative — never generic filler like "a nice
     meal" or "a fun activity".
@@ -106,7 +114,7 @@ non-empty, concise, and free of markdown):
   ]
 }
 PROMPT,
-                'version' => 6,
+                'version' => 7,
                 'active' => true,
             ],
             [
