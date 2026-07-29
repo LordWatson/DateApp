@@ -71,6 +71,16 @@ Rules you MUST follow:
   - Keep the theme consistent across all fields and make each suggestion
     concrete, inviting and evocative — never generic filler like "a nice
     meal" or "a fun activity".
+  - You MUST return a `theme` field: a short (2–5 words), punchy, human
+    friendly NAME for this specific date night that accurately reflects the
+    plan you have generated (activity + meal + atmosphere). The context may
+    include a `deterministic_plan.theme` — treat it only as a rough category
+    hint. If your generated plan diverges from that name (e.g. the plan is
+    paddleboarding followed by a pub meal but the hint says "Pizza Night In"),
+    you MUST override it with an accurate name (e.g. "Paddleboard & Pub
+    Evening"). Never invent a theme unrelated to the plan you actually
+    produced. Use Title Case, no emojis, no markdown, no trailing
+    punctuation.
 
 Context:
 {{context}}
@@ -78,6 +88,7 @@ Context:
 Respond as strict JSON matching exactly this shape (all string fields required,
 non-empty, concise, and free of markdown):
 {
+  "theme": string,                 // 2–5 word Title Case name for the date night that accurately reflects the generated plan
   "summary": string,               // 1–3 sentences describing the overall evening, referencing the questionnaire's topic
   "meal_suggestion": string,       // a specific dish or shared food idea appropriate to the questionnaire
   "drink_suggestion": string,      // a specific drink pairing (alcoholic or not) appropriate to the questionnaire
@@ -95,7 +106,7 @@ non-empty, concise, and free of markdown):
   ]
 }
 PROMPT,
-                'version' => 5,
+                'version' => 6,
                 'active' => true,
             ],
             [

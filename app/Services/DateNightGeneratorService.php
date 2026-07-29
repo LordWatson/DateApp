@@ -21,6 +21,7 @@ class DateNightGeneratorService
      * @var list<string>
      */
     private const ENHANCEABLE_FIELDS = [
+        'theme',
         'summary',
         'meal_suggestion',
         'drink_suggestion',

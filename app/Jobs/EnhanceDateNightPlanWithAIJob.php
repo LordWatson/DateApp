@@ -34,6 +34,7 @@ final class EnhanceDateNightPlanWithAIJob implements ShouldQueue
     public array $backoff = [10, 30, 60];
 
     private const ENHANCEABLE_FIELDS = [
+        'theme',
         'summary',
         'meal_suggestion',
         'drink_suggestion',
