@@ -50,6 +50,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{questionnaire:slug}/question/{order}', [QuestionnaireController::class, 'question'])->name('question');
             Route::post('/{questionnaire:slug}/question/{order}/answer', [QuestionnaireController::class, 'answer'])->name('answer');
             Route::get('/{questionnaire:slug}/complete', [QuestionnaireController::class, 'complete'])->name('complete');
+            Route::get('/{questionnaire:slug}/plan-status', [QuestionnaireController::class, 'planStatus'])->name('plan-status');
             Route::post('/{questionnaire:slug}/finish', [QuestionnaireController::class, 'finish'])->name('finish');
             Route::get('/{questionnaire:slug}/summary', [QuestionnaireController::class, 'summary'])->name('summary');
             Route::get('/{questionnaire:slug}/partner-answers', [QuestionnaireController::class, 'partnerAnswers'])->name('partner-answers');

@@ -279,6 +279,11 @@ class QuestionnaireController extends Controller
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;
 
+        // A date-night plan will be generated whenever we have all the responses
+        // required by the pipeline: always for solo, otherwise only once the
+        // partner has also completed the current cycle.
+        $awaitingPlan = $questionnaire->is_solo || $partnerCompleted;
+
         return Inertia::render('questionnaires/Complete', [
             'questionnaire' => [
                 'id' => $questionnaire->id,
@@ -289,6 +294,34 @@ class QuestionnaireController extends Controller
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
             'partner_completed' => $partnerCompleted,
+            'awaiting_plan' => $awaitingPlan,
+        ]);
+    }
+
+    public function planStatus(Request $request, Questionnaire $questionnaire): JsonResponse
+    {
+        $user = $request->user();
+        $response = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire);
+
+        if (! $response) {
+            return response()->json([
+                'ready' => false,
+                'plan_id' => null,
+            ]);
+        }
+
+        $plan = DateNightPlan::query()
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where(function ($query) use ($response): void {
+                $query->where('partner_one_response_id', $response->id)
+                    ->orWhere('partner_two_response_id', $response->id);
+            })
+            ->latest('id')
+            ->first();
+
+        return response()->json([
+            'ready' => $plan !== null,
+            'plan_id' => $plan?->id,
         ]);
     }
 
