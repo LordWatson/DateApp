@@ -11,4 +11,5 @@ enum NotificationType: string
     case LoveNoteReceived = 'love_note_received';
     case MomentCreated = 'moment_created';
     case PartnerViewedPlan = 'partner_viewed_plan';
+    case PartnerLikedPlan = 'partner_liked_plan';
 }

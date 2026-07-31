@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\LikeDateNightPlanAction;
 use App\Models\DateNightPlan;
 use App\Models\Response;
+use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,7 +52,7 @@ class DateNightPlanController extends Controller
         }
 
         return Inertia::render('date-night/Show', [
-            'plan' => $this->formatPlan($dateNightPlan),
+            'plan' => $this->formatPlan($dateNightPlan, $user),
         ]);
     }
 
@@ -120,6 +122,28 @@ class DateNightPlanController extends Controller
         return back();
     }
 
+    public function toggleLike(
+        Request $request,
+        DateNightPlan $dateNightPlan,
+        LikeDateNightPlanAction $likePlan,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        $responseIds = Response::where('user_id', $user->id)->pluck('id');
+
+        $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
+            || $responseIds->contains($dateNightPlan->partner_two_response_id)
+            || $dateNightPlan->partner_user_id === $user->id;
+
+        if (! $isParticipant) {
+            abort(403);
+        }
+
+        $likePlan->execute($user, $dateNightPlan);
+
+        return back();
+    }
+
     public function favourites(Request $request): InertiaResponse
     {
         $user = $request->user();
@@ -145,10 +169,13 @@ class DateNightPlanController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function formatPlan(DateNightPlan $plan): array
+    private function formatPlan(DateNightPlan $plan, User $viewer): array
     {
         $partnerOne = $plan->partnerOneResponse?->user;
         $partnerTwo = $plan->partnerTwoResponse?->user;
+
+        $plan->loadCount('likedBy');
+        $isLiked = $plan->isLikedBy($viewer);
 
         return [
             'id' => $plan->id,
@@ -167,6 +194,8 @@ class DateNightPlanController extends Controller
             'location_label' => $plan->location_label,
             'local_suggestions' => $plan->local_suggestions ?? [],
             'is_favourite' => $plan->is_favourite,
+            'is_liked' => $isLiked,
+            'likes_count' => (int) ($plan->liked_by_count ?? 0),
             'created_at' => $plan->created_at?->toISOString(),
             'questionnaire' => [
                 'id' => $plan->questionnaire?->id,

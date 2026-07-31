@@ -63,6 +63,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/favourites', [DateNightPlanController::class, 'favourites'])->name('favourites');
             Route::get('/{dateNightPlan}', [DateNightPlanController::class, 'show'])->name('show');
             Route::post('/{dateNightPlan}/favourite', [DateNightPlanController::class, 'toggleFavourite'])->name('toggle-favourite');
+            Route::post('/{dateNightPlan}/like', [DateNightPlanController::class, 'toggleLike'])->name('toggle-like');
             Route::get('/{dateNightPlan}/export', [DateNightPlanPdfController::class, 'export'])->name('export');
         });
 

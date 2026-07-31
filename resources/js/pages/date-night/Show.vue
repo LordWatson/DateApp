@@ -37,6 +37,8 @@ interface Plan {
     location_label: string | null;
     local_suggestions: LocalSuggestion[];
     is_favourite: boolean;
+    is_liked: boolean;
+    likes_count: number;
     created_at: string;
     questionnaire: { id: number; title: string; slug: string } | null;
     partner_one: Partner | null;
@@ -46,6 +48,8 @@ interface Plan {
 const props = defineProps<{ plan: Plan }>();
 
 const isFavourite = ref(props.plan.is_favourite);
+const isLiked = ref(props.plan.is_liked);
+const likesCount = ref(props.plan.likes_count);
 
 const generatedDate = new Date(props.plan.created_at).toLocaleDateString([], {
     weekday: 'long',
@@ -65,6 +69,20 @@ function toggleFavourite(): void {
 
 function exportPlan(): void {
     window.open(`/date-night/${props.plan.id}/export`, '_blank');
+}
+
+function toggleLike(): void {
+    const wasLiked = isLiked.value;
+    isLiked.value = !wasLiked;
+    likesCount.value += wasLiked ? -1 : 1;
+
+    router.post(`/date-night/${props.plan.id}/like`, {}, {
+        preserveScroll: true,
+        onError: () => {
+            isLiked.value = wasLiked;
+            likesCount.value += wasLiked ? 1 : -1;
+        },
+    });
 }
 
 function getInitial(name: string): string {
@@ -205,6 +223,21 @@ function getInitial(name: string): string {
                         </li>
                     </ul>
                 </div>
+            </div>
+
+            <!-- Like -->
+            <div class="mb-4 flex justify-center">
+                <button
+                    type="button"
+                    class="inline-flex min-h-14 items-center gap-2 rounded-3xl bg-white px-6 py-3 text-sm font-semibold text-primary shadow-xl transition-transform duration-150 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    :aria-pressed="isLiked"
+                    :aria-label="isLiked ? 'Unlike this date night' : 'Like this date night'"
+                    @click="toggleLike"
+                >
+                    <span class="text-lg" aria-hidden="true">{{ isLiked ? '❤️' : '🤍' }}</span>
+                    <span>{{ isLiked ? 'You love this' : 'Love this date night' }}</span>
+                    <span v-if="likesCount > 0" class="rounded-full bg-primary/10 px-2 py-0.5 text-xs">{{ likesCount }}</span>
+                </button>
             </div>
 
             <!-- Generated time -->

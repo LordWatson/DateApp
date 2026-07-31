@@ -53,4 +53,17 @@ class NotificationService
             'data' => ['plan_id' => $plan->id],
         ]);
     }
+
+    public function notifyPartnerLikedPlan(User $recipient, User $sender, DateNightPlan $plan): void
+    {
+        $senderName = $sender->display_name ?? $sender->name;
+
+        AppNotification::create([
+            'user_id' => $recipient->id,
+            'type' => NotificationType::PartnerLikedPlan,
+            'title' => "❤️ {$senderName} loves your Date Night plan!",
+            'body' => "They liked your {$plan->theme_emoji} {$plan->theme} plan. Looks like tonight's a yes!",
+            'data' => ['plan_id' => $plan->id],
+        ]);
+    }
 }

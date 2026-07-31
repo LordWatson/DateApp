@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -104,5 +105,16 @@ class DateNightPlan extends Model
     public function scopeFavourites(Builder $query): Builder
     {
         return $query->where('is_favourite', true);
+    }
+
+    public function likedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'date_night_plan_likes')
+            ->withTimestamps();
+    }
+
+    public function isLikedBy(User $user): bool
+    {
+        return $this->likedBy()->whereKey($user->id)->exists();
     }
 }

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\NotificationType;
 use App\Enums\QuestionnaireStatus;
 use App\Enums\QuestionnaireVisibility;
+use App\Models\AppNotification;
 use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
 use App\Models\Response;
@@ -170,6 +172,81 @@ class DateNightPlanTest extends TestCase
         $this->actingAs($stranger)
             ->get(route('date-night.export', $this->plan->id))
             ->assertForbidden();
+    }
+
+    public function test_user_can_like_and_unlike_plan_and_partner_is_notified(): void
+    {
+        // Like
+        $this->actingAs($this->userOne)
+            ->post(route('date-night.toggle-like', $this->plan->id))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('date_night_plan_likes', [
+            'date_night_plan_id' => $this->plan->id,
+            'user_id' => $this->userOne->id,
+        ]);
+
+        $this->assertDatabaseHas('app_notifications', [
+            'user_id' => $this->userTwo->id,
+            'type' => NotificationType::PartnerLikedPlan->value,
+        ]);
+
+        // Unlike
+        $this->actingAs($this->userOne)
+            ->post(route('date-night.toggle-like', $this->plan->id))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('date_night_plan_likes', [
+            'date_night_plan_id' => $this->plan->id,
+            'user_id' => $this->userOne->id,
+        ]);
+
+        // Unliking must not produce a second notification
+        $this->assertSame(1, AppNotification::query()
+            ->where('user_id', $this->userTwo->id)
+            ->where('type', NotificationType::PartnerLikedPlan)
+            ->count());
+    }
+
+    public function test_liking_twice_is_idempotent(): void
+    {
+        $this->actingAs($this->userOne)
+            ->post(route('date-night.toggle-like', $this->plan->id))
+            ->assertRedirect();
+
+        // Same user cannot double-like: second call unlikes
+        $this->actingAs($this->userOne)
+            ->post(route('date-night.toggle-like', $this->plan->id))
+            ->assertRedirect();
+
+        $this->assertSame(0, $this->plan->likedBy()->count());
+    }
+
+    public function test_unrelated_user_cannot_like_plan(): void
+    {
+        $stranger = User::factory()->create(['onboarding_completed' => true]);
+
+        $this->actingAs($stranger)
+            ->post(route('date-night.toggle-like', $this->plan->id))
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('date_night_plan_likes', [
+            'date_night_plan_id' => $this->plan->id,
+            'user_id' => $stranger->id,
+        ]);
+    }
+
+    public function test_plan_page_exposes_like_state(): void
+    {
+        $this->plan->likedBy()->attach($this->userOne->id);
+
+        $this->actingAs($this->userOne)
+            ->get(route('date-night.show', $this->plan->id))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('plan.is_liked', true)
+                ->where('plan.likes_count', 1)
+            );
     }
 
     public function test_history_search_filters_by_theme(): void
