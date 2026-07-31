@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\CompletionStatus;
 use App\Enums\QuestionnaireStatus;
+use App\Http\Presenters\QuestionnairePresenter;
 use App\Http\Requests\Questionnaire\FinishQuestionnaireRequest;
 use App\Http\Requests\Questionnaire\SaveAnswerRequest;
 use App\Models\DateNightPlan;
@@ -12,9 +13,11 @@ use App\Models\Response as QuestionnaireResponse;
 use App\Models\User;
 use App\Services\CompatibilityService;
 use App\Services\QuestionnaireService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,36 +26,14 @@ class QuestionnaireController extends Controller
     public function __construct(
         private readonly QuestionnaireService $questionnaireService,
         private readonly CompatibilityService $compatibilityService,
+        private readonly QuestionnairePresenter $presenter,
     ) {}
 
     public function index(Request $request): Response
     {
-        $filter = (string) $request->query('filter', 'all');
-        $allowedFilters = ['all', 'couples', 'solo', 'intimacy', 'seasonal'];
+        $filter = $this->normaliseIndexFilter((string) $request->query('filter', 'all'));
 
-        if (! in_array($filter, $allowedFilters, true)) {
-            $filter = 'all';
-        }
-
-        $query = Questionnaire::query()
-            ->where('status', QuestionnaireStatus::Active)
-            ->withCount('questions')
-            ->orderBy('display_order');
-
-        match ($filter) {
-            'solo' => $query->where('is_solo', true),
-            'intimacy' => $query->where('is_intimacy', true),
-            'seasonal' => $query->where('is_seasonal', true),
-            'couples' => $query
-                ->where('is_solo', false)
-                ->where('is_intimacy', false)
-                ->where('is_seasonal', false),
-            default => null,
-        };
-
-        $paginator = $query
-            ->paginate(10)
-            ->withQueryString();
+        $paginator = $this->buildIndexQuery($filter)->paginate(10)->withQueryString();
 
         $user = $request->user();
         $questionnaireIds = collect($paginator->items())->pluck('id');
@@ -64,22 +45,7 @@ class QuestionnaireController extends Controller
             ->unique('questionnaire_id')
             ->keyBy('questionnaire_id');
 
-        $completedResponseIds = $latestResponses
-            ->filter(fn ($response) => $response->status === CompletionStatus::Completed)
-            ->pluck('id');
-
-        $pairedResponseIds = $completedResponseIds->isEmpty()
-            ? collect()
-            : DateNightPlan::query()
-                ->where(function ($query) use ($completedResponseIds): void {
-                    $query->whereIn('partner_one_response_id', $completedResponseIds)
-                        ->orWhereIn('partner_two_response_id', $completedResponseIds);
-                })
-                ->get(['partner_one_response_id', 'partner_two_response_id'])
-                ->flatMap(fn ($plan) => [$plan->partner_one_response_id, $plan->partner_two_response_id])
-                ->intersect($completedResponseIds)
-                ->unique()
-                ->values();
+        $pairedResponseIds = $this->pairedResponseIds($latestResponses);
 
         $paginator->getCollection()->transform(function (Questionnaire $q) use ($latestResponses, $pairedResponseIds) {
             $response = $latestResponses->get($q->id);
@@ -109,9 +75,7 @@ class QuestionnaireController extends Controller
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
             ],
-            'filters' => [
-                'filter' => $filter,
-            ],
+            'filters' => ['filter' => $filter],
         ]);
     }
 
@@ -132,95 +96,29 @@ class QuestionnaireController extends Controller
             : false;
 
         return Inertia::render('questionnaires/Show', [
-            'questionnaire' => [
-                'id' => $questionnaire->id,
-                'title' => $questionnaire->title,
-                'slug' => $questionnaire->slug,
-                'description' => $questionnaire->description,
-                'emoji' => $questionnaire->emoji,
-                'estimated_minutes' => $questionnaire->estimated_minutes,
-                'question_count' => $questionnaire->questions()->count(),
-                'is_solo' => $questionnaire->is_solo,
-            ],
-            'response' => $response ? [
-                'status' => $response->status->value,
-                'answered_count' => count($this->questionnaireService->getAnsweredQuestionIds($response)),
-                'resume_order' => $this->questionnaireService->getFirstUnansweredOrder($questionnaire, $response),
-            ] : null,
+            'questionnaire' => $this->presenter->questionnaire($questionnaire),
+            'response' => $this->presenter->responseSummary(
+                $response,
+                $response ? count($this->questionnaireService->getAnsweredQuestionIds($response)) : 0,
+                $response ? $this->questionnaireService->getFirstUnansweredOrder($questionnaire, $response) : 1,
+            ),
             'partner_completed' => $partnerCompleted,
             'current_streak' => $user->current_streak,
-            'saved_profiles' => $user->savedProfiles->map(fn ($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'emoji' => $p->emoji,
-                'colour' => $p->colour,
-            ]),
+            'saved_profiles' => $this->presenter->savedProfiles($user),
             'past_attempts' => $this->buildPastAttempts($user, $questionnaire),
         ]);
     }
 
     public function restart(Request $request, Questionnaire $questionnaire): RedirectResponse
     {
-        $user = $request->user();
-        $this->questionnaireService->startNewResponse($user, $questionnaire);
+        $this->questionnaireService->startNewResponse($request->user(), $questionnaire);
 
         return redirect()->route('questionnaires.question', [$questionnaire->slug, 1]);
     }
 
-    /**
-     * @return array<int, array{id:int, completed_at:string|null, partner_completed:bool}>
-     */
-    private function buildPastAttempts(User $user, Questionnaire $questionnaire): array
-    {
-        $partner = $user->partner;
-
-        if (! $partner) {
-            return [];
-        }
-
-        $userResponseIds = QuestionnaireResponse::where('user_id', $user->id)
-            ->where('questionnaire_id', $questionnaire->id)
-            ->where('status', CompletionStatus::Completed)
-            ->pluck('id');
-
-        if ($userResponseIds->isEmpty()) {
-            return [];
-        }
-
-        $plans = DateNightPlan::where('questionnaire_id', $questionnaire->id)
-            ->where(function ($query) use ($userResponseIds): void {
-                $query->whereIn('partner_one_response_id', $userResponseIds)
-                    ->orWhereIn('partner_two_response_id', $userResponseIds);
-            })
-            ->with(['partnerOneResponse', 'partnerTwoResponse'])
-            ->get();
-
-        return $plans
-            ->map(function (DateNightPlan $plan) use ($user): ?array {
-                $userResponse = $plan->partnerOneResponse?->user_id === $user->id
-                    ? $plan->partnerOneResponse
-                    : $plan->partnerTwoResponse;
-
-                if (! $userResponse || $userResponse->user_id !== $user->id) {
-                    return null;
-                }
-
-                return [
-                    'id' => $userResponse->id,
-                    'completed_at' => $userResponse->completed_at?->toISOString(),
-                ];
-            })
-            ->filter()
-            ->sortByDesc('completed_at')
-            ->values()
-            ->all();
-    }
-
     public function start(Request $request, Questionnaire $questionnaire): RedirectResponse
     {
-        $user = $request->user();
-        $response = $this->questionnaireService->findOrCreateResponse($user, $questionnaire);
-
+        $response = $this->questionnaireService->findOrCreateResponse($request->user(), $questionnaire);
         $order = $this->questionnaireService->getFirstUnansweredOrder($questionnaire, $response);
 
         return redirect()->route('questionnaires.question', [$questionnaire->slug, $order]);
@@ -244,43 +142,20 @@ class QuestionnaireController extends Controller
             ? $questionAnswers->pluck('value')->toArray()
             : $questionAnswers->first()?->value;
 
+        $total = $questions->count();
+
         return Inertia::render('questionnaires/Question', [
-            'questionnaire' => [
-                'id' => $questionnaire->id,
-                'title' => $questionnaire->title,
-                'slug' => $questionnaire->slug,
-                'estimated_minutes' => $questionnaire->estimated_minutes,
-            ],
-            'question' => [
-                'id' => $question->id,
-                'title' => $question->title,
-                'description' => $question->description,
-                'emoji' => $question->emoji,
-                'type' => $question->type->value,
-                'required' => $question->required,
-                'minimum_value' => $question->minimum_value,
-                'maximum_value' => $question->maximum_value,
-                'step_value' => $question->step_value,
-                'unit' => $question->unit,
-                'display_order' => $question->display_order,
-                'options' => $question->options->map(fn ($o) => [
-                    'id' => $o->id,
-                    'title' => $o->title,
-                    'description' => $o->description,
-                    'emoji' => $o->emoji,
-                    'value' => $o->value,
-                ]),
-            ],
+            'questionnaire' => $this->presenter->questionnaireBrief($questionnaire),
+            'question' => $this->presenter->question($question),
             'current_answer' => $currentAnswer,
-            'progress' => [
-                'current' => $order,
-                'total' => $questions->count(),
-                'percentage' => (int) round(($order / $questions->count()) * 100),
-                'answered_count' => $answers->pluck('question_id')->unique()->count(),
-            ],
+            'progress' => $this->presenter->progress(
+                $order,
+                $total,
+                $answers->pluck('question_id')->unique()->count(),
+            ),
             'has_previous' => $order > 1,
-            'has_next' => $order < $questions->count(),
-            'is_last' => $order === $questions->count(),
+            'has_next' => $order < $total,
+            'is_last' => $order === $total,
         ]);
     }
 
@@ -309,11 +184,6 @@ class QuestionnaireController extends Controller
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;
 
-        // A date-night plan will be generated whenever we have all the responses
-        // required by the pipeline: always for solo, otherwise only once the
-        // partner has also completed the current cycle.
-        $awaitingPlan = $questionnaire->is_solo || $partnerCompleted;
-
         return Inertia::render('questionnaires/Complete', [
             'questionnaire' => [
                 'id' => $questionnaire->id,
@@ -324,20 +194,17 @@ class QuestionnaireController extends Controller
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
             'partner_completed' => $partnerCompleted,
-            'awaiting_plan' => $awaitingPlan,
+            // Solo always produces a plan; otherwise wait until the partner has also completed.
+            'awaiting_plan' => $questionnaire->is_solo || $partnerCompleted,
         ]);
     }
 
     public function planStatus(Request $request, Questionnaire $questionnaire): JsonResponse
     {
-        $user = $request->user();
-        $response = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire);
+        $response = $this->questionnaireService->getLatestCompletedResponse($request->user(), $questionnaire);
 
         if (! $response) {
-            return response()->json([
-                'ready' => false,
-                'plan_id' => null,
-            ]);
+            return response()->json(['ready' => false, 'plan_id' => null]);
         }
 
         $plan = DateNightPlan::query()
@@ -357,23 +224,10 @@ class QuestionnaireController extends Controller
 
     public function finish(FinishQuestionnaireRequest $request, Questionnaire $questionnaire): RedirectResponse
     {
-        $user = $request->user();
-        $response = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
+        $response = $this->questionnaireService->getResponseWithAnswers($request->user(), $questionnaire);
 
-        if ($response && $response->status !== CompletionStatus::Completed) {
-            if ($questionnaire->is_solo) {
-                $response->fill([
-                    'location_label' => $request->input('location_label'),
-                    'location_city' => $request->input('location_city'),
-                    'location_region' => $request->input('location_region'),
-                    'location_country' => $request->input('location_country'),
-                    'location_latitude' => $request->input('location_latitude'),
-                    'location_longitude' => $request->input('location_longitude'),
-                    'travel_radius_minutes' => $request->input('travel_radius_minutes'),
-                ])->save();
-            }
-
-            $this->questionnaireService->completeResponse($response);
+        if ($response) {
+            $this->questionnaireService->completeWithLocation($response, $request->validated());
         }
 
         return redirect()->route('questionnaires.complete', $questionnaire->slug);
@@ -391,32 +245,6 @@ class QuestionnaireController extends Controller
         $questions = $questionnaire->questions()->with('options')->get();
         $answers = $this->questionnaireService->getAnswersForResponse($response);
 
-        $grouped = $questions->map(function ($question) use ($answers) {
-            $questionAnswers = $answers->where('question_id', $question->id);
-
-            return [
-                'question' => [
-                    'id' => $question->id,
-                    'title' => $question->title,
-                    'emoji' => $question->emoji,
-                    'type' => $question->type->value,
-                    'unit' => $question->unit,
-                    'display_order' => $question->display_order,
-                    'options' => $question->options->map(fn ($o) => [
-                        'id' => $o->id,
-                        'title' => $o->title,
-                        'emoji' => $o->emoji,
-                        'value' => $o->value,
-                    ]),
-                ],
-                'answers' => $questionAnswers->map(fn ($a) => [
-                    'value' => $a->value,
-                    'option_title' => $a->questionOption?->title,
-                    'option_emoji' => $a->questionOption?->emoji,
-                ])->values(),
-            ];
-        });
-
         return Inertia::render('questionnaires/Summary', [
             'questionnaire' => [
                 'id' => $questionnaire->id,
@@ -425,13 +253,8 @@ class QuestionnaireController extends Controller
                 'is_solo' => $questionnaire->is_solo,
             ],
             'response_status' => $response->status->value,
-            'grouped_answers' => $grouped,
-            'saved_profiles' => $user->savedProfiles->map(fn ($p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'emoji' => $p->emoji,
-                'colour' => $p->colour,
-            ]),
+            'grouped_answers' => $this->presenter->summaryGroupedAnswers($questions, $answers),
+            'saved_profiles' => $this->presenter->savedProfiles($user),
         ]);
     }
 
@@ -455,42 +278,10 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.complete', $questionnaire->slug);
         }
 
-        $userResponse->load('answers.question', 'answers.questionOption');
-        $partnerResponse->load('answers.question', 'answers.questionOption');
-
-        $questions = $questionnaire->questions()->with('options')->get();
-        $userAnswers = $this->questionnaireService->getAnswersForResponse($userResponse);
-        $partnerAnswers = $this->questionnaireService->getAnswersForResponse($partnerResponse);
-
-        $grouped = $questions->map(function ($question) use ($userAnswers, $partnerAnswers) {
-            $mapAnswer = fn ($answers) => $answers->where('question_id', $question->id)->map(fn ($a) => [
-                'value' => $a->value,
-                'option_title' => $a->questionOption?->title,
-                'option_emoji' => $a->questionOption?->emoji,
-            ])->values();
-
-            return [
-                'question' => [
-                    'id' => $question->id,
-                    'title' => $question->title,
-                    'emoji' => $question->emoji,
-                    'type' => $question->type->value,
-                    'display_order' => $question->display_order,
-                ],
-                'my_answers' => $mapAnswer($userAnswers),
-                'partner_answers' => $mapAnswer($partnerAnswers),
-            ];
-        });
-
-        return Inertia::render('questionnaires/PartnerAnswers', [
-            'questionnaire' => [
-                'id' => $questionnaire->id,
-                'title' => $questionnaire->title,
-                'slug' => $questionnaire->slug,
-            ],
-            'partner_name' => $partner->display_name ?? $partner->name,
-            'grouped_answers' => $grouped,
-        ]);
+        return Inertia::render(
+            'questionnaires/PartnerAnswers',
+            $this->buildComparisonPayload($questionnaire, $userResponse, $partnerResponse, $partner)
+        );
     }
 
     public function compatibility(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
@@ -502,10 +293,6 @@ class QuestionnaireController extends Controller
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;
 
-        $compatibility = $partnerCompleted
-            ? $this->compatibilityService->calculate($user, $questionnaire)
-            : null;
-
         return Inertia::render('questionnaires/Compatibility', [
             'questionnaire' => [
                 'id' => $questionnaire->id,
@@ -514,7 +301,7 @@ class QuestionnaireController extends Controller
             ],
             'partner_name' => $partner?->display_name ?? $partner?->name,
             'partner_completed' => $partnerCompleted,
-            'compatibility' => $compatibility,
+            'compatibility' => $partnerCompleted ? $this->compatibilityService->calculate($user, $questionnaire) : null,
         ]);
     }
 
@@ -523,11 +310,11 @@ class QuestionnaireController extends Controller
         $user = $request->user();
         $partner = $user->partner;
 
-        if (! $partner || $response->user_id !== $user->id || $response->questionnaire_id !== $questionnaire->id) {
-            return redirect()->route('questionnaires.show', $questionnaire->slug);
-        }
-
-        if ($response->status !== CompletionStatus::Completed) {
+        if (! $partner
+            || $response->user_id !== $user->id
+            || $response->questionnaire_id !== $questionnaire->id
+            || $response->status !== CompletionStatus::Completed
+        ) {
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
@@ -551,43 +338,138 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
-        $response->load('answers.question', 'answers.questionOption');
+        return Inertia::render('questionnaires/PartnerAnswers', array_merge(
+            $this->buildComparisonPayload($questionnaire, $response, $partnerResponse, $partner),
+            [
+                'completed_at' => $response->completed_at?->toISOString(),
+                'is_past_attempt' => true,
+            ],
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildComparisonPayload(
+        Questionnaire $questionnaire,
+        QuestionnaireResponse $userResponse,
+        QuestionnaireResponse $partnerResponse,
+        User $partner,
+    ): array {
+        $userResponse->load('answers.question', 'answers.questionOption');
         $partnerResponse->load('answers.question', 'answers.questionOption');
 
         $questions = $questionnaire->questions()->with('options')->get();
-        $userAnswers = $this->questionnaireService->getAnswersForResponse($response);
+        $userAnswers = $this->questionnaireService->getAnswersForResponse($userResponse);
         $partnerAnswers = $this->questionnaireService->getAnswersForResponse($partnerResponse);
 
-        $grouped = $questions->map(function ($question) use ($userAnswers, $partnerAnswers) {
-            $mapAnswer = fn ($answers) => $answers->where('question_id', $question->id)->map(fn ($a) => [
-                'value' => $a->value,
-                'option_title' => $a->questionOption?->title,
-                'option_emoji' => $a->questionOption?->emoji,
-            ])->values();
-
-            return [
-                'question' => [
-                    'id' => $question->id,
-                    'title' => $question->title,
-                    'emoji' => $question->emoji,
-                    'type' => $question->type->value,
-                    'display_order' => $question->display_order,
-                ],
-                'my_answers' => $mapAnswer($userAnswers),
-                'partner_answers' => $mapAnswer($partnerAnswers),
-            ];
-        });
-
-        return Inertia::render('questionnaires/PartnerAnswers', [
+        return [
             'questionnaire' => [
                 'id' => $questionnaire->id,
                 'title' => $questionnaire->title,
                 'slug' => $questionnaire->slug,
             ],
             'partner_name' => $partner->display_name ?? $partner->name,
-            'grouped_answers' => $grouped,
-            'completed_at' => $response->completed_at?->toISOString(),
-            'is_past_attempt' => true,
-        ]);
+            'grouped_answers' => $this->presenter->comparisonGroupedAnswers($questions, $userAnswers, $partnerAnswers),
+        ];
+    }
+
+    private function normaliseIndexFilter(string $filter): string
+    {
+        return in_array($filter, ['all', 'couples', 'solo', 'intimacy', 'seasonal'], true) ? $filter : 'all';
+    }
+
+    private function buildIndexQuery(string $filter): Builder
+    {
+        $query = Questionnaire::query()
+            ->where('status', QuestionnaireStatus::Active)
+            ->withCount('questions')
+            ->orderBy('display_order');
+
+        match ($filter) {
+            'solo' => $query->where('is_solo', true),
+            'intimacy' => $query->where('is_intimacy', true),
+            'seasonal' => $query->where('is_seasonal', true),
+            'couples' => $query
+                ->where('is_solo', false)
+                ->where('is_intimacy', false)
+                ->where('is_seasonal', false),
+            default => null,
+        };
+
+        return $query;
+    }
+
+    /**
+     * @param  Collection<int, QuestionnaireResponse>  $latestResponses
+     * @return Collection<int, int>
+     */
+    private function pairedResponseIds(Collection $latestResponses): Collection
+    {
+        $completedResponseIds = $latestResponses
+            ->filter(fn ($response) => $response->status === CompletionStatus::Completed)
+            ->pluck('id');
+
+        if ($completedResponseIds->isEmpty()) {
+            return collect();
+        }
+
+        return DateNightPlan::query()
+            ->where(function ($query) use ($completedResponseIds): void {
+                $query->whereIn('partner_one_response_id', $completedResponseIds)
+                    ->orWhereIn('partner_two_response_id', $completedResponseIds);
+            })
+            ->get(['partner_one_response_id', 'partner_two_response_id'])
+            ->flatMap(fn ($plan) => [$plan->partner_one_response_id, $plan->partner_two_response_id])
+            ->intersect($completedResponseIds)
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * @return array<int, array{id:int, completed_at:string|null}>
+     */
+    private function buildPastAttempts(User $user, Questionnaire $questionnaire): array
+    {
+        $partner = $user->partner;
+
+        if (! $partner) {
+            return [];
+        }
+
+        $userResponseIds = QuestionnaireResponse::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->pluck('id');
+
+        if ($userResponseIds->isEmpty()) {
+            return [];
+        }
+
+        return DateNightPlan::where('questionnaire_id', $questionnaire->id)
+            ->where(function ($query) use ($userResponseIds): void {
+                $query->whereIn('partner_one_response_id', $userResponseIds)
+                    ->orWhereIn('partner_two_response_id', $userResponseIds);
+            })
+            ->with(['partnerOneResponse', 'partnerTwoResponse'])
+            ->get()
+            ->map(function (DateNightPlan $plan) use ($user): ?array {
+                $userResponse = $plan->partnerOneResponse?->user_id === $user->id
+                    ? $plan->partnerOneResponse
+                    : $plan->partnerTwoResponse;
+
+                if (! $userResponse || $userResponse->user_id !== $user->id) {
+                    return null;
+                }
+
+                return [
+                    'id' => $userResponse->id,
+                    'completed_at' => $userResponse->completed_at?->toISOString(),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('completed_at')
+            ->values()
+            ->all();
     }
 }

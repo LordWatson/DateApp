@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Actions\AddDateNightPlanToCalendarAction;
 use App\Actions\LikeDateNightPlanAction;
+use App\Http\Presenters\DateNightPlanPresenter;
 use App\Http\Requests\DateNightPlan\AddToCalendarRequest;
 use App\Models\DateNightPlan;
 use App\Models\Response;
-use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -18,22 +19,13 @@ class DateNightPlanController extends Controller
 {
     public function __construct(
         private readonly NotificationService $notificationService,
+        private readonly DateNightPlanPresenter $presenter,
     ) {}
 
     public function show(Request $request, DateNightPlan $dateNightPlan): InertiaResponse|RedirectResponse
     {
         $user = $request->user();
-
-        $userResponseIds = Response::where('user_id', $user->id)
-            ->pluck('id');
-
-        $isParticipant = $userResponseIds->contains($dateNightPlan->partner_one_response_id)
-            || $userResponseIds->contains($dateNightPlan->partner_two_response_id)
-            || $dateNightPlan->partner_user_id === $user->id;
-
-        if (! $isParticipant) {
-            abort(403);
-        }
+        $this->authorize('view', $dateNightPlan);
 
         $dateNightPlan->loadMissing([
             'partnerOneResponse.user',
@@ -43,18 +35,12 @@ class DateNightPlanController extends Controller
 
         $partner = $user->partner;
 
-        if ($partner) {
-            $partnerResponseIds = Response::where('user_id', $partner->id)->pluck('id');
-            $partnerIsViewer = $partnerResponseIds->contains($dateNightPlan->partner_one_response_id)
-                || $partnerResponseIds->contains($dateNightPlan->partner_two_response_id);
-
-            if ($partnerIsViewer) {
-                $this->notificationService->notifyPartnerViewedPlan($partner, $dateNightPlan);
-            }
+        if ($partner && $partner->can('view', $dateNightPlan)) {
+            $this->notificationService->notifyPartnerViewedPlan($partner, $dateNightPlan);
         }
 
         return Inertia::render('date-night/Show', [
-            'plan' => $this->formatPlan($dateNightPlan, $user),
+            'plan' => $this->presenter->detail($dateNightPlan, $user),
         ]);
     }
 
@@ -64,12 +50,11 @@ class DateNightPlanController extends Controller
 
         $responseIds = Response::where('user_id', $user->id)->pluck('id');
 
-        $userId = $user->id;
         $plans = DateNightPlan::with(['questionnaire'])
-            ->where(function ($q) use ($responseIds, $userId) {
+            ->where(function ($q) use ($responseIds, $user) {
                 $q->whereIn('partner_one_response_id', $responseIds)
                     ->orWhereIn('partner_two_response_id', $responseIds)
-                    ->orWhere('partner_user_id', $userId);
+                    ->orWhere('partner_user_id', $user->id);
             })
             ->orderByDesc('created_at')
             ->get();
@@ -78,25 +63,10 @@ class DateNightPlanController extends Controller
         $themeFilter = $request->string('theme')->toString();
         $compatibilityFilter = $request->string('compatibility')->toString();
 
-        if ($search) {
-            $plans = $plans->filter(fn ($p) => str_contains(strtolower($p->theme), strtolower($search))
-                || str_contains(strtolower($p->summary), strtolower($search)));
-        }
-
-        if ($themeFilter) {
-            $plans = $plans->filter(fn ($p) => strtolower($p->theme) === strtolower($themeFilter));
-        }
-
-        if ($compatibilityFilter === 'high') {
-            $plans = $plans->filter(fn ($p) => $p->compatibility_score >= 75);
-        } elseif ($compatibilityFilter === 'medium') {
-            $plans = $plans->filter(fn ($p) => $p->compatibility_score >= 50 && $p->compatibility_score < 75);
-        } elseif ($compatibilityFilter === 'low') {
-            $plans = $plans->filter(fn ($p) => $p->compatibility_score < 50);
-        }
+        $plans = $this->applyHistoryFilters($plans, $search, $themeFilter, $compatibilityFilter);
 
         return Inertia::render('date-night/History', [
-            'plans' => $plans->values()->map(fn ($p) => $this->formatPlanSummary($p)),
+            'plans' => $plans->values()->map(fn ($p) => $this->presenter->summary($p)),
             'filters' => [
                 'search' => $search,
                 'theme' => $themeFilter,
@@ -107,17 +77,7 @@ class DateNightPlanController extends Controller
 
     public function toggleFavourite(Request $request, DateNightPlan $dateNightPlan): RedirectResponse
     {
-        $user = $request->user();
-
-        $responseIds = Response::where('user_id', $user->id)->pluck('id');
-
-        $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
-            || $responseIds->contains($dateNightPlan->partner_two_response_id)
-            || $dateNightPlan->partner_user_id === $user->id;
-
-        if (! $isParticipant) {
-            abort(403);
-        }
+        $this->authorize('favourite', $dateNightPlan);
 
         $dateNightPlan->update(['is_favourite' => ! $dateNightPlan->is_favourite]);
 
@@ -130,16 +90,7 @@ class DateNightPlanController extends Controller
         LikeDateNightPlanAction $likePlan,
     ): RedirectResponse {
         $user = $request->user();
-
-        $responseIds = Response::where('user_id', $user->id)->pluck('id');
-
-        $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
-            || $responseIds->contains($dateNightPlan->partner_two_response_id)
-            || $dateNightPlan->partner_user_id === $user->id;
-
-        if (! $isParticipant) {
-            abort(403);
-        }
+        $this->authorize('like', $dateNightPlan);
 
         $likePlan->execute($user, $dateNightPlan);
 
@@ -152,16 +103,7 @@ class DateNightPlanController extends Controller
         AddDateNightPlanToCalendarAction $addToCalendar,
     ): RedirectResponse {
         $user = $request->user();
-
-        $responseIds = Response::where('user_id', $user->id)->pluck('id');
-
-        $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
-            || $responseIds->contains($dateNightPlan->partner_two_response_id)
-            || $dateNightPlan->partner_user_id === $user->id;
-
-        if (! $isParticipant) {
-            abort(403);
-        }
+        $this->authorize('addToCalendar', $dateNightPlan);
 
         $addToCalendar->execute($user, $dateNightPlan, $request->validated());
 
@@ -171,87 +113,48 @@ class DateNightPlanController extends Controller
     public function favourites(Request $request): InertiaResponse
     {
         $user = $request->user();
-
         $responseIds = Response::where('user_id', $user->id)->pluck('id');
 
-        $userId = $user->id;
         $plans = DateNightPlan::with(['questionnaire'])
             ->favourites()
-            ->where(function ($q) use ($responseIds, $userId) {
+            ->where(function ($q) use ($responseIds, $user) {
                 $q->whereIn('partner_one_response_id', $responseIds)
                     ->orWhereIn('partner_two_response_id', $responseIds)
-                    ->orWhere('partner_user_id', $userId);
+                    ->orWhere('partner_user_id', $user->id);
             })
             ->orderByDesc('created_at')
             ->get();
 
         return Inertia::render('date-night/Favourites', [
-            'plans' => $plans->map(fn ($p) => $this->formatPlanSummary($p)),
+            'plans' => $plans->map(fn ($p) => $this->presenter->summary($p)),
         ]);
     }
 
     /**
-     * @return array<string, mixed>
+     * @param  Collection<int, DateNightPlan>  $plans
+     * @return Collection<int, DateNightPlan>
      */
-    private function formatPlan(DateNightPlan $plan, User $viewer): array
-    {
-        $partnerOne = $plan->partnerOneResponse?->user;
-        $partnerTwo = $plan->partnerTwoResponse?->user;
+    private function applyHistoryFilters(
+        Collection $plans,
+        string $search,
+        string $theme,
+        string $compatibility,
+    ): Collection {
+        if ($search !== '') {
+            $needle = strtolower($search);
+            $plans = $plans->filter(fn (DateNightPlan $p) => str_contains(strtolower((string) $p->theme), $needle)
+                || str_contains(strtolower((string) $p->summary), $needle));
+        }
 
-        $plan->loadCount('likedBy');
-        $isLiked = $plan->isLikedBy($viewer);
+        if ($theme !== '') {
+            $plans = $plans->filter(fn (DateNightPlan $p) => strtolower((string) $p->theme) === strtolower($theme));
+        }
 
-        return [
-            'id' => $plan->id,
-            'theme' => $plan->theme,
-            'theme_emoji' => $plan->theme_emoji,
-            'compatibility_score' => $plan->compatibility_score,
-            'summary' => $plan->summary,
-            'meal_suggestion' => $plan->meal_suggestion,
-            'drink_suggestion' => $plan->drink_suggestion,
-            'music_vibe' => $plan->music_vibe,
-            'atmosphere' => $plan->atmosphere,
-            'activity' => $plan->activity,
-            'conversation_prompt' => $plan->conversation_prompt,
-            'romantic_challenge' => $plan->romantic_challenge,
-            'is_solo' => $plan->is_solo,
-            'location_label' => $plan->location_label,
-            'local_suggestions' => $plan->local_suggestions ?? [],
-            'is_favourite' => $plan->is_favourite,
-            'is_liked' => $isLiked,
-            'likes_count' => (int) ($plan->liked_by_count ?? 0),
-            'created_at' => $plan->created_at?->toISOString(),
-            'questionnaire' => [
-                'id' => $plan->questionnaire?->id,
-                'title' => $plan->questionnaire?->title,
-                'slug' => $plan->questionnaire?->slug,
-            ],
-            'partner_one' => $partnerOne ? [
-                'id' => $partnerOne->id,
-                'name' => $partnerOne->display_name ?? $partnerOne->name,
-                'avatar' => $partnerOne->avatar,
-            ] : null,
-            'partner_two' => $partnerTwo ? [
-                'id' => $partnerTwo->id,
-                'name' => $partnerTwo->display_name ?? $partnerTwo->name,
-                'avatar' => $partnerTwo->avatar,
-            ] : null,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function formatPlanSummary(DateNightPlan $plan): array
-    {
-        return [
-            'id' => $plan->id,
-            'theme' => $plan->theme,
-            'theme_emoji' => $plan->theme_emoji,
-            'compatibility_score' => $plan->compatibility_score,
-            'is_favourite' => $plan->is_favourite,
-            'created_at' => $plan->created_at?->toISOString(),
-            'questionnaire_title' => $plan->questionnaire?->title,
-        ];
+        return match ($compatibility) {
+            'high' => $plans->filter(fn (DateNightPlan $p) => $p->compatibility_score >= 75),
+            'medium' => $plans->filter(fn (DateNightPlan $p) => $p->compatibility_score >= 50 && $p->compatibility_score < 75),
+            'low' => $plans->filter(fn (DateNightPlan $p) => $p->compatibility_score < 50),
+            default => $plans,
+        };
     }
 }

@@ -179,6 +179,35 @@ class QuestionnaireService
     }
 
     /**
+     * Persist the location fields on a solo response (if provided) and
+     * mark it as completed. No-op when the response is already completed.
+     *
+     * @param  array<string, mixed>  $locationData
+     */
+    public function completeWithLocation(Response $response, array $locationData): void
+    {
+        if ($response->status === CompletionStatus::Completed) {
+            return;
+        }
+
+        $questionnaire = $response->questionnaire ?? $response->questionnaire()->first();
+
+        if ($questionnaire?->is_solo) {
+            $response->fill([
+                'location_label' => $locationData['location_label'] ?? null,
+                'location_city' => $locationData['location_city'] ?? null,
+                'location_region' => $locationData['location_region'] ?? null,
+                'location_country' => $locationData['location_country'] ?? null,
+                'location_latitude' => $locationData['location_latitude'] ?? null,
+                'location_longitude' => $locationData['location_longitude'] ?? null,
+                'travel_radius_minutes' => $locationData['travel_radius_minutes'] ?? null,
+            ])->save();
+        }
+
+        $this->completeResponse($response);
+    }
+
+    /**
      * Ensure the user never has more than one "pending" (unpaired completed)
      * response for a non-solo questionnaire. When a fresh completion arrives
      * while the previous cycle is still waiting on the partner, discard the
