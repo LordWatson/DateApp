@@ -138,7 +138,7 @@ PROMPT,
                 // Verbose schema (11 fields incl. a local_suggestions array):
                 // needs a larger output budget than cheaper single-field
                 // prompts to avoid `finish_reason=length` truncation.
-                'max_tokens' => 2500,
+                'max_tokens' => 3500,
             ],
             [
                 'name' => AIUseCase::ConversationPrompt->value,

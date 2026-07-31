@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             'dark_mode' => false,
         ]);
 
-        $elizaEmail = app()->environment('local', 'development') ? 'elizarudowicz@gmail.com' : 'alexander.watson.work@gmail.com';
+        $elizaEmail = config('app.env') == 'local' ? 'alexander.watson.work@gmail.com' : 'elizarudowicz@gmail.com';
 
         $eliza = User::create([
             'name' => 'Fanny',

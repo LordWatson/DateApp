@@ -25,7 +25,7 @@ return [
 
     'defaults' => [
         'temperature' => (float) env('AI_TEMPERATURE', 0.7),
-        'max_tokens' => (int) env('AI_MAX_TOKENS', 2500),
+        'max_tokens' => (int) env('AI_MAX_TOKENS', 3500),
         'timeout' => (int) env('AI_TIMEOUT', 30),
         'retry_attempts' => (int) env('AI_RETRY_ATTEMPTS', 3),
         'retry_delay_ms' => (int) env('AI_RETRY_DELAY_MS', 250),
