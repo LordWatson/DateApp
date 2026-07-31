@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CalendarEvent;
 use App\Models\DateNightPlan;
 use App\Models\Moment;
 use App\Models\Questionnaire;
@@ -23,7 +24,9 @@ class RelationshipHubController extends Controller
         $user = $request->user()->load('partner');
         $partner = $user->partner;
 
-        $upcomingEvents = $user->calendarEvents()
+        $partnerIds = $partner ? [$user->id, $partner->id] : [$user->id];
+
+        $upcomingEvents = CalendarEvent::whereIn('user_id', $partnerIds)
             ->where('date', '>=', now()->toDateString())
             ->orderBy('date')
             ->limit(3)
@@ -35,8 +38,6 @@ class RelationshipHubController extends Controller
                 'date' => $e->date->toDateString(),
                 'colour' => $e->colour,
             ]);
-
-        $partnerIds = $partner ? [$user->id, $partner->id] : [$user->id];
 
         $momentsCount = Moment::whereIn('user_id', $partnerIds)->count();
 

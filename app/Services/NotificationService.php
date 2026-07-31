@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\NotificationType;
 use App\Models\AppNotification;
+use App\Models\CalendarEvent;
 use App\Models\DateNightPlan;
 use App\Models\LoveNote;
 use App\Models\User;
@@ -64,6 +65,28 @@ class NotificationService
             'title' => "❤️ {$senderName} loves your Date Night plan!",
             'body' => "They liked your {$plan->theme_emoji} {$plan->theme} plan. Looks like tonight's a yes!",
             'data' => ['plan_id' => $plan->id],
+        ]);
+    }
+
+    public function notifyPartnerAddedDateNightToCalendar(
+        User $recipient,
+        User $sender,
+        DateNightPlan $plan,
+        CalendarEvent $event,
+    ): void {
+        $senderName = $sender->display_name ?? $sender->name;
+        $when = $event->date->toFormattedDateString().($event->time ? " at {$event->time}" : '');
+        $where = $event->location ? " at {$event->location}" : '';
+
+        AppNotification::create([
+            'user_id' => $recipient->id,
+            'type' => NotificationType::PartnerAddedDateNightToCalendar,
+            'title' => "📅 {$senderName} scheduled your Date Night!",
+            'body' => "Your {$plan->theme_emoji} {$plan->theme} evening is booked for {$when}{$where}. It's a date!",
+            'data' => [
+                'plan_id' => $plan->id,
+                'calendar_event_id' => $event->id,
+            ],
         ]);
     }
 }

@@ -6,6 +6,7 @@ use App\Enums\NotificationType;
 use App\Enums\QuestionnaireStatus;
 use App\Enums\QuestionnaireVisibility;
 use App\Models\AppNotification;
+use App\Models\CalendarEvent;
 use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
 use App\Models\Response;
@@ -247,6 +248,58 @@ class DateNightPlanTest extends TestCase
                 ->where('plan.is_liked', true)
                 ->where('plan.likes_count', 1)
             );
+    }
+
+    public function test_user_can_add_date_night_plan_to_calendar_and_partner_is_notified(): void
+    {
+        $tomorrow = now()->addDay()->toDateString();
+
+        $this->actingAs($this->userOne)
+            ->post(route('date-night.add-to-calendar', $this->plan->id), [
+                'date' => $tomorrow,
+                'time' => '19:30',
+                'location' => 'Our place',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('calendar_events', [
+            'user_id' => $this->userOne->id,
+            'type' => 'date_night',
+            'title' => $this->plan->theme,
+            'description' => $this->plan->summary,
+            'date' => $tomorrow.' 00:00:00',
+            'time' => '19:30',
+            'location' => 'Our place',
+        ]);
+
+        $this->assertDatabaseHas('app_notifications', [
+            'user_id' => $this->userTwo->id,
+            'type' => NotificationType::PartnerAddedDateNightToCalendar->value,
+        ]);
+    }
+
+    public function test_add_to_calendar_requires_a_valid_future_date(): void
+    {
+        $this->actingAs($this->userOne)
+            ->post(route('date-night.add-to-calendar', $this->plan->id), [
+                'date' => now()->subDay()->toDateString(),
+            ])
+            ->assertSessionHasErrors('date');
+
+        $this->assertSame(0, CalendarEvent::query()->count());
+    }
+
+    public function test_unrelated_user_cannot_add_plan_to_calendar(): void
+    {
+        $stranger = User::factory()->create(['onboarding_completed' => true]);
+
+        $this->actingAs($stranger)
+            ->post(route('date-night.add-to-calendar', $this->plan->id), [
+                'date' => now()->addDay()->toDateString(),
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(0, CalendarEvent::query()->count());
     }
 
     public function test_history_search_filters_by_theme(): void

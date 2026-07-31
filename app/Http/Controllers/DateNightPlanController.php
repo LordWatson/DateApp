@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\AddDateNightPlanToCalendarAction;
 use App\Actions\LikeDateNightPlanAction;
+use App\Http\Requests\DateNightPlan\AddToCalendarRequest;
 use App\Models\DateNightPlan;
 use App\Models\Response;
 use App\Models\User;
@@ -142,6 +144,28 @@ class DateNightPlanController extends Controller
         $likePlan->execute($user, $dateNightPlan);
 
         return back();
+    }
+
+    public function addToCalendar(
+        AddToCalendarRequest $request,
+        DateNightPlan $dateNightPlan,
+        AddDateNightPlanToCalendarAction $addToCalendar,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        $responseIds = Response::where('user_id', $user->id)->pluck('id');
+
+        $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
+            || $responseIds->contains($dateNightPlan->partner_two_response_id)
+            || $dateNightPlan->partner_user_id === $user->id;
+
+        if (! $isParticipant) {
+            abort(403);
+        }
+
+        $addToCalendar->execute($user, $dateNightPlan, $request->validated());
+
+        return back()->with('success', 'Added to your calendar!');
     }
 
     public function favourites(Request $request): InertiaResponse

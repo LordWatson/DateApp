@@ -5,7 +5,9 @@ import EmptyState from '@/components/EmptyState.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
-import { destroy, store, update } from '@/routes/calendar';
+import { destroy, show, store, update } from '@/routes/calendar';
+
+const DESCRIPTION_PREVIEW_LENGTH = 40;
 
 defineOptions({ layout: MobileLayout });
 
@@ -110,6 +112,18 @@ function deleteEvent(event: CalendarEvent): void {
     router.delete(destroy.url({ calendarEvent: event.id }));
 }
 
+function truncateDescription(description: string): string {
+    if (description.length <= DESCRIPTION_PREVIEW_LENGTH) {
+        return description;
+    }
+
+    return description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trimEnd() + '…';
+}
+
+function openShow(event: CalendarEvent): void {
+    router.get(show.url({ calendarEvent: event.id }));
+}
+
 function formatDate(dateStr: string): string {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', {
         weekday: 'short',
@@ -147,10 +161,12 @@ const inputClass = 'w-full rounded-2xl border border-border bg-background px-4 p
         <div v-if="upcomingEvents.length > 0">
             <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Upcoming</h2>
             <div class="space-y-3">
-                <div
+                <button
                     v-for="event in upcomingEvents"
                     :key="event.id"
-                    class="card-premium group relative overflow-hidden"
+                    type="button"
+                    class="card-premium group relative w-full overflow-hidden text-left transition-transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    @click="openShow(event)"
                 >
                     <div
                         class="absolute left-0 top-0 h-full w-1 rounded-l-3xl"
@@ -171,24 +187,26 @@ const inputClass = 'w-full rounded-2xl border border-border bg-background px-4 p
                                 {{ formatDate(event.date) }}{{ event.time ? ' · ' + event.time : '' }}
                             </p>
                             <p v-if="event.location" class="mt-0.5 text-sm text-muted-foreground">📍 {{ event.location }}</p>
-                            <p v-if="event.description" class="mt-1 text-sm text-foreground/80">{{ event.description }}</p>
+                            <p v-if="event.description" class="mt-1 text-sm text-foreground/80">{{ truncateDescription(event.description) }}</p>
                         </div>
                         <div v-if="event.is_mine" class="flex shrink-0 gap-2">
                             <button
+                                type="button"
                                 class="text-sm font-semibold text-primary transition-opacity hover:opacity-70 focus:outline-none"
-                                @click="openEdit(event)"
+                                @click.stop="openEdit(event)"
                             >
                                 Edit
                             </button>
                             <button
+                                type="button"
                                 class="text-sm font-semibold text-destructive transition-opacity hover:opacity-70 focus:outline-none"
-                                @click="deleteEvent(event)"
+                                @click.stop="deleteEvent(event)"
                             >
                                 Delete
                             </button>
                         </div>
                     </div>
-                </div>
+                </button>
             </div>
         </div>
 
@@ -196,10 +214,12 @@ const inputClass = 'w-full rounded-2xl border border-border bg-background px-4 p
         <div v-if="pastEvents.length > 0">
             <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Past</h2>
             <div class="space-y-3 opacity-60">
-                <div
+                <button
                     v-for="event in pastEvents"
                     :key="event.id"
-                    class="card-premium relative overflow-hidden"
+                    type="button"
+                    class="card-premium relative w-full overflow-hidden text-left transition-transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    @click="openShow(event)"
                 >
                     <div
                         class="absolute left-0 top-0 h-full w-1 rounded-l-3xl"
@@ -215,7 +235,7 @@ const inputClass = 'w-full rounded-2xl border border-border bg-background px-4 p
                             <p class="mt-0.5 text-sm text-muted-foreground">{{ formatDate(event.date) }}</p>
                         </div>
                     </div>
-                </div>
+                </button>
             </div>
         </div>
 

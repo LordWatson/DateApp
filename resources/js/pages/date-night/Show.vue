@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
+import InputError from '@/components/InputError.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
@@ -87,6 +88,38 @@ function toggleLike(): void {
 
 function getInitial(name: string): string {
     return name.charAt(0).toUpperCase();
+}
+
+const showCalendarModal = ref(false);
+const calendarSaved = ref(false);
+
+const today = computed(() => new Date().toISOString().slice(0, 10));
+
+const calendarForm = useForm({
+    date: today.value,
+    time: '' as string,
+    location: '' as string,
+});
+
+function openCalendarModal(): void {
+    calendarSaved.value = false;
+    calendarForm.clearErrors();
+    showCalendarModal.value = true;
+}
+
+function closeCalendarModal(): void {
+    showCalendarModal.value = false;
+}
+
+function submitCalendar(): void {
+    calendarForm.post(`/date-night/${props.plan.id}/add-to-calendar`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            calendarSaved.value = true;
+            showCalendarModal.value = false;
+            calendarForm.reset('time', 'location');
+        },
+    });
 }
 </script>
 
@@ -240,6 +273,17 @@ function getInitial(name: string): string {
                 </button>
             </div>
 
+            <!-- Add to calendar -->
+            <div class="mb-4 flex justify-center">
+                <PrimaryButton size="md" @click="openCalendarModal">
+                    📅 Add to Calendar
+                </PrimaryButton>
+            </div>
+
+            <p v-if="calendarSaved" class="mb-4 text-center text-xs font-semibold text-success">
+                💕 Saved to your calendar!
+            </p>
+
             <!-- Generated time -->
             <p class="mb-6 text-center text-xs text-muted-foreground">Generated {{ generatedDate }}</p>
 
@@ -261,6 +305,91 @@ function getInitial(name: string): string {
                     Return Home
                 </SecondaryButton>
             </div>-->
+        </div>
+
+        <!-- Add to Calendar Modal -->
+        <div
+            v-if="showCalendarModal"
+            class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 py-6 sm:items-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-to-calendar-title"
+            @click.self="closeCalendarModal"
+        >
+            <div class="card-premium w-full max-w-md p-6">
+                <div class="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                        <h2 id="add-to-calendar-title" class="text-xl font-semibold text-foreground">
+                            📅 Add to Calendar
+                        </h2>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            When are you and your partner planning this evening?
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-full p-2 text-muted-foreground hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        aria-label="Close"
+                        @click="closeCalendarModal"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <form class="space-y-4" @submit.prevent="submitCalendar">
+                    <div>
+                        <label for="calendar-date" class="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Date
+                        </label>
+                        <input
+                            id="calendar-date"
+                            v-model="calendarForm.date"
+                            type="date"
+                            :min="today"
+                            required
+                            class="w-full min-h-14 rounded-3xl border-2 border-border bg-background px-4 text-base text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors duration-200"
+                        />
+                        <InputError :message="calendarForm.errors.date" class="mt-1" />
+                    </div>
+
+                    <div>
+                        <label for="calendar-time" class="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Time (optional)
+                        </label>
+                        <input
+                            id="calendar-time"
+                            v-model="calendarForm.time"
+                            type="time"
+                            class="w-full min-h-14 rounded-3xl border-2 border-border bg-background px-4 text-base text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors duration-200"
+                        />
+                        <InputError :message="calendarForm.errors.time" class="mt-1" />
+                    </div>
+
+                    <div>
+                        <label for="calendar-location" class="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Location (optional)
+                        </label>
+                        <input
+                            id="calendar-location"
+                            v-model="calendarForm.location"
+                            type="text"
+                            maxlength="255"
+                            placeholder="e.g. Home, our favourite bistro…"
+                            class="w-full min-h-14 rounded-3xl border-2 border-border bg-background px-4 text-base text-foreground placeholder:text-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors duration-200"
+                        />
+                        <InputError :message="calendarForm.errors.location" class="mt-1" />
+                    </div>
+
+                    <div class="flex flex-col gap-3 pt-2">
+                        <PrimaryButton type="submit" full-width :loading="calendarForm.processing">
+                            💕 Save to Calendar
+                        </PrimaryButton>
+                        <SecondaryButton full-width @click="closeCalendarModal">
+                            Cancel
+                        </SecondaryButton>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </template>

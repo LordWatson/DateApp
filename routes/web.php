@@ -64,6 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{dateNightPlan}', [DateNightPlanController::class, 'show'])->name('show');
             Route::post('/{dateNightPlan}/favourite', [DateNightPlanController::class, 'toggleFavourite'])->name('toggle-favourite');
             Route::post('/{dateNightPlan}/like', [DateNightPlanController::class, 'toggleLike'])->name('toggle-like');
+            Route::post('/{dateNightPlan}/add-to-calendar', [DateNightPlanController::class, 'addToCalendar'])->name('add-to-calendar');
             Route::get('/{dateNightPlan}/export', [DateNightPlanPdfController::class, 'export'])->name('export');
         });
 
@@ -113,6 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('calendar')->name('calendar.')->group(function () {
             Route::get('/', [CalendarEventController::class, 'index'])->name('index');
             Route::post('/', [CalendarEventController::class, 'store'])->name('store');
+            Route::get('/{calendarEvent}', [CalendarEventController::class, 'show'])->name('show');
             Route::put('/{calendarEvent}', [CalendarEventController::class, 'update'])->name('update');
             Route::delete('/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('destroy');
         });

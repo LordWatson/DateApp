@@ -20,13 +20,15 @@ class CalendarEventController extends Controller
         $userEvents = $user->calendarEvents()
             ->orderBy('date')
             ->get()
-            ->map(fn ($e) => $this->formatEvent($e, $user->name));
+            ->map(fn ($e) => $this->formatEvent($e, $user->name, true))
+            ->toBase();
 
         $partnerEvents = $partner
             ? $partner->calendarEvents()
                 ->orderBy('date')
                 ->get()
-                ->map(fn ($e) => $this->formatEvent($e, $partner->name))
+                ->map(fn ($e) => $this->formatEvent($e, $partner->name, false))
+                ->toBase()
             : collect();
 
         $events = $userEvents->merge($partnerEvents)->sortBy('date')->values();
@@ -34,6 +36,18 @@ class CalendarEventController extends Controller
         return Inertia::render('calendar/Index', [
             'events' => $events,
             'eventTypes' => $this->eventTypes(),
+        ]);
+    }
+
+    public function show(Request $request, CalendarEvent $calendarEvent): Response
+    {
+        $this->authorize('view', $calendarEvent);
+
+        $owner = $calendarEvent->user;
+        $isMine = $request->user()->id === $owner->id;
+
+        return Inertia::render('calendar/Show', [
+            'event' => $this->formatEvent($calendarEvent, $owner->name, $isMine),
         ]);
     }
 
@@ -60,7 +74,7 @@ class CalendarEventController extends Controller
         return redirect()->route('calendar.index')->with('success', 'Event deleted!');
     }
 
-    private function formatEvent(CalendarEvent $event, string $ownerName): array
+    private function formatEvent(CalendarEvent $event, string $ownerName, bool $isMine): array
     {
         return [
             'id' => $event->id,
@@ -75,7 +89,7 @@ class CalendarEventController extends Controller
             'colour' => $event->colour,
             'reminder' => $event->reminder,
             'owner' => $ownerName,
-            'is_mine' => true,
+            'is_mine' => $isMine,
         ];
     }
 
