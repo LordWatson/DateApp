@@ -112,12 +112,12 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::put('/{emailTemplate}', [AdminEmailTemplateController::class, 'update'])->name('update');
     });
 
-    // AI Prompts
+    // AI Prompt Templates
     Route::prefix('ai-prompts')->name('ai-prompts.')->group(function () {
         Route::get('/', [AdminAiPromptController::class, 'index'])->name('index');
         Route::post('/', [AdminAiPromptController::class, 'store'])->name('store');
-        Route::put('/{aiPrompt}', [AdminAiPromptController::class, 'update'])->name('update');
-        Route::delete('/{aiPrompt}', [AdminAiPromptController::class, 'destroy'])->name('destroy');
+        Route::put('/{aiPromptTemplate}', [AdminAiPromptController::class, 'update'])->name('update');
+        Route::delete('/{aiPromptTemplate}', [AdminAiPromptController::class, 'destroy'])->name('destroy');
     });
 
     // AI Settings (provider, model, tokens, retries, plus test/preview + analytics)

@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
-use App\Models\AiPrompt;
+use App\Http\Requests\Admin\StoreAiPromptTemplateRequest;
+use App\Http\Requests\Admin\UpdateAiPromptTemplateRequest;
+use App\Models\AiPromptTemplate;
 use App\Services\AdminAuditService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,61 +16,52 @@ class AdminAiPromptController extends AdminController
 {
     public function __construct(private readonly AdminAuditService $audit) {}
 
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $query = AiPrompt::query();
-
-        if ($request->filled('type')) {
-            $query->where('type', $request->string('type'));
-        }
-
-        $prompts = $query->orderBy('type')->orderBy('label')->get();
+        $templates = AiPromptTemplate::query()
+            ->orderBy('name')
+            ->orderByDesc('version')
+            ->get();
 
         return Inertia::render('admin/ai-prompts/Index', [
-            'prompts' => $prompts->groupBy('type'),
-            'filters' => $request->only(['type']),
+            'templates' => $templates,
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreAiPromptTemplateRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'key' => ['required', 'string', 'unique:ai_prompts,key'],
-            'label' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string'],
-            'content' => ['required', 'string'],
-            'description' => ['nullable', 'string'],
-            'active' => ['boolean'],
-        ]);
+        $data = $request->validated();
+        $data['version'] = 1;
+        $data['active'] = $data['active'] ?? true;
 
-        $prompt = AiPrompt::create($validated);
-        $this->audit->logModel('ai_prompt.created', $prompt, null, $prompt->toArray());
+        $template = AiPromptTemplate::create($data);
+        $this->audit->logModel('ai_prompt_template.created', $template, null, $template->toArray());
 
-        return back()->with('success', 'AI prompt created.');
+        return back()->with('success', 'AI prompt template created.');
     }
 
-    public function update(Request $request, AiPrompt $aiPrompt): RedirectResponse
+    public function update(UpdateAiPromptTemplateRequest $request, AiPromptTemplate $aiPromptTemplate): RedirectResponse
     {
-        $validated = $request->validate([
-            'label' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'string'],
-            'description' => ['nullable', 'string'],
-            'active' => ['boolean'],
-        ]);
+        $data = $request->validated();
 
-        $before = $aiPrompt->only(['content', 'active', 'version']);
-        $validated['version'] = $aiPrompt->version + 1;
-        $aiPrompt->update($validated);
-        $this->audit->logModel('ai_prompt.updated', $aiPrompt, $before, $aiPrompt->fresh()->only(['content', 'active', 'version']));
+        $before = $aiPromptTemplate->only(['system_prompt', 'user_prompt_template', 'description', 'active', 'max_tokens', 'version']);
+        $data['version'] = $aiPromptTemplate->version + 1;
+        $aiPromptTemplate->update($data);
+        $this->audit->logModel(
+            'ai_prompt_template.updated',
+            $aiPromptTemplate,
+            $before,
+            $aiPromptTemplate->fresh()->only(['system_prompt', 'user_prompt_template', 'description', 'active', 'max_tokens', 'version'])
+        );
 
-        return back()->with('success', 'AI prompt updated.');
+        return back()->with('success', 'AI prompt template updated.');
     }
 
-    public function destroy(AiPrompt $aiPrompt): RedirectResponse
+    public function destroy(AiPromptTemplate $aiPromptTemplate): RedirectResponse
     {
-        $this->audit->logModel('ai_prompt.deleted', $aiPrompt, $aiPrompt->toArray());
-        $aiPrompt->delete();
+        $this->audit->logModel('ai_prompt_template.deleted', $aiPromptTemplate, $aiPromptTemplate->toArray());
+        $aiPromptTemplate->delete();
 
-        return back()->with('success', 'AI prompt deleted.');
+        return back()->with('success', 'AI prompt template deleted.');
     }
 }
