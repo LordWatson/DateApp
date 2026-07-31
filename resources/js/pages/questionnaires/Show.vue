@@ -51,7 +51,6 @@ const props = withDefaults(defineProps<Props>(), {
 const starting = ref(false);
 const restarting = ref(false);
 const showProfilePicker = ref(false);
-const showRestartConfirm = ref(false);
 
 function startFresh(): void {
     starting.value = true;
@@ -74,7 +73,6 @@ function restart(): void {
         {
             onFinish: () => {
                 restarting.value = false;
-                showRestartConfirm.value = false;
             },
         },
     );
@@ -226,18 +224,14 @@ const isCompleted = props.response?.status === 'completed';
                     Continue Questionnaire ❤️
                 </PrimaryButton>
 
-                <!-- Start fresh / restart -->
+                <!-- Start fresh -->
                 <PrimaryButton
-                    v-else
+                    v-else-if="!isCompleted"
                     full-width
                     :loading="starting"
                     @click="startFresh"
                 >
-                    {{
-                        isCompleted
-                            ? 'Retake Questionnaire ❤️'
-                            : 'Start Questionnaire ❤️'
-                    }}
+                    Start Questionnaire ❤️
                 </PrimaryButton>
 
                 <!-- View summary if completed -->
@@ -254,10 +248,19 @@ const isCompleted = props.response?.status === 'completed';
                 </SecondaryButton>
 
                 <!-- Restart Questionnaire -->
-                <SecondaryButton
-                    v-if="isCompleted || isInProgress"
+                <PrimaryButton
+                    v-if="isCompleted"
                     full-width
-                    @click="showRestartConfirm = true"
+                    :loading="restarting"
+                    @click="restart"
+                >
+                    Restart Questionnaire 🔄
+                </PrimaryButton>
+                <SecondaryButton
+                    v-else-if="isInProgress"
+                    full-width
+                    :loading="restarting"
+                    @click="restart"
                 >
                     Restart Questionnaire 🔄
                 </SecondaryButton>
@@ -307,39 +310,6 @@ const isCompleted = props.response?.status === 'completed';
                 </div>
             </div>
         </div>
-
-        <!-- Restart confirmation modal -->
-        <Transition name="fade">
-            <div
-                v-if="showRestartConfirm"
-                class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
-                @click.self="showRestartConfirm = false"
-            >
-                <div
-                    class="w-full max-w-md space-y-4 rounded-3xl bg-card p-6 shadow-xl"
-                >
-                    <h3 class="text-lg font-semibold text-foreground">
-                        Restart Questionnaire?
-                    </h3>
-                    <p class="text-sm text-muted-foreground">
-                        This starts a fresh attempt. Your previous completed
-                        answers stay saved and can be viewed in Past Results.
-                    </p>
-                    <PrimaryButton
-                        full-width
-                        :loading="restarting"
-                        @click="restart"
-                    >
-                        Yes, Restart 🔄
-                    </PrimaryButton>
-                    <SecondaryButton
-                        full-width
-                        @click="showRestartConfirm = false"
-                        >Cancel</SecondaryButton
-                    >
-                </div>
-            </div>
-        </Transition>
 
         <!-- Profile picker modal -->
         <Transition name="fade">

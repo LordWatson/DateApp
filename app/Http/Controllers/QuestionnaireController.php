@@ -55,21 +55,49 @@ class QuestionnaireController extends Controller
             ->withQueryString();
 
         $user = $request->user();
-        $responses = $user->responses()
-            ->whereIn('questionnaire_id', collect($paginator->items())->pluck('id'))
+        $questionnaireIds = collect($paginator->items())->pluck('id');
+
+        $latestResponses = $user->responses()
+            ->whereIn('questionnaire_id', $questionnaireIds)
+            ->orderByDesc('id')
             ->get()
+            ->unique('questionnaire_id')
             ->keyBy('questionnaire_id');
 
-        $paginator->getCollection()->transform(fn (Questionnaire $q) => [
-            'id' => $q->id,
-            'title' => $q->title,
-            'slug' => $q->slug,
-            'description' => $q->description,
-            'emoji' => $q->emoji,
-            'estimated_minutes' => $q->estimated_minutes,
-            'question_count' => $q->questions_count,
-            'response_status' => $responses->get($q->id)?->status->value,
-        ]);
+        $completedResponseIds = $latestResponses
+            ->filter(fn ($response) => $response->status === CompletionStatus::Completed)
+            ->pluck('id');
+
+        $pairedResponseIds = $completedResponseIds->isEmpty()
+            ? collect()
+            : DateNightPlan::query()
+                ->where(function ($query) use ($completedResponseIds): void {
+                    $query->whereIn('partner_one_response_id', $completedResponseIds)
+                        ->orWhereIn('partner_two_response_id', $completedResponseIds);
+                })
+                ->get(['partner_one_response_id', 'partner_two_response_id'])
+                ->flatMap(fn ($plan) => [$plan->partner_one_response_id, $plan->partner_two_response_id])
+                ->intersect($completedResponseIds)
+                ->unique()
+                ->values();
+
+        $paginator->getCollection()->transform(function (Questionnaire $q) use ($latestResponses, $pairedResponseIds) {
+            $response = $latestResponses->get($q->id);
+            $isPaired = $response !== null && $pairedResponseIds->contains($response->id);
+
+            return [
+                'id' => $q->id,
+                'title' => $q->title,
+                'slug' => $q->slug,
+                'description' => $q->description,
+                'emoji' => $q->emoji,
+                'estimated_minutes' => $q->estimated_minutes,
+                'question_count' => $q->questions_count,
+                'is_solo' => $q->is_solo,
+                'response_status' => $response?->status->value,
+                'partner_paired' => $isPaired,
+            ];
+        });
 
         return Inertia::render('questionnaires/Index', [
             'questionnaires' => [

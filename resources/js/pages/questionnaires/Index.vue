@@ -12,7 +12,9 @@ interface Questionnaire {
     emoji: string | null;
     estimated_minutes: number | null;
     question_count: number;
+    is_solo: boolean;
     response_status: string | null;
+    partner_paired: boolean;
 }
 
 interface PaginationLink {
@@ -56,24 +58,32 @@ function applyFilter(value: FilterValue): void {
     );
 }
 
-function statusLabel(status: string | null): string {
-    if (status === 'completed') {
-        return 'Completed ✓';
+function statusLabel(q: Questionnaire): string {
+    if (q.response_status === 'in_progress') {
+        return 'In Progress…';
     }
 
-    if (status === 'in_progress') {
-        return 'In Progress…';
+    if (q.response_status === 'completed') {
+        if (q.is_solo) {
+            return '';
+        }
+
+        if (q.partner_paired) {
+            return '';
+        }
+
+        return 'Pending Partner ⏳';
     }
 
     return 'Not started';
 }
 
-function statusClass(status: string | null): string {
-    if (status === 'completed') {
-        return 'text-success';
+function statusClass(q: Questionnaire): string {
+    if (q.response_status === 'in_progress') {
+        return 'text-warning';
     }
 
-    if (status === 'in_progress') {
+    if (q.response_status === 'completed') {
         return 'text-warning';
     }
 
@@ -137,7 +147,7 @@ function openQuestionnaire(slug: string): void {
                         <div class="mt-2 flex items-center gap-3 text-xs">
                             <span class="text-muted-foreground">{{ q.question_count }} questions</span>
                             <span v-if="q.estimated_minutes" class="text-muted-foreground">~{{ q.estimated_minutes }} min</span>
-                            <span :class="statusClass(q.response_status)" class="font-medium">{{ statusLabel(q.response_status) }}</span>
+                            <span v-if="statusLabel(q)" :class="statusClass(q)" class="font-medium">{{ statusLabel(q) }}</span>
                         </div>
                     </div>
                 </div>

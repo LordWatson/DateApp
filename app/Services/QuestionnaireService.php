@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Enums\CompletionStatus;
+use App\Enums\NotificationType;
 use App\Events\QuestionnaireCompleted;
 use App\Models\Answer;
+use App\Models\AppNotification;
 use App\Models\DateNightPlan;
 use App\Models\Question;
 use App\Models\Questionnaire;
@@ -171,7 +173,61 @@ class QuestionnaireService
 
         $response->loadMissing(['user', 'questionnaire']);
 
+        $this->wipeOverhangingPendingResponses($response);
+
         QuestionnaireCompleted::dispatch($response->user, $response->questionnaire, $response);
+    }
+
+    /**
+     * Ensure the user never has more than one "pending" (unpaired completed)
+     * response for a non-solo questionnaire. When a fresh completion arrives
+     * while the previous cycle is still waiting on the partner, discard the
+     * older completed-but-unpaired response and clean up the partner's stale
+     * "please complete" notification so a new one can be sent for this cycle.
+     */
+    private function wipeOverhangingPendingResponses(Response $latestResponse): void
+    {
+        $questionnaire = $latestResponse->questionnaire;
+        $user = $latestResponse->user;
+
+        if (! $questionnaire || $questionnaire->is_solo) {
+            return;
+        }
+
+        $previousCompleted = Response::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::Completed)
+            ->where('id', '!=', $latestResponse->id)
+            ->orderByDesc('completed_at')
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($previousCompleted as $previous) {
+            $paired = DateNightPlan::query()
+                ->where('questionnaire_id', $questionnaire->id)
+                ->where(function ($query) use ($previous): void {
+                    $query->where('partner_one_response_id', $previous->id)
+                        ->orWhere('partner_two_response_id', $previous->id);
+                })
+                ->exists();
+
+            if ($paired) {
+                continue;
+            }
+
+            $previous->delete();
+        }
+
+        $partner = $user->partner;
+
+        if (! $partner) {
+            return;
+        }
+
+        AppNotification::where('user_id', $partner->id)
+            ->where('type', NotificationType::PartnerCompleted)
+            ->whereJsonContains('data->questionnaire_id', $questionnaire->id)
+            ->delete();
     }
 
     public function getAnsweredQuestionIds(Response $response): array
