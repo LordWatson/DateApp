@@ -29,6 +29,12 @@ import { login, register } from '@/routes';
             </div>
 
             <nav class="flex items-center gap-3">
+                <Link
+                    href="/about"
+                    class="text-sm font-semibold text-muted-foreground hover:text-foreground"
+                >
+                    About
+                </Link>
                 <Link :href="register()">
                     <SecondaryButton size="sm" variant="outline"
                         >Get started</SecondaryButton

@@ -106,5 +106,10 @@ defineProps<{
             Don't have an account?
             <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
         </div>
+
+        <div class="text-center text-sm text-muted-foreground">
+            Curious what's inside?
+            <TextLink href="/about" :tabindex="6">About Date Night</TextLink>
+        </div>
     </Form>
 </template>

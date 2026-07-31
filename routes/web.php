@@ -22,6 +22,7 @@ use App\Http\Controllers\WeeklyReflectionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
+Route::inertia('/about', 'About')->name('about');
 
 // Public invitation acceptance (redirects to register if not logged in)
 Route::get('invite/{token}', [OnboardingController::class, 'acceptInvite'])
