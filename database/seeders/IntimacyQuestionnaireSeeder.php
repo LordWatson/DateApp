@@ -56,7 +56,7 @@ class IntimacyQuestionnaireSeeder extends Seeder
             [
                 'title' => 'Tonight’s Mood',
                 'slug' => 'intimacy-tonights-mood',
-                'description' => 'Share the vibe you’re craving tonight and let the magic follow.',
+                'description' => 'Share the sexual vibe you’re craving tonight and let the magic follow.',
                 'emoji' => '🔥',
                 'status' => QuestionnaireStatus::Active->value,
                 'visibility' => QuestionnaireVisibility::Public->value,
@@ -131,7 +131,7 @@ class IntimacyQuestionnaireSeeder extends Seeder
             [
                 'title' => 'Desires & Boundaries',
                 'slug' => 'intimacy-desires-and-boundaries',
-                'description' => 'A safe, playful check-in on what feels good and what’s off the menu.',
+                'description' => 'A playful sexual check-in on what feels good and what’s off the menu.',
                 'emoji' => '💞',
                 'status' => QuestionnaireStatus::Active->value,
                 'visibility' => QuestionnaireVisibility::Public->value,
@@ -202,7 +202,7 @@ class IntimacyQuestionnaireSeeder extends Seeder
             [
                 'title' => 'After Dark Preferences',
                 'slug' => 'intimacy-after-dark-preferences',
-                'description' => 'Fine-tune the little details that make your intimate time unforgettable.',
+                'description' => 'Fine-tune the little details that make your sexual intimacy time unforgettable.',
                 'emoji' => '🌙',
                 'status' => QuestionnaireStatus::Active->value,
                 'visibility' => QuestionnaireVisibility::Public->value,
