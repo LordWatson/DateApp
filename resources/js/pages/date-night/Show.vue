@@ -88,8 +88,8 @@ function getInitial(name: string): string {
                     <h1 class="mb-1 text-2xl font-semibold">Your Perfect Evening</h1>
                     <p class="mb-4 text-sm opacity-85">{{ plan.theme }}</p>
 
-                    <!-- Compatibility Score -->
-                    <div class="inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2 backdrop-blur-sm">
+                    <!-- Compatibility Score (couple plans only) -->
+                    <div v-if="!plan.is_solo" class="inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2 backdrop-blur-sm">
                         <span class="text-2xl font-bold">{{ plan.compatibility_score }}%</span>
                         <span class="text-sm opacity-90">Compatible ❤️</span>
                     </div>
@@ -104,8 +104,8 @@ function getInitial(name: string): string {
                         </div>
                         <span class="text-xs text-white/80">{{ plan.partner_one.name }}</span>
                     </div>
-                    <div class="text-white/60">❤️</div>
-                    <div v-if="plan.partner_two" class="flex flex-col items-center gap-1">
+                    <div v-if="!plan.is_solo && plan.partner_two" class="text-white/60">❤️</div>
+                    <div v-if="!plan.is_solo && plan.partner_two" class="flex flex-col items-center gap-1">
                         <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/30 text-sm font-bold text-white">
                             {{ getInitial(plan.partner_two.name) }}
                         </div>
@@ -211,7 +211,7 @@ function getInitial(name: string): string {
             <p class="mb-6 text-center text-xs text-muted-foreground">Generated {{ generatedDate }}</p>
 
             <!-- Actions -->
-            <div class="space-y-3">
+<!--            <div class="space-y-3">
                 <PrimaryButton full-width @click="exportPlan">
                     🖨️ Export Plan
                 </PrimaryButton>
@@ -227,7 +227,7 @@ function getInitial(name: string): string {
                 <SecondaryButton full-width @click="router.visit('/dashboard')">
                     Return Home
                 </SecondaryButton>
-            </div>
+            </div>-->
         </div>
     </div>
 </template>

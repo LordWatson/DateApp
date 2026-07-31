@@ -14,6 +14,10 @@ final class NotifyPartnerOnQuestionnaireCompleted implements ShouldQueue
 
     public function handle(QuestionnaireCompleted $event): void
     {
+        if ($event->questionnaire->is_solo) {
+            return;
+        }
+
         $partner = $event->user->partner;
 
         if (! $partner) {
