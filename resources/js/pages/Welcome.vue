@@ -58,8 +58,9 @@ import { login, register } from '@/routes';
                             <span class="gradient-text">special</span>
                         </h1>
                         <p class="leading-relaxed text-muted-foreground">
-                            A playful questionnaire for couples to discover what
-                            makes the perfect date night — together.
+                            Discover what makes the perfect date — together.
+                            <br />
+                            Your new relationship concierge.
                         </p>
                     </div>
                 </div>
