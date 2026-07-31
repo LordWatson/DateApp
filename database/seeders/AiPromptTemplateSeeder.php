@@ -67,14 +67,13 @@ Rules you MUST follow:
     as a HARD constraint that defines the geographic scope of the plan and
     reason about it as "how far can we realistically drive from the user's
     location in this many minutes?":
-      * 0–30 minutes by car → stay within the user's own city/town or
-        immediate surrounding area reachable within a short drive.
+      * 0–30 minutes by car → you MAY include areas within a 30-minute drive of the users location.
       * 31–90 minutes by car → you MAY include nearby towns, coastline,
-        countryside or larger cities reachable within that drive.
+        countryside or larger cities or destinations reachable within that drive.
       * 91–180 minutes by car → you MAY include further afield destinations,
-        neighbouring regions or day-trip cities that are realistically
-        drivable in that time from the user's location.
-      * 181+ minutes by car → you MAY propose a small trip to another region
+        neighbouring regions or day-trip locations that are realistically
+        driveable in that time from the user's location.
+      * 181+ minutes by car → you MAY propose a trip to another region
         or major destination reachable by car in that time.
     You MUST NOT collapse everything back to the user's home city when
     `travel_radius_minutes` is large — actively broaden the plan to somewhere
