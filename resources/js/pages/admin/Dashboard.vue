@@ -61,7 +61,7 @@ const statCards = computed(() => [
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-semibold text-gray-900">Newest Registrations</h2>
-          <Link href="/admin/users" class="text-sm text-pink-500 hover:text-pink-600">View all →</Link>
+          <Link href="/admin/users" class="text-sm text-gray-600 hover:text-gray-800">View all →</Link>
         </div>
         <div class="space-y-3">
           <div
@@ -76,7 +76,7 @@ const statCards = computed(() => [
               <p class="text-sm font-medium text-gray-900 truncate">{{ user.name }}</p>
               <p class="text-xs text-gray-500 truncate">{{ user.email }}</p>
             </div>
-            <Link :href="`/admin/users/${user.id}`" class="text-xs text-pink-500 hover:underline flex-shrink-0">View</Link>
+            <Link :href="`/admin/users/${user.id}`" class="text-xs text-gray-600 hover:underline flex-shrink-0">View</Link>
           </div>
           <p v-if="!newest_users.length" class="text-sm text-gray-400 text-center py-4">No users yet.</p>
         </div>

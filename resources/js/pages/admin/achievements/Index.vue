@@ -161,7 +161,7 @@ const columns = [
         <td class="px-4 py-3 text-sm text-gray-600">{{ achievement.users_count }}</td>
         <td class="px-4 py-3">
           <div class="flex items-center gap-2">
-            <button @click="startEdit(achievement)" class="text-xs text-pink-500 hover:underline">Edit</button>
+            <button @click="startEdit(achievement)" class="text-xs text-gray-600 hover:underline">Edit</button>
             <button @click="confirmDelete = achievement.id" class="text-xs text-red-500 hover:underline">Delete</button>
           </div>
         </td>

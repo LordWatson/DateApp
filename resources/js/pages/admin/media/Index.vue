@@ -139,7 +139,7 @@ const humanSize = (bytes: number): string => {
           <p class="text-xs text-gray-700 truncate font-medium">{{ item.original_filename }}</p>
           <p class="text-xs text-gray-400">{{ humanSize(item.size) }}</p>
           <div class="flex gap-2 mt-1">
-            <a :href="item.url" target="_blank" class="text-xs text-pink-500 hover:underline">View</a>
+            <a :href="item.url" target="_blank" class="text-xs text-gray-600 hover:underline">View</a>
             <button @click="confirmDelete = item.id" class="text-xs text-red-400 hover:underline">Delete</button>
           </div>
         </div>

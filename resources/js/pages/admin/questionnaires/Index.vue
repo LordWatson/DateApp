@@ -160,7 +160,7 @@ const columns = [
                     <div class="flex items-center gap-2">
                         <Link
                             :href="edit(q.id).url"
-                            class="text-xs text-pink-500 hover:underline"
+                            class="text-xs text-gray-600 hover:underline"
                             >Edit</Link
                         >
                         <button

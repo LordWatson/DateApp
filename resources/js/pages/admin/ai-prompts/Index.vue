@@ -200,7 +200,7 @@ const doDelete = (tpl: PromptTemplate) => {
               <span v-if="tpl.max_tokens" class="text-xs text-gray-400">max_tokens: {{ tpl.max_tokens }}</span>
             </div>
             <div class="flex gap-2">
-              <button @click="startEdit(tpl)" class="text-xs text-pink-500 hover:underline">Edit</button>
+              <button @click="startEdit(tpl)" class="text-xs text-gray-600 hover:underline">Edit</button>
               <button @click="doDelete(tpl)" class="text-xs text-red-400 hover:underline">Delete</button>
             </div>
           </div>

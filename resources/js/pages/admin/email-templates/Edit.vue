@@ -67,7 +67,7 @@ const preview = () => {
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="text-xs font-medium text-gray-600">HTML Body</label>
-            <button type="button" @click="preview" class="text-xs text-pink-500 hover:underline">Preview →</button>
+            <button type="button" @click="preview" class="text-xs text-gray-600 hover:underline">Preview →</button>
           </div>
           <textarea
             v-model="form.html_body"

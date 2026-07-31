@@ -297,7 +297,7 @@ const duplicateOption = (optionId: number) => {
             <button
               v-if="showNewOption !== question.id"
               @click="showNewOption = question.id"
-              class="text-xs text-pink-500 hover:underline"
+              class="text-xs text-gray-600 hover:underline"
             >
               + Add Option
             </button>

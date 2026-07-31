@@ -70,7 +70,7 @@ const save = () => {
             <h2 class="font-semibold text-gray-900">Profile</h2>
             <button
               @click="editing = !editing"
-              class="text-xs text-pink-500 hover:underline"
+              class="text-xs text-gray-600 hover:underline"
             >
               {{ editing ? 'Cancel' : 'Edit' }}
             </button>
@@ -95,7 +95,7 @@ const save = () => {
             </div>
             <div v-if="user.partner">
               <p class="text-gray-500 text-xs">Partner</p>
-              <Link :href="route('admin.users.show', user.partner.id)" class="font-medium text-pink-500 hover:underline">
+              <Link :href="route('admin.users.show', user.partner.id)" class="font-medium text-gray-600 hover:underline">
                 {{ user.partner.name }}
               </Link>
             </div>

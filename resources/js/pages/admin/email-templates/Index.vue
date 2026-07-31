@@ -49,7 +49,7 @@ defineProps<{
           <span class="text-xs text-gray-400">{{ new Date(template.updated_at).toLocaleDateString() }}</span>
           <Link
             :href="route('admin.email-templates.edit', template.id)"
-            class="text-sm text-pink-500 hover:underline font-medium"
+            class="text-sm text-gray-600 hover:underline font-medium"
           >
             Edit
           </Link>

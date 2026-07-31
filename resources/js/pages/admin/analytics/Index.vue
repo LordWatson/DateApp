@@ -25,7 +25,7 @@ defineProps<{
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <p class="text-xs text-gray-500 mb-1">Avg Compatibility</p>
-        <p class="text-3xl font-bold text-pink-500">{{ avg_compatibility }}%</p>
+        <p class="text-3xl font-bold text-gray-600">{{ avg_compatibility }}%</p>
       </div>
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <p class="text-xs text-gray-500 mb-1">New Users (30d)</p>

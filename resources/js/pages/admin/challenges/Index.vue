@@ -228,7 +228,7 @@ const columns = [
         </td>
         <td class="px-4 py-3">
           <div class="flex items-center gap-2">
-            <button @click="startEdit(challenge)" class="text-xs text-pink-500 hover:underline">Edit</button>
+            <button @click="startEdit(challenge)" class="text-xs text-gray-600 hover:underline">Edit</button>
             <button @click="doArchive(challenge.id)" class="text-xs text-yellow-600 hover:underline">Archive</button>
             <button @click="confirmDelete = challenge.id" class="text-xs text-red-500 hover:underline">Delete</button>
           </div>
