@@ -95,21 +95,6 @@
             </div>
             @endif
 
-            @if($plan->drink_suggestion)
-            <div class="detail-card">
-                <div class="icon">🥂</div>
-                <div class="label">Drinks</div>
-                <div class="value">{{ $plan->drink_suggestion }}</div>
-            </div>
-            @endif
-
-            @if($plan->music_vibe)
-            <div class="detail-card">
-                <div class="icon">🎵</div>
-                <div class="label">Music</div>
-                <div class="value">{{ $plan->music_vibe }}</div>
-            </div>
-            @endif
 
             @if($plan->atmosphere)
             <div class="detail-card">

@@ -37,8 +37,6 @@ final class EnhanceDateNightPlanWithAIJob implements ShouldQueue
         'theme',
         'summary',
         'meal_suggestion',
-        'drink_suggestion',
-        'music_vibe',
         'atmosphere',
         'activity',
         'conversation_prompt',

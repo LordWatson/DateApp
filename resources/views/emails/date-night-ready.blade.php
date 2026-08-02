@@ -59,19 +59,6 @@
                 </div>
                 @endif
 
-                @if($plan->drink_suggestion)
-                <div class="detail-card">
-                    <div class="label">🥂 Drink Suggestion</div>
-                    <div class="value">{{ $plan->drink_suggestion }}</div>
-                </div>
-                @endif
-
-                @if($plan->music_vibe)
-                <div class="detail-card">
-                    <div class="label">🎵 Music Vibe</div>
-                    <div class="value">{{ $plan->music_vibe }}</div>
-                </div>
-                @endif
 
                 @if($plan->activity)
                 <div class="detail-card">

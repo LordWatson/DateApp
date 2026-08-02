@@ -293,7 +293,7 @@ function invitePartner(): void {
         </div>
 
         <!-- Recent Questionnaire -->
-        <div class="card-premium p-6">
+<!--        <div class="card-premium p-6">
             <div class="mb-4 flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-foreground">
                     Recent Questionnaire
@@ -334,7 +334,7 @@ function invitePartner(): void {
                 title="Tonight is waiting ❤️"
                 description="Complete your first questionnaire to see your history here."
             />
-        </div>
+        </div>-->
 
         <!-- Compatibility Card -->
 <!--

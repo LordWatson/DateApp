@@ -22,8 +22,6 @@ use Illuminate\Support\Carbon;
  * @property string|null $theme_emoji
  * @property string $summary
  * @property string|null $meal_suggestion
- * @property string|null $drink_suggestion
- * @property string|null $music_vibe
  * @property string|null $atmosphere
  * @property string|null $activity
  * @property string|null $conversation_prompt
@@ -51,8 +49,6 @@ class DateNightPlan extends Model
         'theme_emoji',
         'summary',
         'meal_suggestion',
-        'drink_suggestion',
-        'music_vibe',
         'atmosphere',
         'activity',
         'conversation_prompt',

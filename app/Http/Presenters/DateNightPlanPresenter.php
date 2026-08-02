@@ -31,8 +31,6 @@ final class DateNightPlanPresenter
             'compatibility_score' => $plan->compatibility_score,
             'summary' => $plan->summary,
             'meal_suggestion' => $plan->meal_suggestion,
-            'drink_suggestion' => $plan->drink_suggestion,
-            'music_vibe' => $plan->music_vibe,
             'atmosphere' => $plan->atmosphere,
             'activity' => $plan->activity,
             'conversation_prompt' => $plan->conversation_prompt,

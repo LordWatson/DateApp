@@ -26,8 +26,6 @@ class DateNightPlanFactory extends Factory
             'theme_emoji' => $this->faker->randomElement(['❤️', '🍷', '🎬', '🎲']),
             'summary' => $this->faker->paragraph(),
             'meal_suggestion' => $this->faker->sentence(),
-            'drink_suggestion' => $this->faker->sentence(),
-            'music_vibe' => $this->faker->sentence(),
             'atmosphere' => $this->faker->sentence(),
             'activity' => $this->faker->sentence(),
             'conversation_prompt' => $this->faker->sentence().'?',

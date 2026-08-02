@@ -24,8 +24,6 @@ class DateNightGeneratorService
         'theme',
         'summary',
         'meal_suggestion',
-        'drink_suggestion',
-        'music_vibe',
         'atmosphere',
         'activity',
         'conversation_prompt',
@@ -94,8 +92,6 @@ class DateNightGeneratorService
             'theme_emoji' => $plan['theme_emoji'],
             'summary' => $plan['summary'],
             'meal_suggestion' => $plan['meal_suggestion'],
-            'drink_suggestion' => $plan['drink_suggestion'],
-            'music_vibe' => $plan['music_vibe'],
             'atmosphere' => $plan['atmosphere'],
             'activity' => $plan['activity'],
             'conversation_prompt' => $plan['conversation_prompt'],
@@ -398,8 +394,6 @@ class DateNightGeneratorService
             'theme_emoji' => $theme->emoji,
             'summary' => $this->buildSummary($theme, $score),
             'meal_suggestion' => $this->selectMeal($context),
-            'drink_suggestion' => $this->selectDrink($context),
-            'music_vibe' => $this->selectMusic($context),
             'atmosphere' => $this->selectAtmosphere($context),
             'activity' => $this->selectActivity($context),
             'conversation_prompt' => $this->selectConversationPrompt($score),
@@ -443,50 +437,6 @@ class DateNightGeneratorService
         }
 
         return 'A simple but beautiful shared meal at home';
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     */
-    private function selectDrink(array $context): string
-    {
-        if ($context['romance_high']) {
-            return 'A bottle of your favourite wine or sparkling water with fresh fruit';
-        }
-
-        if ($context['prefers_relaxing']) {
-            return 'Herbal tea or hot chocolate with marshmallows';
-        }
-
-        if ($context['prefers_food']) {
-            return 'Craft cocktails or mocktails to complement your meal';
-        }
-
-        return 'Something refreshing — sparkling water, juice, or a light cocktail';
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     */
-    private function selectMusic(array $context): string
-    {
-        if ($context['prefers_music']) {
-            return 'A curated playlist of songs that mean something to you both';
-        }
-
-        if ($context['romance_high']) {
-            return 'Soft jazz or acoustic love songs in the background';
-        }
-
-        if ($context['prefers_relaxing']) {
-            return 'Ambient or lo-fi music to set a calm, cosy mood';
-        }
-
-        if ($context['prefers_movies']) {
-            return 'Film scores and cinematic soundtracks';
-        }
-
-        return 'Whatever playlist makes you both smile';
     }
 
     /**

@@ -28,8 +28,6 @@ interface Plan {
     compatibility_score: number;
     summary: string;
     meal_suggestion: string | null;
-    drink_suggestion: string | null;
-    music_vibe: string | null;
     atmosphere: string | null;
     activity: string | null;
     conversation_prompt: string | null;
@@ -180,21 +178,6 @@ function submitCalendar(): void {
                     </div>
                 </div>
 
-                <div v-if="plan.drink_suggestion" class="card-premium card-hover flex items-start gap-4 p-5">
-                    <span class="text-2xl" aria-hidden="true">🥂</span>
-                    <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Drink Suggestion</p>
-                        <p class="text-sm font-medium text-foreground">{{ plan.drink_suggestion }}</p>
-                    </div>
-                </div>
-
-                <div v-if="plan.music_vibe" class="card-premium card-hover flex items-start gap-4 p-5">
-                    <span class="text-2xl" aria-hidden="true">🎵</span>
-                    <div>
-                        <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Music Vibe</p>
-                        <p class="text-sm font-medium text-foreground">{{ plan.music_vibe }}</p>
-                    </div>
-                </div>
 
                 <div v-if="plan.atmosphere" class="card-premium card-hover flex items-start gap-4 p-5">
                     <span class="text-2xl" aria-hidden="true">🕯️</span>
@@ -221,7 +204,7 @@ function submitCalendar(): void {
                 </div>
 
                 <!-- Romantic Challenge — highlighted -->
-                <div v-if="plan.romantic_challenge" class="card-premium p-5 gradient-primary-soft">
+                <div v-if="plan.romantic_challenge" class="card-premium p-5 bg-white">
                     <p class="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">🌹 Tonight's Romantic Challenge</p>
                     <p class="text-sm font-semibold text-secondary">{{ plan.romantic_challenge }}</p>
                 </div>

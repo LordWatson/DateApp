@@ -150,8 +150,6 @@ class DateNightGenerationTest extends TestCase
         $this->assertNotNull($plan->theme);
         $this->assertNotNull($plan->summary);
         $this->assertNotNull($plan->meal_suggestion);
-        $this->assertNotNull($plan->drink_suggestion);
-        $this->assertNotNull($plan->music_vibe);
         $this->assertNotNull($plan->atmosphere);
         $this->assertNotNull($plan->activity);
         $this->assertNotNull($plan->conversation_prompt);
