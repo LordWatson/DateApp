@@ -134,16 +134,20 @@ class DateNightGeneratorService
             location: $location,
         );
 
+        $aiPayload = [
+            'context' => $context,
+            'plan' => $plan,
+            'compatibility' => $compatibility,
+            'questionnaire' => $questionnaire->title,
+            'is_solo' => $isSolo,
+            'location' => $location,
+            'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
+        ];
+
         try {
-            $response = $this->ai->generateDateNightPlan([
-                'context' => $context,
-                'plan' => $plan,
-                'compatibility' => $compatibility,
-                'questionnaire' => $questionnaire->title,
-                'is_solo' => $isSolo,
-                'location' => $location,
-                'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
-            ]);
+            $response = $isSolo
+                ? $this->ai->generateDateNightPlanSolo($aiPayload)
+                : $this->ai->generateDateNightPlan($aiPayload);
         } catch (Throwable $e) {
             $this->logger->warning('AI enhancement threw; falling back to deterministic plan.', [
                 'exception' => $e->getMessage(),

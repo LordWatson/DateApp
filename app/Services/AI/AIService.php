@@ -39,6 +39,11 @@ final readonly class AIService
         return $this->run(AIUseCase::DateNightPlan, $context);
     }
 
+    public function generateDateNightPlanSolo(array $context = []): AIResponse
+    {
+        return $this->run(AIUseCase::DateNightPlanSolo, $context);
+    }
+
     public function generateConversationPrompt(array $context = []): AIResponse
     {
         return $this->run(AIUseCase::ConversationPrompt, $context);

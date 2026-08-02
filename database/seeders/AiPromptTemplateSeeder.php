@@ -33,112 +33,105 @@ class AiPromptTemplateSeeder extends Seeder
                 'description' => 'Generates a romantic, mood-appropriate date night plan for a couple.',
                 'system_prompt' => $safety."\n\nYou craft romantic, playful and thoughtful date night plans that respect both partners' preferences and consent.",
                 'user_prompt_template' => <<<'PROMPT'
-You are enhancing a date night plan for a couple (or, if `is_solo` is true, for
-one partner planning the date for both of them). The plan you produce MUST
-match the topic, mood and intent of the questionnaire and the actual answers,
-and MUST NOT be a generic template.
+Enhance the wording of a date night plan for a couple. The plan MUST match the
+questionnaire's topic and the couple's actual answers — never a generic template.
 
-Rules you MUST follow:
-  - Anchor every field to the questionnaire's topic (see `questionnaire.title`
-    and `questionnaire.description` inside the context). If the questionnaire
-    is about a games night, produce a games-night plan. If it is about an
-    intimate or sexual evening, keep the plan intimate and sensual (still
-    tasteful and within safety rules). Never invent an unrelated theme
-    (e.g. cooking or star gazing) unless the questionnaire clearly implies it.
-  - Ground the plan in the ACTUAL ANSWERS. Read every entry in
-    `couple_answers.partner_one`, `couple_answers.partner_two` and, when
-    `is_solo` is true, `user_answers`. Each entry contains the `question` text
-    and the `answer` (option title or free-text value). Reference these
-    preferences concretely — do not invent preferences that aren't there.
-    Where both partners agree, lean into it. Where they differ, choose a warm
-    compromise that honours both.
-  - If `questionnaire.is_intimacy` is true, `meal_suggestion` and
-    `drink_suggestion` may be small sensual touches (e.g. a shared bite,
-    a shared sip) rather than a full meal.
-  - If `is_solo` is true, the plan is generated from ONE user's answers and
-    is intended for a real-world outing rather than an evening in. Anchor the
-    activity, meal, drink and atmosphere to the user's stated timing
-    (day/evening), available time, budget and vibe as expressed in
-    `user_answers`. When `location` is provided, it MAY include a rough label
-    (city/region/country), the user's approximate `latitude`/`longitude`, and
-    `travel_radius_minutes` — the maximum one-way travel time the user is
-    happy with, measured strictly as DRIVING TIME BY CAR OR PUBLIC TRANSPORT (not walking, not
-    cycling). You MUST treat `travel_radius_minutes`
-    as a HARD constraint that defines the geographic scope of the plan and
-    reason about it as "how far can we realistically drive from the user's
-    location in this many minutes?":
-      * 0–30 minutes by car → you MAY include areas within a 30-minute drive of the users location.
-      * 31–90 minutes by car → you MAY include nearby towns, coastline,
-        countryside or larger cities or destinations reachable within that drive.
-      * 91–180 minutes by car → you MAY include further afield destinations,
-        neighbouring regions or day-trip locations that are realistically
-        driveable in that time from the user's location.
-      * 181+ minutes by car → you MAY propose a trip to another region
-        or major destination reachable by car in that time.
-    You MUST NOT collapse everything back to the user's home city when
-    `travel_radius_minutes` is large — actively broaden the plan to somewhere
-    exciting within the allowed driving radius. Explicitly name the
-    destination town, area or region in `summary` and `activity` (not just
-    the user's home city) whenever the radius allows driving beyond it. When
-    the radius is small, keep everything genuinely local to the user's
-    `city`/`region`. Never suggest anywhere the user would clearly need to
-    drive longer than `travel_radius_minutes` (one way) to reach. If
-    `travel_radius_minutes` is 0 or missing, favour ideas at or immediately
-    around the user's location.
-    Budget answers may take the form `custom_amount:<number>` — treat the
-    number as a rough total budget in the user's local currency and tailor
-    spend accordingly. NEVER invent addresses, precise coordinates, phone
-    numbers or URLs. NEVER claim a venue is open, available or verified.
-    Frame local suggestions as ideas to explore, not confirmed bookings. If
-    `location` is null, gracefully avoid location references and return an
-    empty `local_suggestions` array.
-  - Keep the theme consistent across all fields and make each suggestion
-    concrete, inviting and evocative — never generic filler like "a nice
-    meal" or "a fun activity".
-  - You MUST return a `theme` field: a short (2–5 words), punchy, human
-    friendly NAME for this specific date night that accurately reflects the
-    plan you have generated (activity + meal + atmosphere). The context may
-    include a `deterministic_plan.theme` — treat it only as a rough category
-    hint. If your generated plan diverges from that name (e.g. the plan is
-    paddleboarding followed by a pub meal but the hint says "Pizza Night In"),
-    you MUST override it with an accurate name (e.g. "Paddleboard & Pub
-    Evening"). Never invent a theme unrelated to the plan you actually
-    produced. Use Title Case, no emojis, no markdown, no trailing
-    punctuation.
+Rules:
+- Anchor every field to `questionnaire.title` / `questionnaire.description`. If
+  the questionnaire is about games, produce a games-night plan; if intimate,
+  keep it sensual yet tasteful.
+- Ground the plan in the ACTUAL answers in `couple_answers.partner_one` and
+  `couple_answers.partner_two`. Where they agree, lean in; where they differ,
+  choose a warm compromise. Never invent preferences.
+- Every suggestion must be concrete and evocative — no filler like "a nice
+  meal" or "a fun activity".
+- `theme` is a 2–5 word Title Case name that accurately reflects the plan you
+  actually produced (no emojis, no markdown, no trailing punctuation).
 
 Context:
 {{context}}
 
-Respond as strict JSON matching exactly this shape (all string fields required,
-non-empty, concise, and free of markdown):
+Respond with strict JSON matching exactly this shape (all fields required,
+non-empty strings, no markdown):
 {
-  "theme": string,                 // 2–5 word Title Case name for the date night that accurately reflects the generated plan
-  "summary": string,               // 1–3 sentences describing the overall evening, referencing the questionnaire's topic
-  "meal_suggestion": string,       // a specific dish or shared food idea appropriate to the questionnaire
-  "drink_suggestion": string,      // a specific drink pairing (alcoholic or not) appropriate to the questionnaire
-  "music_vibe": string,            // genre, mood or example artists/playlist idea that fits the evening
-  "atmosphere": string,            // lighting, scent, setting cues that fit the questionnaire's mood
-  "activity": string,              // the main shared activity, aligned to the questionnaire's topic
-  "conversation_prompt": string,   // one gentle, open-ended question tied to the questionnaire's theme
-  "romantic_challenge": string,    // one small, playful challenge that fits the couple's answers
-  "local_suggestions": [           // AT MOST 3 items. ONLY populate when `is_solo` is true AND `location` is provided; otherwise return an empty array
+  "theme": string,
+  "summary": string,
+  "meal_suggestion": string,
+  "atmosphere": string,
+  "activity": string,
+  "conversation_prompt": string,
+  "romantic_challenge": string
+}
+PROMPT,
+                'version' => 11,
+                'active' => true,
+                // Schema has 9 short string fields; keep a generous but not
+                // excessive output budget so DeepSeek does not truncate.
+                'max_tokens' => 5000,
+            ],
+            [
+                'name' => AIUseCase::DateNightPlanSolo->value,
+                'description' => 'Generates a solo-planned date night for one partner, tuned to their location, timing and budget.',
+                'system_prompt' => $safety."\n\nYou craft romantic, playful and thoughtful date night plans that respect both partners' preferences and consent.",
+                'user_prompt_template' => <<<'PROMPT'
+Enhance the wording of a date night plan generated from ONE partner's answers.
+The plan is intended for a real-world outing (not an evening in) and MUST match
+the questionnaire's topic and the user's actual answers — never a generic template.
+
+Rules:
+- Anchor every field to `questionnaire.title` / `questionnaire.description` and
+  the entries in `user_answers` (each has a `question` and `answer`). Reference
+  stated timing, available time, budget and vibe concretely. Never invent
+  preferences.
+- Budget answers may take the form `custom_amount:<number>` — treat the number
+  as a rough total budget in the user's local currency and tailor spend to it.
+- `theme` is a 2–5 word Title Case name that accurately reflects the plan you
+  produced (no emojis, no markdown, no trailing punctuation).
+
+Location & travel radius (only when `location` is provided):
+- `location` may include a rough label (city/region/country), approximate
+  `latitude`/`longitude`, and `travel_radius_minutes` — the maximum one-way
+  DRIVING/PUBLIC TRANSPORT time the user accepts. Treat it as a HARD constraint.
+- When the radius allows driving beyond the user's home city, actively broaden
+  the plan and name the destination town/area/region in `summary` and
+  `activity`. When the radius is small, keep everything genuinely local.
+- Never suggest anywhere the user would clearly need to drive longer than
+  `travel_radius_minutes` (one way) to reach. If `travel_radius_minutes` is 0
+  or missing, favour ideas at or immediately around the user's location.
+- NEVER invent addresses, precise coordinates, phone numbers or URLs. NEVER
+  claim a venue is open, available or verified. Frame local suggestions as
+  ideas to explore, not confirmed bookings.
+- If `location` is null, gracefully avoid location references and return an
+  empty `local_suggestions` array.
+
+Context:
+{{context}}
+
+Respond with strict JSON matching exactly this shape (all string fields required,
+non-empty, no markdown):
+{
+  "theme": string,
+  "summary": string,
+  "meal_suggestion": string,
+  "atmosphere": string,
+  "activity": string,
+  "conversation_prompt": string,
+  "romantic_challenge": string,
+  "local_suggestions": [
     {
-      "name": string,              // a plausible local spot, area, neighbourhood or type of event
-      "category": string,          // e.g. "restaurant", "bar", "park", "gallery", "walk", "event", "neighbourhood"
-      "description": string        // 1 sentence explaining why it fits the date's vibe and timing
+      "name": string,
+      "category": string,
+      "description": string
     }
   ]
 }
 
-Hard limit: `local_suggestions` MUST contain at most 3 entries. Prefer fewer,
-higher-quality picks over padding the list.
+Hard limit: `local_suggestions` MUST contain at most 3 entries; prefer fewer,
+higher-quality picks over padding. Return an empty array when `location` is null.
 PROMPT,
-                'version' => 10,
+                'version' => 1,
                 'active' => true,
-                // Verbose schema (11 fields incl. a local_suggestions array):
-                // needs a larger output budget than cheaper single-field
-                // prompts to avoid `finish_reason=length` truncation.
-                'max_tokens' => 3500,
+                'max_tokens' => 5000,
             ],
             [
                 'name' => AIUseCase::ConversationPrompt->value,

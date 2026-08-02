@@ -14,6 +14,7 @@ namespace App\Enums\AI;
 enum AIUseCase: string
 {
     case DateNightPlan = 'date_night_plan';
+    case DateNightPlanSolo = 'date_night_plan_solo';
     case ConversationPrompt = 'conversation_prompt';
     case RelationshipInsight = 'relationship_insight';
     case CompatibilitySummary = 'compatibility_summary';
