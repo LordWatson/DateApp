@@ -103,8 +103,8 @@ function deleteEvent(): void {
         </div>
 
         <div v-if="event.is_mine" class="flex gap-3">
-            <SecondaryButton variant="outline" full-width @click="deleteEvent">Delete</SecondaryButton>
             <PrimaryButton full-width @click="router.get(index.url())">Back</PrimaryButton>
+            <SecondaryButton variant="outline" full-width @click="deleteEvent">Delete</SecondaryButton>
         </div>
     </div>
 </template>
