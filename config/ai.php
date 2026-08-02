@@ -26,7 +26,7 @@ return [
     'defaults' => [
         'temperature' => (float) env('AI_TEMPERATURE', 0.7),
         'max_tokens' => (int) env('AI_MAX_TOKENS', 3500),
-        'timeout' => (int) env('AI_TIMEOUT', 30),
+        'timeout' => (int) env('AI_TIMEOUT', 60),
         'retry_attempts' => (int) env('AI_RETRY_ATTEMPTS', 3),
         'retry_delay_ms' => (int) env('AI_RETRY_DELAY_MS', 250),
         'response_format' => 'json_object',
@@ -91,7 +91,7 @@ RULES,
     */
 
     'logging' => [
-        'channel' => env('AI_LOG_CHANNEL', 'stack'),
+        'channel' => env('AI_LOG_CHANNEL', 'daily'),
         'log_prompts' => (bool) env('AI_LOG_PROMPTS', false),
     ],
 
