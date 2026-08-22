@@ -53,6 +53,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{questionnaire:slug}/complete', [QuestionnaireController::class, 'complete'])->name('complete');
             Route::get('/{questionnaire:slug}/plan-status', [QuestionnaireController::class, 'planStatus'])->name('plan-status');
             Route::post('/{questionnaire:slug}/finish', [QuestionnaireController::class, 'finish'])->name('finish');
+            Route::get('/{questionnaire:slug}/location', [QuestionnaireController::class, 'location'])->name('location');
+            Route::post('/{questionnaire:slug}/location', [QuestionnaireController::class, 'saveLocation'])->name('location.save');
             Route::get('/{questionnaire:slug}/summary', [QuestionnaireController::class, 'summary'])->name('summary');
             Route::get('/{questionnaire:slug}/partner-answers', [QuestionnaireController::class, 'partnerAnswers'])->name('partner-answers');
             Route::get('/{questionnaire:slug}/compatibility', [QuestionnaireController::class, 'compatibility'])->name('compatibility');

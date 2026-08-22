@@ -233,6 +233,53 @@ class QuestionnaireController extends Controller
         return redirect()->route('questionnaires.complete', $questionnaire->slug);
     }
 
+    public function saveLocation(FinishQuestionnaireRequest $request, Questionnaire $questionnaire): RedirectResponse
+    {
+        $response = $this->questionnaireService->getResponseWithAnswers($request->user(), $questionnaire);
+
+        if ($response) {
+            $this->questionnaireService->saveLocation($response, $request->validated());
+        }
+
+        return redirect()->route('questionnaires.summary', $questionnaire->slug);
+    }
+
+    public function location(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
+    {
+        if (! $questionnaire->is_solo) {
+            return redirect()->route('questionnaires.summary', $questionnaire->slug);
+        }
+
+        $response = $this->questionnaireService->getResponseWithAnswers($request->user(), $questionnaire);
+
+        if (! $response) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
+        $questions = $questionnaire->questions()->get();
+        $total = $questions->count();
+
+        return Inertia::render('questionnaires/Location', [
+            'questionnaire' => [
+                'id' => $questionnaire->id,
+                'title' => $questionnaire->title,
+                'slug' => $questionnaire->slug,
+                'is_solo' => $questionnaire->is_solo,
+                'estimated_minutes' => $questionnaire->estimated_minutes,
+            ],
+            'progress' => $this->presenter->progress($total + 1, $total + 1, $total),
+            'existing_location' => [
+                'label' => $response->location_label,
+                'city' => $response->location_city,
+                'region' => $response->location_region,
+                'country' => $response->location_country,
+                'latitude' => $response->location_latitude !== null ? (float) $response->location_latitude : null,
+                'longitude' => $response->location_longitude !== null ? (float) $response->location_longitude : null,
+                'travel_radius_minutes' => $response->travel_radius_minutes,
+            ],
+        ]);
+    }
+
     public function summary(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
     {
         $user = $request->user();

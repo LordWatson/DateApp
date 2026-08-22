@@ -190,21 +190,35 @@ class QuestionnaireService
             return;
         }
 
-        $questionnaire = $response->questionnaire ?? $response->questionnaire()->first();
-
-        if ($questionnaire?->is_solo) {
-            $response->fill([
-                'location_label' => $locationData['location_label'] ?? null,
-                'location_city' => $locationData['location_city'] ?? null,
-                'location_region' => $locationData['location_region'] ?? null,
-                'location_country' => $locationData['location_country'] ?? null,
-                'location_latitude' => $locationData['location_latitude'] ?? null,
-                'location_longitude' => $locationData['location_longitude'] ?? null,
-                'travel_radius_minutes' => $locationData['travel_radius_minutes'] ?? null,
-            ])->save();
-        }
+        $this->saveLocation($response, $locationData);
 
         $this->completeResponse($response);
+    }
+
+    /**
+     * Persist the location + travel radius fields on a solo response without
+     * marking it as completed. Used by the dedicated Location step page so the
+     * data is stored before the user reaches the summary/finish screen.
+     *
+     * @param  array<string, mixed>  $locationData
+     */
+    public function saveLocation(Response $response, array $locationData): void
+    {
+        $questionnaire = $response->questionnaire ?? $response->questionnaire()->first();
+
+        if (! $questionnaire?->is_solo) {
+            return;
+        }
+
+        $response->fill([
+            'location_label' => $locationData['location_label'] ?? $response->location_label,
+            'location_city' => $locationData['location_city'] ?? $response->location_city,
+            'location_region' => $locationData['location_region'] ?? $response->location_region,
+            'location_country' => $locationData['location_country'] ?? $response->location_country,
+            'location_latitude' => $locationData['location_latitude'] ?? $response->location_latitude,
+            'location_longitude' => $locationData['location_longitude'] ?? $response->location_longitude,
+            'travel_radius_minutes' => $locationData['travel_radius_minutes'] ?? $response->travel_radius_minutes,
+        ])->save();
     }
 
     /**

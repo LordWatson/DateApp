@@ -42,6 +42,7 @@ interface QuestionnaireData {
     title: string;
     slug: string;
     estimated_minutes: number | null;
+    is_solo?: boolean;
 }
 
 interface Progress {
@@ -157,7 +158,8 @@ return;
 }
 
     if (props.is_last) {
-        router.visit(`/questionnaires/${props.questionnaire.slug}/summary`);
+        const nextPath = props.questionnaire.is_solo ? 'location' : 'summary';
+        router.visit(`/questionnaires/${props.questionnaire.slug}/${nextPath}`);
     } else {
         router.visit(`/questionnaires/${props.questionnaire.slug}/question/${props.question.display_order + 1}`);
     }

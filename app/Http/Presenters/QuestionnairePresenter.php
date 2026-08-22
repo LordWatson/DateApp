@@ -45,6 +45,7 @@ final class QuestionnairePresenter
             'title' => $questionnaire->title,
             'slug' => $questionnaire->slug,
             'estimated_minutes' => $questionnaire->estimated_minutes,
+            'is_solo' => $questionnaire->is_solo,
         ];
     }
 
