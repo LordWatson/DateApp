@@ -25,9 +25,16 @@ return [
 
     'defaults' => [
         'temperature' => (float) env('AI_TEMPERATURE', 0.7),
-        'max_tokens' => (int) env('AI_MAX_TOKENS', 5000),
-        'timeout' => (int) env('AI_TIMEOUT', 60),
-        'retry_attempts' => (int) env('AI_RETRY_ATTEMPTS', 3),
+        // Output tokens dominate DeepSeek latency. Keep the global default
+        // tight — verbose use cases override this via `AiPromptTemplate.max_tokens`.
+        'max_tokens' => (int) env('AI_MAX_TOKENS', 3500),
+        // A 30s wall-clock timeout is more than enough for our short JSON
+        // completions and prevents queue jobs from hanging on stalled sockets.
+        'timeout' => (int) env('AI_TIMEOUT', 30),
+        // Every AI-driven feature has a deterministic fallback, so retrying
+        // aggressively only compounds latency. One retry is enough to absorb
+        // transient network blips without turning a 5s call into a 60s one.
+        'retry_attempts' => (int) env('AI_RETRY_ATTEMPTS', 1),
         'retry_delay_ms' => (int) env('AI_RETRY_DELAY_MS', 250),
         'response_format' => 'json_object',
     ],

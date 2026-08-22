@@ -65,9 +65,12 @@ non-empty strings, no markdown):
 PROMPT,
                 'version' => 11,
                 'active' => true,
-                // Schema has 9 short string fields; keep a generous but not
-                // excessive output budget so DeepSeek does not truncate.
-                'max_tokens' => 5000,
+                // Schema is 7 short string fields (~40–80 tokens each). A tight
+                // budget keeps DeepSeek latency low — output tokens dominate
+                // response time. If the model ever truncates the analytics
+                // recorder surfaces `response_truncated` distinctly so we know
+                // to raise this, rather than paying for headroom we never use.
+                'max_tokens' => 900,
             ],
             [
                 'name' => AIUseCase::DateNightPlanSolo->value,
@@ -131,7 +134,10 @@ higher-quality picks over padding. Return an empty array when `location` is null
 PROMPT,
                 'version' => 1,
                 'active' => true,
-                'max_tokens' => 5000,
+                // Solo schema adds up to 3 `local_suggestions` (~60 tokens each)
+                // on top of the 7 base fields. Budget accordingly without
+                // encouraging the model to pad the response.
+                'max_tokens' => 3500,
             ],
             [
                 'name' => AIUseCase::ConversationPrompt->value,

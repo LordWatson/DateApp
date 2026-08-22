@@ -25,13 +25,23 @@ use RuntimeException;
  *  - Delegates to the injected AIProvider
  *  - Returns the provider's AIResponse (typed) untouched
  */
-final readonly class AIService
+final class AIService
 {
+    /**
+     * In-memory cache of prompt templates resolved during this request.
+     * Prompt templates are versioned and only mutated through the admin
+     * UI, so reloading them for every AI call inside a single job (or a
+     * chained pipeline) is pure overhead.
+     *
+     * @var array<string, AiPromptTemplate>
+     */
+    private array $templateCache = [];
+
     public function __construct(
-        private AIProvider $provider,
-        private ConfigRepository $config,
-        private LoggerInterface $logger,
-        private AIAnalyticsRecorder $analytics,
+        private readonly AIProvider $provider,
+        private readonly ConfigRepository $config,
+        private readonly LoggerInterface $logger,
+        private readonly AIAnalyticsRecorder $analytics,
     ) {}
 
     public function generateDateNightPlan(array $context = []): AIResponse
@@ -148,6 +158,10 @@ final readonly class AIService
 
     private function loadTemplate(AIUseCase $useCase): AiPromptTemplate
     {
+        if (isset($this->templateCache[$useCase->value])) {
+            return $this->templateCache[$useCase->value];
+        }
+
         /** @var AiPromptTemplate|null $template */
         $template = AiPromptTemplate::query()
             ->where('name', $useCase->value)
@@ -161,7 +175,7 @@ final readonly class AIService
             );
         }
 
-        return $template;
+        return $this->templateCache[$useCase->value] = $template;
     }
 
     /**

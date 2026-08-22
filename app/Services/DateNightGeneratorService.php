@@ -51,8 +51,11 @@ class DateNightGeneratorService
         $isSolo = $partnerTwoResponse === null || $questionnaire->is_solo;
         $secondResponse = $partnerTwoResponse ?? $partnerOneResponse;
 
-        $userAnswers = $partnerOneResponse->answers()->with('questionOption')->get();
-        $partnerAnswers = $secondResponse->answers()->with('questionOption')->get();
+        // Eager-load both `question` and `questionOption` once so the Rule
+        // Engine AND the AI-context builder can share the same collections
+        // without triggering additional queries downstream.
+        $userAnswers = $partnerOneResponse->answers()->with(['question', 'questionOption'])->get();
+        $partnerAnswers = $secondResponse->answers()->with(['question', 'questionOption'])->get();
         $score = $compatibility['percentage'];
 
         $themes = DateNightTheme::active()->get();
@@ -66,11 +69,15 @@ class DateNightGeneratorService
         $deterministicPlan = $this->buildPlan($theme, $context, $score, $questionnaire);
 
         // 2. Optional AI enhancement (wording only + optional local suggestions).
+        //    Reuse the already-loaded answer collections rather than re-querying
+        //    for partner two inside the context builder.
         [$plan, $aiEnhanced, $fallbackUsed, $localSuggestions] = $this->enhanceWithAI(
             $deterministicPlan,
             $compatibility,
             $questionnaire,
             $partnerOneResponse,
+            $userAnswers,
+            $partnerAnswers,
             $isSolo,
         );
 
@@ -117,6 +124,8 @@ class DateNightGeneratorService
         array $compatibility,
         Questionnaire $questionnaire,
         Response $primaryResponse,
+        iterable $primaryAnswers,
+        iterable $secondaryAnswers,
         bool $isSolo,
     ): array {
         $location = $isSolo ? $this->buildLocationContext($primaryResponse) : null;
@@ -125,20 +134,16 @@ class DateNightGeneratorService
             plan: $plan,
             compatibility: $compatibility,
             questionnaire: $questionnaire,
-            primaryResponse: $primaryResponse,
+            primaryAnswers: $primaryAnswers,
+            secondaryAnswers: $secondaryAnswers,
             isSolo: $isSolo,
             location: $location,
         );
 
-        $aiPayload = [
-            'context' => $context,
-            'plan' => $plan,
-            'compatibility' => $compatibility,
-            'questionnaire' => $questionnaire->title,
-            'is_solo' => $isSolo,
-            'location' => $location,
-            'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
-        ];
+        // Only `{{context}}` is interpolated by the prompt template, so we
+        // avoid rebuilding an outer envelope of keys that are never sent.
+        // Every byte here becomes an input token DeepSeek must process.
+        $aiPayload = ['context' => $context];
 
         try {
             $response = $isSolo
@@ -198,14 +203,15 @@ class DateNightGeneratorService
         array $plan,
         array $compatibility,
         Questionnaire $questionnaire,
-        Response $primaryResponse,
+        iterable $primaryAnswers,
+        iterable $secondaryAnswers,
         bool $isSolo,
         ?array $location,
     ): array {
-        $primaryAnswers = $primaryResponse
-            ->answers()
-            ->with(['question', 'questionOption'])
-            ->get();
+        // Only send the fields the AI is actually allowed to rewrite. Sending
+        // the full deterministic plan encourages the model to mirror it and
+        // inflates both input and output tokens.
+        $plan = array_intersect_key($plan, array_flip(self::ENHANCEABLE_FIELDS));
 
         $context = [
             'questionnaire' => [
@@ -215,10 +221,8 @@ class DateNightGeneratorService
                 'is_intimacy' => (bool) $questionnaire->is_intimacy,
                 'is_seasonal' => (bool) $questionnaire->is_seasonal,
             ],
-            'is_solo' => $isSolo,
             'compatibility' => $compatibility,
             'deterministic_plan' => $plan,
-            'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
         ];
 
         if ($isSolo) {
@@ -227,12 +231,7 @@ class DateNightGeneratorService
         } else {
             $context['couple_answers'] = [
                 'partner_one' => $this->formatAnswers($primaryAnswers),
-                'partner_two' => $this->formatAnswers(
-                    Response::query()
-                        ->whereKey($this->secondaryResponseIdFor($primaryResponse, $questionnaire))
-                        ->with(['answers.question', 'answers.questionOption'])
-                        ->first()?->answers ?? collect(),
-                ),
+                'partner_two' => $this->formatAnswers($secondaryAnswers),
             ];
         }
 
@@ -259,32 +258,17 @@ class DateNightGeneratorService
 
             $option = $answer->questionOption;
 
+            // Keep this shape as compact as possible. Question/answer
+            // descriptions duplicated information already implied by the
+            // title and roughly doubled the input-token cost of every
+            // questionnaire answer sent to the AI.
             $formatted[] = [
                 'question' => $question->title,
-                'question_description' => $question->description,
-                'type' => $question->type?->value,
                 'answer' => $option?->title ?? $answer->value,
-                'answer_description' => $option?->description,
-                'answer_value' => $option?->value ?? $answer->value,
             ];
         }
 
         return $formatted;
-    }
-
-    /**
-     * Best-effort lookup of the partner's response id for a couple's
-     * questionnaire, used only to reload answers with their questions when
-     * building AI context. Falls back to null so the AI still gets partner_one
-     * data even if the partner response cannot be resolved here.
-     */
-    private function secondaryResponseIdFor(Response $primary, Questionnaire $questionnaire): ?int
-    {
-        return Response::query()
-            ->where('questionnaire_id', $questionnaire->id)
-            ->where('id', '!=', $primary->id)
-            ->orderByDesc('completed_at')
-            ->value('id');
     }
 
     /**
