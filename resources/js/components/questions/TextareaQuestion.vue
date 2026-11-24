@@ -43,14 +43,16 @@ watch(
             :placeholder="placeholder ?? 'Share your thoughts…'"
             :maxlength="MAX_CHARS"
             rows="3"
-            class="w-full resize-none rounded-2xl border-2 border-border bg-card px-4 py-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none transition-colors duration-200"
+            class="input-premium resize-none"
             @input="onInput"
         />
         <div class="flex justify-end">
             <span
                 :class="[
-                    'text-xs',
-                    charCount >= MAX_CHARS ? 'text-destructive' : 'text-muted-foreground',
+                    'text-xs tabular-nums',
+                    charCount >= MAX_CHARS
+                        ? 'text-destructive'
+                        : 'text-muted-foreground',
                 ]"
             >
                 {{ charCount }} / {{ MAX_CHARS }}

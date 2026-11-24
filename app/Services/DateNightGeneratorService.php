@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AI\AIUseCase;
 use App\Models\Answer;
 use App\Models\DateNightPlan;
 use App\Models\DateNightTheme;
@@ -48,7 +49,9 @@ class DateNightGeneratorService
         Questionnaire $questionnaire,
         ?User $soloPartner = null,
     ): DateNightPlan {
-        $isSolo = $partnerTwoResponse === null || $questionnaire->is_solo;
+        $isSolo = $partnerTwoResponse === null || $questionnaire->forcesSolo();
+        // Date-out questionnaires plan around a place whether one or both partners answered.
+        $usesLocation = $isSolo || $questionnaire->is_solo;
         $secondResponse = $partnerTwoResponse ?? $partnerOneResponse;
 
         $userAnswers = $partnerOneResponse->answers()->with('questionOption')->get();
@@ -71,7 +74,8 @@ class DateNightGeneratorService
             $compatibility,
             $questionnaire,
             $partnerOneResponse,
-            $isSolo,
+            $isSolo ? null : $partnerTwoResponse,
+            $usesLocation,
         );
 
         // 3. Validation — reject anything the Rule Engine didn't authorise.
@@ -86,7 +90,7 @@ class DateNightGeneratorService
             'partner_user_id' => $isSolo ? $soloPartner?->id : null,
             'compatibility_score' => $score,
             'is_solo' => $isSolo,
-            'location_label' => $isSolo ? $partnerOneResponse->location_label : null,
+            'location_label' => $usesLocation ? ($partnerOneResponse->location_label ?? $secondResponse->location_label) : null,
             'local_suggestions' => $localSuggestions,
             'theme' => $plan['theme'],
             'theme_emoji' => $plan['theme_emoji'],
@@ -105,8 +109,9 @@ class DateNightGeneratorService
      * Attempt to enhance the deterministic plan wording via AI.
      * Never lets AI failures surface — always returns a usable plan.
      *
-     * For solo (single-user) questionnaires, the user's rough location is
-     * passed to the AI so it can propose local spots / areas / events.
+     * For date-out plans, the rough location is passed to the AI so it can
+     * propose local spots / areas / events. With two responses the AI is asked
+     * for a compromise between both partners' answers.
      *
      * @param  array<string, string|null>  $plan
      * @param  array<string, mixed>  $compatibility
@@ -117,16 +122,18 @@ class DateNightGeneratorService
         array $compatibility,
         Questionnaire $questionnaire,
         Response $primaryResponse,
-        bool $isSolo,
+        ?Response $partnerResponse,
+        bool $usesLocation,
     ): array {
-        $location = $isSolo ? $this->buildLocationContext($primaryResponse) : null;
+        $isSolo = $partnerResponse === null;
+        $location = $usesLocation ? $this->buildLocationContext($primaryResponse, $partnerResponse) : null;
 
         $context = $this->buildAIContext(
             plan: $plan,
             compatibility: $compatibility,
             questionnaire: $questionnaire,
             primaryResponse: $primaryResponse,
-            isSolo: $isSolo,
+            partnerResponse: $partnerResponse,
             location: $location,
         );
 
@@ -141,9 +148,11 @@ class DateNightGeneratorService
         ];
 
         try {
-            $response = $isSolo
-                ? $this->ai->generateDateNightPlanSolo($aiPayload)
-                : $this->ai->generateDateNightPlan($aiPayload);
+            $response = match (true) {
+                $isSolo => $this->ai->generateDateNightPlanSolo($aiPayload),
+                $usesLocation => $this->ai->generate(AIUseCase::DateNightPlanOutCouple, $aiPayload),
+                default => $this->ai->generateDateNightPlan($aiPayload),
+            };
         } catch (Throwable $e) {
             $this->logger->warning('AI enhancement threw; falling back to deterministic plan.', [
                 'exception' => $e->getMessage(),
@@ -173,7 +182,7 @@ class DateNightGeneratorService
         }
 
         $localSuggestions = null;
-        if ($isSolo) {
+        if ($usesLocation) {
             $raw = $response->data['local_suggestions'] ?? null;
             if (is_array($raw)) {
                 $localSuggestions = $this->sanitiseLocalSuggestions($raw);
@@ -199,9 +208,10 @@ class DateNightGeneratorService
         array $compatibility,
         Questionnaire $questionnaire,
         Response $primaryResponse,
-        bool $isSolo,
+        ?Response $partnerResponse,
         ?array $location,
     ): array {
+        $isSolo = $partnerResponse === null;
         $primaryAnswers = $primaryResponse
             ->answers()
             ->with(['question', 'questionOption'])
@@ -228,12 +238,13 @@ class DateNightGeneratorService
             $context['couple_answers'] = [
                 'partner_one' => $this->formatAnswers($primaryAnswers),
                 'partner_two' => $this->formatAnswers(
-                    Response::query()
-                        ->whereKey($this->secondaryResponseIdFor($primaryResponse, $questionnaire))
-                        ->with(['answers.question', 'answers.questionOption'])
-                        ->first()?->answers ?? collect(),
+                    $partnerResponse->answers()->with(['question', 'questionOption'])->get(),
                 ),
             ];
+
+            if ($location !== null) {
+                $context['location'] = $location;
+            }
         }
 
         return $context;
@@ -273,32 +284,29 @@ class DateNightGeneratorService
     }
 
     /**
-     * Best-effort lookup of the partner's response id for a couple's
-     * questionnaire, used only to reload answers with their questions when
-     * building AI context. Falls back to null so the AI still gets partner_one
-     * data even if the partner response cannot be resolved here.
-     */
-    private function secondaryResponseIdFor(Response $primary, Questionnaire $questionnaire): ?int
-    {
-        return Response::query()
-            ->where('questionnaire_id', $questionnaire->id)
-            ->where('id', '!=', $primary->id)
-            ->orderByDesc('completed_at')
-            ->value('id');
-    }
-
-    /**
+     * With two responses the place comes from the first partner who gave one,
+     * and the travel radius is the smaller of the two so neither is overstretched.
+     *
      * @return array<string, string|int|float|null>|null
      */
-    private function buildLocationContext(Response $response): ?array
+    private function buildLocationContext(Response $response, ?Response $partnerResponse = null): ?array
     {
-        $label = $response->location_label;
-        $city = $response->location_city;
-        $region = $response->location_region;
-        $country = $response->location_country;
-        $latitude = $response->location_latitude;
-        $longitude = $response->location_longitude;
-        $travelRadius = $response->travel_radius_minutes;
+        $place = $partnerResponse !== null && $response->location_label === null && $response->location_latitude === null
+            ? $partnerResponse
+            : $response;
+
+        $label = $place->location_label;
+        $city = $place->location_city;
+        $region = $place->location_region;
+        $country = $place->location_country;
+        $latitude = $place->location_latitude;
+        $longitude = $place->location_longitude;
+
+        $radii = array_filter(
+            [$response->travel_radius_minutes, $partnerResponse?->travel_radius_minutes],
+            static fn (?int $minutes): bool => $minutes !== null,
+        );
+        $travelRadius = $radii === [] ? null : min($radii);
 
         $hasAny = $label !== null
             || $city !== null

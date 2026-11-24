@@ -113,36 +113,16 @@ watch(
     <Dialog :open="isOpen" @update:open="isOpen = $event">
         <DialogContent class="sm:max-w-md">
             <DialogHeader class="flex items-center justify-center">
-                <div
-                    class="mb-3 w-auto rounded-full border border-border bg-card p-0.5 shadow-sm"
+                <span
+                    class="mb-3 icon-tile h-14 w-14 text-primary"
+                    aria-hidden="true"
                 >
-                    <div
-                        class="relative overflow-hidden rounded-full border border-border bg-muted p-2.5"
-                    >
-                        <div
-                            class="absolute inset-0 grid grid-cols-5 opacity-50"
-                        >
-                            <div
-                                v-for="i in 5"
-                                :key="`col-${i}`"
-                                class="border-r border-border last:border-r-0"
-                            />
-                        </div>
-                        <div
-                            class="absolute inset-0 grid grid-rows-5 opacity-50"
-                        >
-                            <div
-                                v-for="i in 5"
-                                :key="`row-${i}`"
-                                class="border-b border-border last:border-b-0"
-                            />
-                        </div>
-                        <ScanLine
-                            class="relative z-20 size-6 text-foreground"
-                        />
-                    </div>
-                </div>
-                <DialogTitle>{{ modalConfig.title }}</DialogTitle>
+                    <ScanLine class="size-6" />
+                </span>
+                <DialogTitle
+                    class="text-center font-display text-xl leading-tight"
+                    >{{ modalConfig.title }}</DialogTitle
+                >
                 <DialogDescription class="text-center">
                     {{ modalConfig.description }}
                 </DialogDescription>
@@ -158,17 +138,17 @@ watch(
                             class="relative mx-auto flex max-w-md items-center overflow-hidden"
                         >
                             <div
-                                class="relative mx-auto aspect-square w-64 overflow-hidden rounded-lg border border-border"
+                                class="relative mx-auto aspect-square w-64 overflow-hidden rounded-2xl border border-border bg-card"
                             >
                                 <div
                                     v-if="!qrCodeSvg"
-                                    class="absolute inset-0 z-10 flex aspect-square h-auto w-full animate-pulse items-center justify-center bg-background"
+                                    class="absolute inset-0 z-10 flex aspect-square h-auto w-full animate-pulse items-center justify-center bg-muted"
                                 >
                                     <Spinner class="size-6" />
                                 </div>
                                 <div
                                     v-else
-                                    class="relative z-10 overflow-hidden border p-5"
+                                    class="relative z-10 overflow-hidden p-5"
                                 >
                                     <div
                                         v-html="qrCodeSvg"
@@ -190,15 +170,18 @@ watch(
                             </Button>
                         </div>
 
-                        <div
-                            class="relative flex w-full items-center justify-center"
-                        >
-                            <div
-                                class="absolute inset-0 top-1/2 h-px w-full bg-border"
+                        <div class="flex w-full items-center gap-3">
+                            <span
+                                class="h-px flex-1 bg-border"
+                                aria-hidden="true"
                             />
-                            <span class="relative bg-card px-2 py-1"
+                            <span class="text-xs text-muted-foreground"
                                 >or, enter the code manually</span
                             >
+                            <span
+                                class="h-px flex-1 bg-border"
+                                aria-hidden="true"
+                            />
                         </div>
 
                         <div
@@ -209,7 +192,7 @@ watch(
                             >
                                 <div
                                     v-if="!manualSetupKey"
-                                    class="flex h-full w-full items-center justify-center bg-muted p-3"
+                                    class="flex h-12 w-full items-center justify-center bg-muted p-3"
                                 >
                                     <Spinner />
                                 </div>
@@ -218,17 +201,25 @@ watch(
                                         type="text"
                                         readonly
                                         :value="manualSetupKey"
-                                        class="h-full w-full bg-background p-3 text-foreground"
+                                        aria-label="Setup key"
+                                        class="h-12 w-full min-w-0 bg-muted px-4 font-mono text-sm text-foreground outline-none"
                                     />
                                     <button
+                                        type="button"
+                                        aria-label="Copy setup key"
                                         @click="copy(manualSetupKey || '')"
-                                        class="relative block h-auto border-l border-border px-3 hover:bg-muted"
+                                        class="flex w-12 shrink-0 items-center justify-center border-l border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-inset"
                                     >
                                         <Check
                                             v-if="copied"
-                                            class="w-4 text-green-500"
+                                            class="size-4 text-success"
+                                            aria-hidden="true"
                                         />
-                                        <Copy v-else class="w-4" />
+                                        <Copy
+                                            v-else
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
                                     </button>
                                 </template>
                             </div>

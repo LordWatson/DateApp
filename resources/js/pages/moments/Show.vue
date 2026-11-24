@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
+import { ChevronLeft, Lock, Moon, Star, Trash2 } from '@lucide/vue';
 import { route } from 'ziggy-js';
-import PrimaryButton from '@/components/PrimaryButton.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import { index } from '@/routes/moments';
@@ -39,45 +40,59 @@ function toggleFavourite(): void {
 function deleteMoment(): void {
     router.delete(route('moments.destroy', props.moment.id));
 }
+
+const focusClass =
+    'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 </script>
 
 <template>
     <Head :title="moment.title" />
 
-    <div class="space-y-4 px-4 py-6 pb-24">
-        <!-- Back + Actions -->
-        <div class="flex items-center justify-between">
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <div>
+            <!-- Hand-built back control: it keeps the page's original route call -->
             <button
-                class="flex items-center gap-1 text-sm font-semibold text-primary transition-opacity hover:opacity-70 focus:outline-none"
+                :class="[
+                    'mb-4 -ml-1.5 inline-flex min-h-9 items-center gap-1 rounded-full pr-3 pl-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                    focusClass,
+                ]"
                 @click="router.visit(route('moments.index'))"
             >
-                ← Back
+                <ChevronLeft class="size-4" aria-hidden="true" />
+                Back
             </button>
 
-            <button
-                v-if="moment.is_owner"
-                class="text-2xl transition-transform hover:scale-125 focus:outline-none"
-                :class="
-                    moment.is_favourite
-                        ? 'text-warning'
-                        : 'text-muted-foreground/40'
-                "
-                :aria-label="
-                    moment.is_favourite
-                        ? 'Remove from favourites'
-                        : 'Add to favourites'
-                "
-                @click="toggleFavourite"
+            <PageHeader
+                :eyebrow="formatDate(moment.date)"
+                :title="moment.title"
             >
-                ⭐
-            </button>
+                <button
+                    v-if="moment.is_owner"
+                    :class="[
+                        'flex size-10 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-muted',
+                        focusClass,
+                        moment.is_favourite
+                            ? 'text-gold'
+                            : 'text-muted-foreground/60',
+                    ]"
+                    :aria-label="
+                        moment.is_favourite
+                            ? 'Remove from favourites'
+                            : 'Add to favourites'
+                    "
+                    @click="toggleFavourite"
+                >
+                    <Star
+                        class="size-5"
+                        :class="moment.is_favourite && 'fill-current'"
+                        aria-hidden="true"
+                    />
+                </button>
+            </PageHeader>
         </div>
 
         <!-- Photo -->
-        <div
-            v-if="moment.photo"
-            class="overflow-hidden rounded-3xl shadow-xl"
-        >
+        <div v-if="moment.photo" class="overflow-hidden card-premium">
             <img
                 :src="moment.photo"
                 :alt="moment.title"
@@ -85,92 +100,91 @@ function deleteMoment(): void {
             />
         </div>
 
-        <!-- Main Card -->
-        <div class="card-premium p-6 space-y-4">
-            <!-- Title & Mood -->
-            <div class="flex items-start gap-3">
-                <span
-                    v-if="moment.mood"
-                    class="text-4xl"
-                    aria-hidden="true"
-                >{{ moment.mood }}</span>
-                <div>
-                    <h1 class="text-2xl font-semibold text-foreground leading-tight">
-                        {{ moment.title }}
-                    </h1>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        {{ formatDate(moment.date) }}
-                    </p>
-                </div>
+        <!-- Story -->
+        <div
+            v-if="
+                moment.mood ||
+                moment.description ||
+                moment.tags.length > 0 ||
+                moment.date_night_plan
+            "
+            class="space-y-4 card-premium p-6"
+        >
+            <div v-if="moment.mood" class="flex items-center gap-3.5">
+                <span class="icon-tile h-12 w-12 text-2xl" aria-hidden="true">{{
+                    moment.mood
+                }}</span>
+                <p class="eyebrow">Mood</p>
             </div>
 
-            <!-- Description -->
             <p
                 v-if="moment.description"
-                class="text-foreground/80 leading-relaxed"
+                class="text-[15px] leading-relaxed text-foreground/80"
             >
                 {{ moment.description }}
             </p>
 
             <!-- Tags -->
-            <div
-                v-if="moment.tags.length > 0"
-                class="flex flex-wrap gap-2"
-            >
-                <span
-                    v-for="tag in moment.tags"
-                    :key="tag"
-                    class="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary"
-                >
+            <div v-if="moment.tags.length > 0" class="flex flex-wrap gap-1.5">
+                <span v-for="tag in moment.tags" :key="tag" class="badge-soft">
                     #{{ tag }}
                 </span>
             </div>
 
-            <!-- Linked Plan -->
-            <div
-                v-if="moment.date_night_plan"
-                class="flex items-center gap-2 rounded-2xl bg-secondary/10 px-4 py-3"
-            >
-                <span class="text-lg">🌙</span>
-                <div>
-                    <p class="text-xs text-muted-foreground">Linked date night</p>
-                    <p class="text-sm font-semibold text-foreground">
-                        {{ moment.date_night_plan.theme }}
-                    </p>
+            <!-- Linked plan -->
+            <template v-if="moment.date_night_plan">
+                <div class="hairline-gold" />
+                <div class="flex items-center gap-3.5">
+                    <span class="icon-tile h-11 w-11" aria-hidden="true">
+                        <Moon class="size-5 text-gold" />
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-xs text-muted-foreground">
+                            Linked date night
+                        </p>
+                        <p class="truncate font-medium text-foreground">
+                            {{ moment.date_night_plan.theme }}
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </template>
         </div>
 
-        <!-- Private Notes Card -->
-        <div
+        <!-- Private notes -->
+        <section
             v-if="moment.is_owner && moment.private_notes"
-            class="card-premium p-6 space-y-2"
+            class="space-y-3 card-premium p-6"
         >
-            <h2 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                🔒 Private Notes
+            <h2
+                class="flex items-center gap-1.5 font-sans eyebrow text-muted-foreground"
+            >
+                <Lock class="size-3.5" aria-hidden="true" />
+                Private notes
             </h2>
-            <p class="text-foreground/80 leading-relaxed">
+            <p class="text-[15px] leading-relaxed text-foreground/80">
                 {{ moment.private_notes }}
             </p>
-        </div>
+        </section>
 
         <!-- Actions -->
-        <div class="flex gap-3 pt-2">
+        <div class="space-y-3">
             <SecondaryButton
                 variant="outline"
                 full-width
                 @click="router.visit(index().url)"
             >
-                Back to Moments
+                Back to moments
             </SecondaryButton>
-            <PrimaryButton
+            <SecondaryButton
                 v-if="moment.is_owner"
+                variant="ghost"
                 full-width
-                class="bg-destructive hover:bg-destructive/90"
+                class="text-destructive! hover:bg-destructive/10!"
                 @click="deleteMoment"
             >
+                <Trash2 class="size-4" aria-hidden="true" />
                 Delete
-            </PrimaryButton>
+            </SecondaryButton>
         </div>
     </div>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
+import { ChevronRight } from '@lucide/vue';
 import EmptyState from '@/components/EmptyState.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
@@ -19,56 +21,71 @@ interface PlanSummary {
 defineProps<{ plans: PlanSummary[] }>();
 
 function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(iso).toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
 }
 </script>
 
 <template>
-    <Head title="Favourite Plans 💛" />
+    <Head title="Favourite plans" />
 
-    <div class="min-h-screen px-4 py-6 pb-28">
-        <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-foreground">💛 Favourites</h1>
-            <p class="mt-1 text-sm text-muted-foreground">Your saved Date Night plans</p>
-        </div>
-
-        <div v-if="plans.length > 0" class="space-y-3">
-            <div
-                v-for="plan in plans"
-                :key="plan.id"
-                class="card-premium card-hover cursor-pointer p-5"
-                @click="router.visit(`/date-night/${plan.id}`)"
-            >
-                <div class="flex items-start justify-between">
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl">{{ plan.theme_emoji ?? '❤️' }}</span>
-                        <div>
-                            <p class="font-semibold text-foreground">{{ plan.theme }}</p>
-                            <p class="text-xs text-muted-foreground">{{ formatDate(plan.created_at) }}</p>
-                        </div>
-                    </div>
-                    <div class="flex flex-col items-end gap-1">
-                        <span class="text-lg font-bold text-pink-500">{{ plan.compatibility_score }}%</span>
-                        <span class="text-sm">💛</span>
-                    </div>
-                </div>
-                <p v-if="plan.questionnaire_title" class="mt-2 text-xs text-muted-foreground">
-                    {{ plan.questionnaire_title }}
-                </p>
-            </div>
-        </div>
-
-        <EmptyState
-            v-else
-            emoji="💛"
-            title="No favourites yet"
-            description="View a Date Night plan and save it to your favourites."
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            eyebrow="Date nights"
+            title="Favourites"
+            description="Your saved date night plans"
         />
 
-        <div class="mt-6 space-y-3">
-            <PrimaryButton full-width @click="router.visit('/date-night/history')">
-                View All Plans
-            </PrimaryButton>
+        <div class="card-premium p-2">
+            <template v-if="plans.length > 0">
+                <button
+                    v-for="plan in plans"
+                    :key="plan.id"
+                    type="button"
+                    class="list-row w-full text-left"
+                    @click="router.visit(`/date-night/${plan.id}`)"
+                >
+                    <span
+                        class="icon-tile h-11 w-11 text-xl"
+                        aria-hidden="true"
+                        >{{ plan.theme_emoji ?? '❤️' }}</span
+                    >
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate font-medium text-foreground">
+                            {{ plan.theme }}
+                        </p>
+                        <p class="truncate text-xs text-muted-foreground">
+                            {{ formatDate(plan.created_at) }}
+                            <template v-if="plan.questionnaire_title">
+                                · {{ plan.questionnaire_title }}
+                            </template>
+                        </p>
+                    </div>
+                    <span
+                        class="font-display text-xl font-medium text-foreground tabular-nums"
+                    >
+                        {{ plan.compatibility_score }}%
+                    </span>
+                    <ChevronRight
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </button>
+            </template>
+
+            <EmptyState
+                v-else
+                emoji="💛"
+                title="No favourites yet"
+                description="View a date night plan and save it to your favourites."
+            />
         </div>
+
+        <PrimaryButton full-width @click="router.visit('/date-night/history')">
+            View all plans
+        </PrimaryButton>
     </div>
 </template>

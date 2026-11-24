@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { ChevronRight, MapPin, Pencil, Plus, Trash2, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
+import SectionHeader from '@/components/SectionHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import { destroy, show, store, update } from '@/routes/calendar';
 
@@ -141,158 +144,224 @@ const reminderOptions = [
     { value: '1_week', label: '1 week before' },
 ];
 
-const inputClass = 'w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+const labelClass = 'mb-1.5 block text-[13px] font-medium text-foreground/80';
+const focusClass =
+    'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
+const iconButtonClass =
+    'flex size-10 items-center justify-center rounded-full transition-colors';
 </script>
 
 <template>
-    <Head title="Shared Calendar" />
+    <Head title="Shared calendar" />
 
-    <div class="space-y-4 px-4 py-6 pb-24">
-        <!-- Header -->
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold text-foreground">📅 Shared Calendar</h1>
-                <p class="text-sm text-muted-foreground">Plan your time together</p>
-            </div>
-            <PrimaryButton size="sm" @click="openCreate">+ Add Event</PrimaryButton>
-        </div>
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            eyebrow="Together"
+            title="Shared calendar"
+            description="Plan your time together"
+        >
+            <PrimaryButton size="sm" @click="openCreate">
+                <Plus class="size-4" aria-hidden="true" />
+                Add event
+            </PrimaryButton>
+        </PageHeader>
 
-        <!-- Upcoming Events -->
-        <div v-if="upcomingEvents.length > 0">
-            <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Upcoming</h2>
+        <!-- Upcoming events -->
+        <section v-if="upcomingEvents.length > 0" class="space-y-3">
+            <SectionHeader title="Upcoming" />
             <div class="space-y-3">
-                <button
+                <div
                     v-for="event in upcomingEvents"
                     :key="event.id"
-                    type="button"
-                    class="card-premium group relative w-full overflow-hidden text-left transition-transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    role="button"
+                    tabindex="0"
+                    @keydown.enter.self="openShow(event)"
+                    :class="[
+                        'flex w-full card-hover cursor-pointer items-start gap-3.5 card-premium p-4 text-left',
+                        focusClass,
+                    ]"
                     @click="openShow(event)"
                 >
-                    <div
-                        class="absolute left-0 top-0 h-full w-1 rounded-l-3xl"
-                        :style="{ backgroundColor: event.colour }"
+                    <span
+                        class="icon-tile h-12 w-12 text-2xl"
+                        :style="{
+                            boxShadow: `inset 0 0 0 1.5px ${event.colour}`,
+                        }"
                         aria-hidden="true"
-                    />
-                    <div class="flex items-start gap-4 p-5 pl-6">
-                        <div
-                            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl"
-                            :style="{ backgroundColor: event.colour + '20' }"
-                            aria-hidden="true"
+                        >{{ event.emoji ?? '📅' }}</span
+                    >
+                    <span class="block min-w-0 flex-1">
+                        <span class="block font-medium text-foreground">{{
+                            event.title
+                        }}</span>
+                        <span
+                            class="mt-0.5 block text-xs text-muted-foreground"
                         >
-                            {{ event.emoji ?? '📅' }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-foreground">{{ event.title }}</p>
-                            <p class="mt-0.5 text-sm text-muted-foreground">
-                                {{ formatDate(event.date) }}{{ event.time ? ' · ' + event.time : '' }}
-                            </p>
-                            <p v-if="event.location" class="mt-0.5 text-sm text-muted-foreground">📍 {{ event.location }}</p>
-                            <p v-if="event.description" class="mt-1 text-sm text-foreground/80">{{ truncateDescription(event.description) }}</p>
-                        </div>
-                        <div v-if="event.is_mine" class="flex shrink-0 gap-2">
-                            <button
-                                type="button"
-                                class="text-sm font-semibold text-primary transition-opacity hover:opacity-70 focus:outline-none"
-                                @click.stop="openEdit(event)"
-                            >
-                                Edit
-                            </button>
-                            <button
-                                type="button"
-                                class="text-sm font-semibold text-destructive transition-opacity hover:opacity-70 focus:outline-none"
-                                @click.stop="deleteEvent(event)"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </button>
+                            {{ formatDate(event.date)
+                            }}{{ event.time ? ' · ' + event.time : '' }}
+                        </span>
+                        <span
+                            v-if="event.location"
+                            class="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+                        >
+                            <MapPin
+                                class="size-3.5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <span class="truncate">{{ event.location }}</span>
+                        </span>
+                        <span
+                            v-if="event.description"
+                            class="mt-2 block text-sm text-foreground/80"
+                            >{{ truncateDescription(event.description) }}</span
+                        >
+                    </span>
+                    <span
+                        v-if="event.is_mine"
+                        class="-mt-1 -mr-1.5 flex shrink-0"
+                    >
+                        <button
+                            type="button"
+                            :class="[
+                                iconButtonClass,
+                                focusClass,
+                                'text-muted-foreground hover:bg-muted hover:text-foreground',
+                            ]"
+                            :aria-label="`Edit ${event.title}`"
+                            @click.stop="openEdit(event)"
+                        >
+                            <Pencil class="size-4" aria-hidden="true" />
+                        </button>
+                        <button
+                            type="button"
+                            :class="[
+                                iconButtonClass,
+                                focusClass,
+                                'text-destructive hover:bg-destructive/10',
+                            ]"
+                            :aria-label="`Delete ${event.title}`"
+                            @click.stop="deleteEvent(event)"
+                        >
+                            <Trash2 class="size-4" aria-hidden="true" />
+                        </button>
+                    </span>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Past Events -->
-        <div v-if="pastEvents.length > 0">
-            <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Past</h2>
-            <div class="space-y-3 opacity-60">
+        <!-- Past events -->
+        <section v-if="pastEvents.length > 0" class="space-y-3">
+            <SectionHeader title="Past" />
+            <div class="card-premium p-2">
                 <button
                     v-for="event in pastEvents"
                     :key="event.id"
                     type="button"
-                    class="card-premium relative w-full overflow-hidden text-left transition-transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    :class="['list-row w-full text-left', focusClass]"
                     @click="openShow(event)"
                 >
-                    <div
-                        class="absolute left-0 top-0 h-full w-1 rounded-l-3xl"
-                        :style="{ backgroundColor: event.colour }"
+                    <span
+                        class="icon-tile h-11 w-11 text-xl opacity-70"
+                        aria-hidden="true"
+                        >{{ event.emoji ?? '📅' }}</span
+                    >
+                    <span class="block min-w-0 flex-1">
+                        <span
+                            class="block truncate font-medium text-foreground/80"
+                            >{{ event.title }}</span
+                        >
+                        <span class="block text-xs text-muted-foreground">{{
+                            formatDate(event.date)
+                        }}</span>
+                    </span>
+                    <ChevronRight
+                        class="size-4 shrink-0 text-muted-foreground"
                         aria-hidden="true"
                     />
-                    <div class="flex items-start gap-4 p-5 pl-6">
-                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-2xl" aria-hidden="true">
-                            {{ event.emoji ?? '📅' }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-foreground">{{ event.title }}</p>
-                            <p class="mt-0.5 text-sm text-muted-foreground">{{ formatDate(event.date) }}</p>
-                        </div>
-                    </div>
                 </button>
             </div>
-        </div>
+        </section>
 
-        <!-- Empty State -->
-        <EmptyState
-            v-if="events.length === 0"
-            emoji="📅"
-            title="No events yet"
-            description="Start planning your time together — add your first shared event."
-            action-label="Create First Event"
-            @action="openCreate"
-        />
+        <!-- Empty state -->
+        <div v-if="events.length === 0" class="card-premium">
+            <EmptyState
+                emoji="📅"
+                title="No events yet"
+                description="Start planning your time together — add your first shared event."
+                action-label="Create first event"
+                @action="openCreate"
+            />
+        </div>
     </div>
 
-    <!-- Event Form Modal -->
+    <!-- Event form modal -->
     <Teleport to="body">
         <Transition name="modal-fade">
             <div
                 v-if="showForm"
-                class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+                class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Add calendar event"
                 @click.self="showForm = false"
             >
-                <div class="w-full max-w-lg overflow-hidden rounded-3xl bg-card shadow-2xl">
+                <div
+                    class="w-full max-w-lg overflow-hidden card-premium rounded-b-none sm:rounded-3xl"
+                >
                     <div class="max-h-[85vh] overflow-y-auto p-6">
                         <div class="mb-6 flex items-center justify-between">
                             <h2 class="text-xl font-semibold text-foreground">
-                                {{ editingEvent ? 'Edit Event' : 'New Event' }}
+                                {{ editingEvent ? 'Edit event' : 'New event' }}
                             </h2>
                             <button
-                                class="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none"
+                                type="button"
+                                :class="[
+                                    iconButtonClass,
+                                    focusClass,
+                                    '-mr-2 text-muted-foreground hover:bg-muted hover:text-foreground',
+                                ]"
                                 aria-label="Close"
                                 @click="showForm = false"
                             >
-                                ✕
+                                <X class="size-5" aria-hidden="true" />
                             </button>
                         </div>
 
                         <form class="space-y-4" @submit.prevent="submit">
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="event-title">Title *</label>
+                                <label :class="labelClass" for="event-title"
+                                    >Title *</label
+                                >
                                 <input
                                     id="event-title"
                                     v-model="form.title"
                                     type="text"
-                                    :class="inputClass"
+                                    class="input-premium"
                                     placeholder="What's the occasion?"
                                     required
                                 />
+                                <p
+                                    v-if="form.errors.title"
+                                    class="mt-1 text-sm text-destructive"
+                                >
+                                    {{ form.errors.title }}
+                                </p>
                             </div>
 
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="event-type">Type</label>
-                                <select id="event-type" v-model="form.type" :class="inputClass">
-                                    <option v-for="type in eventTypes" :key="type.value" :value="type.value">
+                                <label :class="labelClass" for="event-type"
+                                    >Type</label
+                                >
+                                <select
+                                    id="event-type"
+                                    v-model="form.type"
+                                    class="input-premium"
+                                >
+                                    <option
+                                        v-for="type in eventTypes"
+                                        :key="type.value"
+                                        :value="type.value"
+                                    >
                                         {{ type.emoji }} {{ type.label }}
                                     </option>
                                 </select>
@@ -300,62 +369,94 @@ const inputClass = 'w-full rounded-2xl border border-border bg-background px-4 p
 
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label class="mb-1 block text-sm font-semibold text-foreground" for="event-date">Date *</label>
+                                    <label :class="labelClass" for="event-date"
+                                        >Date *</label
+                                    >
                                     <input
                                         id="event-date"
                                         v-model="form.date"
                                         type="date"
-                                        :class="inputClass"
+                                        class="input-premium"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label class="mb-1 block text-sm font-semibold text-foreground" for="event-time">Time</label>
+                                    <label :class="labelClass" for="event-time"
+                                        >Time</label
+                                    >
                                     <input
                                         id="event-time"
                                         v-model="form.time"
                                         type="time"
-                                        :class="inputClass"
+                                        class="input-premium"
                                     />
                                 </div>
                             </div>
+                            <p
+                                v-if="form.errors.date"
+                                class="-mt-3 text-sm text-destructive"
+                            >
+                                {{ form.errors.date }}
+                            </p>
 
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="event-location">Location</label>
+                                <label :class="labelClass" for="event-location"
+                                    >Location</label
+                                >
                                 <input
                                     id="event-location"
                                     v-model="form.location"
                                     type="text"
-                                    :class="inputClass"
+                                    class="input-premium"
                                     placeholder="Where?"
                                 />
                             </div>
 
                             <div>
-                                <label class="mb-1 block text-sm font-semibold text-foreground" for="event-description">Description</label>
+                                <label
+                                    :class="labelClass"
+                                    for="event-description"
+                                    >Description</label
+                                >
                                 <textarea
                                     id="event-description"
                                     v-model="form.description"
                                     rows="3"
-                                    :class="inputClass"
+                                    class="input-premium"
                                     placeholder="Any details..."
                                 />
                             </div>
 
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label class="mb-1 block text-sm font-semibold text-foreground" for="event-colour">Colour</label>
+                                    <label
+                                        :class="labelClass"
+                                        for="event-colour"
+                                        >Colour</label
+                                    >
                                     <input
                                         id="event-colour"
                                         v-model="form.colour"
                                         type="color"
-                                        class="h-12 w-full cursor-pointer rounded-2xl border border-border p-1"
+                                        class="h-[50px] w-full cursor-pointer rounded-xl border border-input bg-card p-1"
                                     />
                                 </div>
                                 <div>
-                                    <label class="mb-1 block text-sm font-semibold text-foreground" for="event-reminder">Reminder</label>
-                                    <select id="event-reminder" v-model="form.reminder" :class="inputClass">
-                                        <option v-for="opt in reminderOptions" :key="opt.value" :value="opt.value">
+                                    <label
+                                        :class="labelClass"
+                                        for="event-reminder"
+                                        >Reminder</label
+                                    >
+                                    <select
+                                        id="event-reminder"
+                                        v-model="form.reminder"
+                                        class="input-premium"
+                                    >
+                                        <option
+                                            v-for="opt in reminderOptions"
+                                            :key="opt.value"
+                                            :value="opt.value"
+                                        >
                                             {{ opt.label }}
                                         </option>
                                     </select>
@@ -371,8 +472,16 @@ const inputClass = 'w-full rounded-2xl border border-border bg-background px-4 p
                                 >
                                     Cancel
                                 </SecondaryButton>
-                                <PrimaryButton type="submit" full-width :loading="form.processing">
-                                    {{ editingEvent ? 'Save Changes' : 'Create Event' }}
+                                <PrimaryButton
+                                    type="submit"
+                                    full-width
+                                    :loading="form.processing"
+                                >
+                                    {{
+                                        editingEvent
+                                            ? 'Save changes'
+                                            : 'Create event'
+                                    }}
                                 </PrimaryButton>
                             </div>
                         </form>

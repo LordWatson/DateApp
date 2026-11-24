@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Check } from '@lucide/vue';
+
 interface Props {
     label: string;
     description?: string;
@@ -25,52 +27,45 @@ defineEmits<{ select: [value: string | number] }>();
         :role="type"
         :aria-checked="selected"
         :class="[
-            'flex w-full items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-200',
-            'focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none',
-            'hover:border-primary/50 hover:bg-accent',
+            'flex min-h-16 w-full items-center gap-3.5 rounded-2xl border px-4 py-3 text-left transition-all duration-200',
+            'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none',
+            'active:scale-[0.99]',
             selected
-                ? 'border-primary bg-accent shadow-md'
-                : 'border-border bg-card',
+                ? 'border-primary bg-accent'
+                : 'border-border bg-card hover:border-primary/40 hover:bg-muted/60',
         ]"
         @click="$emit('select', value)"
     >
-        <span v-if="emoji" class="shrink-0 text-2xl" aria-hidden="true">{{
-            emoji
-        }}</span>
+        <span
+            v-if="emoji"
+            class="icon-tile h-11 w-11 text-xl"
+            aria-hidden="true"
+            >{{ emoji }}</span
+        >
 
         <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-foreground">{{ label }}</p>
-            <p v-if="description" class="mt-0.5 text-xs text-muted-foreground">
+            <p class="text-[15px] leading-snug font-medium text-foreground">
+                {{ label }}
+            </p>
+            <p
+                v-if="description"
+                class="mt-0.5 text-[13px] leading-snug text-muted-foreground"
+            >
                 {{ description }}
             </p>
         </div>
 
         <div
             :class="[
-                'flex shrink-0 items-center justify-center transition-all duration-200',
-                type === 'radio'
-                    ? 'h-5 w-5 rounded-full border-2'
-                    : 'h-5 w-5 rounded-md border-2',
+                'flex size-5 shrink-0 items-center justify-center border-2 transition-colors duration-200',
+                type === 'radio' ? 'rounded-full' : 'rounded-md',
                 selected
-                    ? 'border-primary bg-primary'
+                    ? 'border-primary bg-primary text-white'
                     : 'border-muted-foreground/40',
             ]"
             aria-hidden="true"
         >
-            <svg
-                v-if="selected"
-                class="size-3 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="3"
-            >
-                <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M5 13l4 4L19 7"
-                />
-            </svg>
+            <Check v-if="selected" class="size-3" :stroke-width="3.5" />
         </div>
     </button>
 </template>

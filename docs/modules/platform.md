@@ -84,7 +84,7 @@ The scheduler needs `php artisan schedule:run` every minute (or `schedule:work` 
 | Composer script | Runs |
 |---|---|
 | `composer setup` | install, copy `.env`, `key:generate`, `migrate --force`, `npm install`, `npm run build` |
-| `composer dev` | `php artisan dev` — server, `queue:listen --tries=1 --timeout=0`, Pail (`logs`), Vite |
+| `composer dev` | `php artisan dev` — server, `queue:listen --tries=1 --timeout=0` on all six queues, Pail (`logs`), Vite |
 | `composer lint` / `lint:check` | `pint --parallel` / `pint --parallel --test` |
 | `composer types:check` | `phpstan analyse` |
 | `composer test` | `config:clear`, `lint:check`, `types:check`, `php artisan test` |
@@ -112,7 +112,7 @@ Both run on push/PR to `develop`, `main`, `master`, `workos`.
 - New listeners must be added to `EventServiceProvider::$listen`; discovery is off.
 - New scheduled work goes in `withSchedule` in `bootstrap/app.php`.
 - Dates are `CarbonImmutable` app-wide — reassign results (`$d = $d->addDay()`).
-- Jobs use named queues (`ai`, `analytics`, `emails`, `notifications`, `exports`, `default`) hard-coded in each job's constructor. `php artisan dev` runs `queue:listen` without `--queue`, so with the `database` connection only `default` is consumed; run `php artisan queue:work --queue=default,ai,emails,notifications,analytics,exports` to process the rest. Tests use `sync`.
+- Jobs use named queues (`ai`, `analytics`, `emails`, `notifications`, `exports`, `default`) hard-coded in each job's constructor. `AppServiceProvider` re-registers the dev `queue` command with `--queue=default,notifications,emails,analytics,ai,exports`, so `composer dev` works every queue. Production workers still need the same list.
 - **Suspected issue (dead config):** `config/datenight.php` is never read — no `config('datenight...')` call exists. Queue names, cache TTLs, thresholds etc. are hard-coded elsewhere.
 - **Suspected issue (dead code):** `AppServiceProvider.php:23` binds `App\Contracts\AIProvider` to `App\AI\NullAIProvider`; nothing else references that contract (the live one is `App\Contracts\AI\AIProvider`).
 - **Suspected issue:** `ExportUserDataJob` is never dispatched and `ExportRequested` has no listeners (`EventServiceProvider.php:107`) — the export feature has no entry point; `datenight:clean-exports` cleans a folder nothing writes to.
@@ -137,3 +137,4 @@ php artisan test tests/Feature/Health tests/Feature/Commands tests/Feature/Facto
 
 ## Change log
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Dev queue worker now listens to all six queues (re-registered in `AppServiceProvider`).

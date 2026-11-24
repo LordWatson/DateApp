@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
+import { ChevronRight, Star } from '@lucide/vue';
 import { ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
@@ -28,60 +30,81 @@ const props = defineProps<{ plans: PlanSummary[]; filters: Filters }>();
 const search = ref(props.filters.search);
 const compatibility = ref(props.filters.compatibility);
 
+const compatibilityOptions = [
+    { value: '', label: 'All' },
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' },
+];
+
 function applyFilters(): void {
-    router.get('/date-night/history', {
-        search: search.value,
-        compatibility: compatibility.value,
-    }, { preserveState: true, replace: true });
+    router.get(
+        '/date-night/history',
+        {
+            search: search.value,
+            compatibility: compatibility.value,
+        },
+        { preserveState: true, replace: true },
+    );
 }
 
 function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(iso).toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
 }
 
 function scoreColour(score: number): string {
     if (score >= 75) {
-        return 'text-emerald-600';
+        return 'text-success';
     }
 
     if (score >= 50) {
-        return 'text-amber-500';
+        return 'text-warning';
     }
 
-    return 'text-rose-500';
+    return 'text-destructive';
 }
 </script>
 
 <template>
-    <Head title="Date Night History 📖" />
+    <Head title="Date night history" />
 
-    <div class="min-h-screen px-4 py-6 pb-28">
-        <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-foreground">📖 History</h1>
-            <p class="mt-1 text-sm text-muted-foreground">All your Date Night plans</p>
-        </div>
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            eyebrow="Date nights"
+            title="History"
+            description="All your date night plans"
+        />
 
         <!-- Filters -->
-        <div class="mb-6 space-y-3">
+        <div class="space-y-3">
             <input
                 v-model="search"
                 type="text"
                 placeholder="Search plans..."
-                class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                aria-label="Search plans"
+                class="input-premium"
                 @input="applyFilters"
             />
 
-            <div class="flex gap-2">
+            <div
+                class="flex gap-2 overflow-x-auto pb-1"
+                role="group"
+                aria-label="Filter by compatibility"
+            >
                 <button
-                    v-for="option in [{ value: '', label: 'All' }, { value: 'high', label: '🟢 High' }, { value: 'medium', label: '🟡 Medium' }, { value: 'low', label: '🔴 Low' }]"
+                    v-for="option in compatibilityOptions"
                     :key="option.value"
-                    :class="[
-                        'flex-1 rounded-2xl px-3 py-2 text-xs font-semibold transition-all',
-                        compatibility === option.value
-                            ? 'gradient-primary text-white shadow-md'
-                            : 'bg-card text-muted-foreground shadow-sm',
-                    ]"
-                    @click="compatibility = option.value; applyFilters()"
+                    type="button"
+                    class="chip"
+                    :aria-pressed="compatibility === option.value"
+                    @click="
+                        compatibility = option.value;
+                        applyFilters();
+                    "
                 >
                     {{ option.label }}
                 </button>
@@ -89,45 +112,63 @@ function scoreColour(score: number): string {
         </div>
 
         <!-- Plans -->
-        <div v-if="plans.length > 0" class="space-y-3">
-            <div
-                v-for="plan in plans"
-                :key="plan.id"
-                class="card-premium card-hover cursor-pointer p-5"
-                @click="router.visit(`/date-night/${plan.id}`)"
-            >
-                <div class="flex items-start justify-between">
-                    <div class="flex items-center gap-3">
-                        <span class="text-3xl">{{ plan.theme_emoji ?? '❤️' }}</span>
-                        <div>
-                            <p class="font-semibold text-foreground">{{ plan.theme }}</p>
-                            <p class="text-xs text-muted-foreground">{{ formatDate(plan.created_at) }}</p>
-                        </div>
+        <div class="card-premium p-2">
+            <template v-if="plans.length > 0">
+                <button
+                    v-for="plan in plans"
+                    :key="plan.id"
+                    type="button"
+                    class="list-row w-full text-left"
+                    @click="router.visit(`/date-night/${plan.id}`)"
+                >
+                    <span
+                        class="icon-tile h-11 w-11 text-xl"
+                        aria-hidden="true"
+                        >{{ plan.theme_emoji ?? '❤️' }}</span
+                    >
+                    <div class="min-w-0 flex-1">
+                        <p
+                            class="flex items-center gap-1.5 font-medium text-foreground"
+                        >
+                            <span class="truncate">{{ plan.theme }}</span>
+                            <Star
+                                v-if="plan.is_favourite"
+                                class="size-3.5 shrink-0 fill-current text-gold"
+                                aria-label="Favourite"
+                            />
+                        </p>
+                        <p class="truncate text-xs text-muted-foreground">
+                            {{ formatDate(plan.created_at) }}
+                            <template v-if="plan.questionnaire_title">
+                                · {{ plan.questionnaire_title }}
+                            </template>
+                        </p>
                     </div>
-                    <div class="flex flex-col items-end gap-1">
-                        <span :class="['text-lg font-bold', scoreColour(plan.compatibility_score)]">
-                            {{ plan.compatibility_score }}%
-                        </span>
-                        <span v-if="plan.is_favourite" class="text-sm">💛</span>
-                    </div>
-                </div>
-                <p v-if="plan.questionnaire_title" class="mt-2 text-xs text-muted-foreground">
-                    {{ plan.questionnaire_title }}
-                </p>
-            </div>
+                    <span
+                        :class="[
+                            'font-display text-xl font-medium tabular-nums',
+                            scoreColour(plan.compatibility_score),
+                        ]"
+                    >
+                        {{ plan.compatibility_score }}%
+                    </span>
+                    <ChevronRight
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </button>
+            </template>
+
+            <EmptyState
+                v-else
+                emoji="📖"
+                title="No plans yet"
+                description="Complete a questionnaire with your partner to generate your first date night plan."
+            />
         </div>
 
-        <EmptyState
-            v-else
-            emoji="📖"
-            title="No plans yet"
-            description="Complete a questionnaire with your partner to generate your first Date Night plan."
-        />
-
-        <div class="mt-6">
-            <PrimaryButton full-width @click="router.visit('/questionnaires')">
-                Start a Questionnaire
-            </PrimaryButton>
-        </div>
+        <PrimaryButton full-width @click="router.visit('/questionnaires')">
+            Start a questionnaire
+        </PrimaryButton>
     </div>
 </template>

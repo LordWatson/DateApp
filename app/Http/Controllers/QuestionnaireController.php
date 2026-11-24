@@ -7,6 +7,7 @@ use App\Enums\QuestionnaireStatus;
 use App\Http\Presenters\QuestionnairePresenter;
 use App\Http\Requests\Questionnaire\FinishQuestionnaireRequest;
 use App\Http\Requests\Questionnaire\SaveAnswerRequest;
+use App\Http\Requests\Questionnaire\StartQuestionnaireRequest;
 use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
 use App\Models\Response as QuestionnaireResponse;
@@ -59,7 +60,7 @@ class QuestionnaireController extends Controller
                 'emoji' => $q->emoji,
                 'estimated_minutes' => $q->estimated_minutes,
                 'question_count' => $q->questions_count,
-                'is_solo' => $q->is_solo,
+                'is_solo' => $response?->setRelation('questionnaire', $q)->isSolo() ?? $q->is_solo,
                 'response_status' => $response?->status->value,
                 'partner_paired' => $isPaired,
             ];
@@ -85,12 +86,14 @@ class QuestionnaireController extends Controller
         $partner = $user->partner;
 
         if ($partner && $this->questionnaireService->shouldAutoStartNewCycle($user, $partner, $questionnaire)) {
-            $this->questionnaireService->startNewResponse($user, $questionnaire);
+            // The partner is waiting on a shared plan, so this attempt joins it.
+            $this->questionnaireService->startNewResponse($user, $questionnaire, false);
 
             return redirect()->route('questionnaires.question', [$questionnaire->slug, 1]);
         }
 
         $response = $this->questionnaireService->getResponseWithAnswers($user, $questionnaire);
+        $response?->setRelation('questionnaire', $questionnaire);
         $partnerCompleted = $partner
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;
@@ -103,22 +106,28 @@ class QuestionnaireController extends Controller
                 $response ? $this->questionnaireService->getFirstUnansweredOrder($questionnaire, $response) : 1,
             ),
             'partner_completed' => $partnerCompleted,
+            'mode' => [
+                'selectable' => $questionnaire->partner_optional,
+                'current' => $response ? ($response->isSolo() ? 'solo' : 'couple') : null,
+                'has_partner' => $partner !== null,
+                'partner_name' => $partner?->display_name ?? $partner?->name,
+            ],
             'current_streak' => $user->current_streak,
             'saved_profiles' => $this->presenter->savedProfiles($user),
             'past_attempts' => $this->buildPastAttempts($user, $questionnaire),
         ]);
     }
 
-    public function restart(Request $request, Questionnaire $questionnaire): RedirectResponse
+    public function restart(StartQuestionnaireRequest $request, Questionnaire $questionnaire): RedirectResponse
     {
-        $this->questionnaireService->startNewResponse($request->user(), $questionnaire);
+        $this->questionnaireService->startNewResponse($request->user(), $questionnaire, $request->solo());
 
         return redirect()->route('questionnaires.question', [$questionnaire->slug, 1]);
     }
 
-    public function start(Request $request, Questionnaire $questionnaire): RedirectResponse
+    public function start(StartQuestionnaireRequest $request, Questionnaire $questionnaire): RedirectResponse
     {
-        $response = $this->questionnaireService->findOrCreateResponse($request->user(), $questionnaire);
+        $response = $this->questionnaireService->findOrCreateResponse($request->user(), $questionnaire, $request->solo());
         $order = $this->questionnaireService->getFirstUnansweredOrder($questionnaire, $response);
 
         return redirect()->route('questionnaires.question', [$questionnaire->slug, $order]);
@@ -179,6 +188,9 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
+        $response->setRelation('questionnaire', $questionnaire);
+        $isSolo = $response->isSolo();
+
         $partner = $user->partner;
         $partnerCompleted = $partner
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
@@ -189,13 +201,14 @@ class QuestionnaireController extends Controller
                 'id' => $questionnaire->id,
                 'title' => $questionnaire->title,
                 'slug' => $questionnaire->slug,
-                'is_solo' => $questionnaire->is_solo,
+                'is_solo' => $isSolo,
             ],
+            'partner_name' => $partner?->display_name ?? $partner?->name,
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
             'partner_completed' => $partnerCompleted,
             // Solo always produces a plan; otherwise wait until the partner has also completed.
-            'awaiting_plan' => $questionnaire->is_solo || $partnerCompleted,
+            'awaiting_plan' => $isSolo || $partnerCompleted,
         ]);
     }
 
@@ -267,8 +280,8 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
-        $userResponse = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire);
-        $partnerResponse = $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire);
+        $userResponse = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire, false);
+        $partnerResponse = $this->questionnaireService->getLatestCompletedResponse($partner, $questionnaire, false);
 
         if (! $userResponse || ! $partnerResponse) {
             return redirect()->route('questionnaires.show', $questionnaire->slug);

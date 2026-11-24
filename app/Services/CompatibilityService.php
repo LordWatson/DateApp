@@ -10,21 +10,28 @@ use Illuminate\Support\Collection;
 
 class CompatibilityService
 {
-    public function calculate(User $user, Questionnaire $questionnaire): ?array
-    {
+    /**
+     * @param  Response|null  $userResponse  Compare these exact attempts instead of each partner's latest one.
+     */
+    public function calculate(
+        User $user,
+        Questionnaire $questionnaire,
+        ?Response $userResponse = null,
+        ?Response $partnerResponse = null,
+    ): ?array {
         $partner = $user->partner;
 
         if (! $partner) {
             return null;
         }
 
-        $userResponse = Response::with('answers.question', 'answers.questionOption')
+        $userResponse ??= Response::with('answers.question', 'answers.questionOption')
             ->where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
             ->latest('id')
             ->first();
 
-        $partnerResponse = Response::with('answers.question', 'answers.questionOption')
+        $partnerResponse ??= Response::with('answers.question', 'answers.questionOption')
             ->where('user_id', $partner->id)
             ->where('questionnaire_id', $questionnaire->id)
             ->latest('id')

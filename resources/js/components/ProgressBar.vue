@@ -22,12 +22,12 @@ const percentage = computed(() =>
             class="flex items-center justify-between text-sm"
         >
             <span class="font-medium text-foreground">{{ label }}</span>
-            <span class="text-muted-foreground"
+            <span class="font-medium text-muted-foreground tabular-nums"
                 >{{ Math.round(percentage) }}%</span
             >
         </div>
         <div
-            class="h-2.5 w-full overflow-hidden rounded-full bg-muted"
+            class="h-1.5 w-full overflow-hidden rounded-full bg-muted"
             role="progressbar"
             :aria-valuenow="value"
             :aria-valuemin="0"

@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { Check, Send } from '@lucide/vue';
 import { ref } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
+import InputError from '@/components/InputError.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
+import SectionHeader from '@/components/SectionHeader.vue';
+import SegmentedTabs from '@/components/SegmentedTabs.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
 defineOptions({ layout: MobileLayout });
@@ -29,7 +34,15 @@ defineProps<{
     default_messages: string[];
 }>();
 
-const activeTab = ref<'send' | 'received' | 'sent'>('send');
+type Tab = 'send' | 'received' | 'sent';
+
+const tabs: { key: Tab; label: string }[] = [
+    { key: 'send', label: 'Send' },
+    { key: 'received', label: 'Received' },
+    { key: 'sent', label: 'Sent' },
+];
+
+const activeTab = ref<Tab>('send');
 const customMessage = ref('');
 
 const form = useForm({ message: '' });
@@ -75,129 +88,153 @@ function formatTime(iso: string): string {
 </script>
 
 <template>
-    <Head title="Love Notes 💌" />
+    <Head title="Love notes" />
 
-    <div class="min-h-screen px-4 py-6 pb-28">
-        <div class="mb-6">
-            <h1 class="text-2xl font-semibold text-foreground">💌 Love Notes</h1>
-            <p class="mt-1 text-sm text-muted-foreground">Send a little love to your partner</p>
-        </div>
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            title="Love notes"
+            description="Send a little love to your partner"
+        />
 
-        <!-- Tabs -->
-        <div class="mb-6 flex rounded-2xl bg-muted p-1">
-            <button
-                v-for="tab in [{ key: 'send', label: '✉️ Send' }, { key: 'received', label: '📥 Received' }, { key: 'sent', label: '📤 Sent' }]"
-                :key="tab.key"
-                :class="[
-                    'flex-1 rounded-xl py-2 text-xs font-semibold transition-all',
-                    activeTab === tab.key ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground',
-                ]"
-                @click="activeTab = tab.key as 'send' | 'received' | 'sent'"
-            >
-                {{ tab.label }}
-            </button>
-        </div>
+        <SegmentedTabs v-model="activeTab" :options="tabs" />
 
-        <!-- Send Tab -->
-        <div v-if="activeTab === 'send'">
-            <div v-if="!partner" class="card-premium p-6 text-center">
-                <p class="text-4xl">💔</p>
-                <p class="mt-2 font-semibold text-foreground">No partner connected</p>
-                <p class="mt-1 text-sm text-muted-foreground">Connect with your partner to send love notes.</p>
-                <div class="mt-4">
-                    <PrimaryButton full-width @click="router.visit('/partner')">
-                        Connect Partner
-                    </PrimaryButton>
-                </div>
+        <!-- Send tab -->
+        <template v-if="activeTab === 'send'">
+            <div v-if="!partner" class="card-premium">
+                <EmptyState
+                    emoji="💔"
+                    title="No partner connected"
+                    description="Connect with your partner to send love notes."
+                    action-label="Connect partner"
+                    @action="router.visit('/partner')"
+                />
             </div>
 
-            <div v-else class="space-y-4">
-                <p class="text-sm font-semibold text-foreground">Quick messages</p>
-                <div class="grid grid-cols-2 gap-2">
-                    <button
-                        v-for="msg in default_messages"
-                        :key="msg"
-                        :class="[
-                            'rounded-2xl border p-3 text-left text-sm transition-all',
-                            form.message === msg
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-border bg-card text-foreground',
-                        ]"
-                        @click="selectMessage(msg)"
+            <template v-else>
+                <section class="space-y-3">
+                    <SectionHeader title="Quick messages" />
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            v-for="msg in default_messages"
+                            :key="msg"
+                            type="button"
+                            class="chip max-w-full py-2 text-left whitespace-normal"
+                            :aria-pressed="form.message === msg"
+                            @click="selectMessage(msg)"
+                        >
+                            {{ msg }}
+                        </button>
+                    </div>
+                </section>
+
+                <section class="space-y-3">
+                    <SectionHeader title="Or write your own" />
+                    <div>
+                        <textarea
+                            v-model="form.message"
+                            placeholder="Write something sweet... (max 200 characters)"
+                            aria-label="Your message"
+                            maxlength="200"
+                            rows="4"
+                            class="input-premium"
+                        />
+                        <p
+                            class="mt-1 text-right text-xs text-muted-foreground tabular-nums"
+                        >
+                            {{ form.message.length }}/200
+                        </p>
+                    </div>
+
+                    <InputError :message="form.errors.message" />
+
+                    <PrimaryButton
+                        full-width
+                        :loading="form.processing"
+                        :disabled="!form.message.trim()"
+                        @click="sendNote"
                     >
-                        {{ msg }}
-                    </button>
-                </div>
+                        <Send class="size-4" aria-hidden="true" />
+                        Send to {{ partner.name }}
+                    </PrimaryButton>
+                </section>
+            </template>
+        </template>
 
-                <div>
-                    <p class="mb-2 text-sm font-semibold text-foreground">Or write your own</p>
-                    <textarea
-                        v-model="form.message"
-                        placeholder="Write something sweet... (max 200 characters)"
-                        maxlength="200"
-                        rows="3"
-                        class="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                    <p class="mt-1 text-right text-xs text-muted-foreground">{{ form.message.length }}/200</p>
-                </div>
-
-                <p v-if="form.errors.message" class="text-sm text-red-500">{{ form.errors.message }}</p>
-
-                <PrimaryButton
-                    full-width
-                    :loading="form.processing"
-                    :disabled="!form.message.trim()"
-                    @click="sendNote"
-                >
-                    Send to {{ partner.name }} 💌
-                </PrimaryButton>
-            </div>
-        </div>
-
-        <!-- Received Tab -->
-        <div v-else-if="activeTab === 'received'">
-            <div v-if="received.length > 0" class="space-y-3">
+        <!-- Received tab -->
+        <div
+            v-else-if="activeTab === 'received'"
+            :class="[
+                'card-premium',
+                received.length > 0 && 'divide-y divide-border px-5',
+            ]"
+        >
+            <template v-if="received.length > 0">
                 <div
                     v-for="note in received"
                     :key="note.id"
-                    class="card-premium p-5"
+                    class="flex items-start gap-3.5 py-4"
                 >
-                    <div class="flex items-start gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white gradient-primary">
-                            {{ note.person_name?.charAt(0) ?? '?' }}
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-foreground">{{ note.message }}</p>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                From {{ note.person_name }} · {{ formatTime(note.created_at) }}
-                            </p>
-                        </div>
+                    <div
+                        class="icon-tile h-11 w-11 font-display text-lg text-primary"
+                        aria-hidden="true"
+                    >
+                        {{ note.person_name?.charAt(0) ?? '?' }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[15px] leading-relaxed text-foreground">
+                            {{ note.message }}
+                        </p>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                            From {{ note.person_name }} ·
+                            {{ formatTime(note.created_at) }}
+                        </p>
                     </div>
                 </div>
-            </div>
-            <EmptyState v-else emoji="📥" title="No notes yet" description="Your partner hasn't sent you a love note yet." />
+            </template>
+            <EmptyState
+                v-else
+                emoji="📥"
+                title="No notes yet"
+                description="Your partner hasn't sent you a love note yet."
+            />
         </div>
 
-        <!-- Sent Tab -->
-        <div v-else-if="activeTab === 'sent'">
-            <div v-if="sent.length > 0" class="space-y-3">
-                <div
-                    v-for="note in sent"
-                    :key="note.id"
-                    class="card-premium p-5"
-                >
-                    <div class="flex items-start gap-3">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-foreground">{{ note.message }}</p>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                To {{ note.person_name }} · {{ formatTime(note.created_at) }}
-                                <span v-if="note.read_at" class="ml-1 text-emerald-500">· Seen ✓</span>
-                            </p>
-                        </div>
-                    </div>
+        <!-- Sent tab -->
+        <div
+            v-else-if="activeTab === 'sent'"
+            :class="[
+                'card-premium',
+                sent.length > 0 && 'divide-y divide-border px-5',
+            ]"
+        >
+            <template v-if="sent.length > 0">
+                <div v-for="note in sent" :key="note.id" class="py-4">
+                    <p class="text-[15px] leading-relaxed text-foreground">
+                        {{ note.message }}
+                    </p>
+                    <p
+                        class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground"
+                    >
+                        <span
+                            >To {{ note.person_name }} ·
+                            {{ formatTime(note.created_at) }}</span
+                        >
+                        <span
+                            v-if="note.read_at"
+                            class="inline-flex items-center gap-0.5 font-medium text-success"
+                        >
+                            <Check class="size-3.5" aria-hidden="true" />
+                            Seen
+                        </span>
+                    </p>
                 </div>
-            </div>
-            <EmptyState v-else emoji="📤" title="Nothing sent yet" description="Send your first love note above." />
+            </template>
+            <EmptyState
+                v-else
+                emoji="📤"
+                title="Nothing sent yet"
+                description="Send your first love note above."
+            />
         </div>
     </div>
 </template>

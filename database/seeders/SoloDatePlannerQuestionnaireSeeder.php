@@ -28,6 +28,8 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                 'is_seasonal' => false,
                 'is_intimacy' => false,
                 'is_solo' => true,
+                // The user picks per attempt: plan alone, or answer together with their partner.
+                'partner_optional' => true,
             ],
         );
 

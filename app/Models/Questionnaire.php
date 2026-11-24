@@ -27,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_seasonal
  * @property bool $is_intimacy
  * @property bool $is_solo
+ * @property bool $partner_optional
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -51,6 +52,7 @@ class Questionnaire extends Model
         'is_seasonal',
         'is_intimacy',
         'is_solo',
+        'partner_optional',
     ];
 
     protected function casts(): array
@@ -63,7 +65,16 @@ class Questionnaire extends Model
             'is_seasonal' => 'boolean',
             'is_intimacy' => 'boolean',
             'is_solo' => 'boolean',
+            'partner_optional' => 'boolean',
         ];
+    }
+
+    /**
+     * Solo-only questionnaire: one person answers and there is no couple mode to choose.
+     */
+    public function forcesSolo(): bool
+    {
+        return $this->is_solo && ! $this->partner_optional;
     }
 
     public function questions(): HasMany

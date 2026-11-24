@@ -83,7 +83,7 @@ Gate column intentionally absent: **no controller checks a gate** (see Rules). L
 - Gates defined: `access-admin` (any admin role), `manage-users` (super admin, administrator), `manage-content` (super admin, administrator, moderator), `view-analytics` (super admin, administrator, support), `super-admin`, `viewLogViewer` (super admin only; nullable user).
 - Only `access-admin` (in the three FormRequests' `authorize()`) and `viewLogViewer` (by the package) are ever evaluated.
 - `User::adminRole()` loads the `role` relation on each call path that is not already eager-loaded.
-- Admin pages hard-code light gray/pink Tailwind classes and emoji icons; they do not use the app theme tokens, `components/ui`, or dark mode.
+- Admin pages use the app theme tokens and primitives (see "Design system" in `frontend.md`), lucide icons, the `ui/button` `Button`, and support dark mode.
 - AI settings/prompt semantics are documented in `ai.md`; questionnaire/challenge/achievement semantics in their module docs.
 - **Suspected issue 1 (admin UI broken at runtime):** 15 admin pages `import { route } from 'ziggy-js'`, but the Ziggy backend (`tightenco/ziggy`) is not installed and there is no `@routes` directive in `resources/views/app.blade.php`, so `route()` throws "Ziggy error: missing configuration". Pages calling it in the template (`email-templates/Index`+`Edit`, `questionnaires/Create`+`Edit`, `users/Show`) fail on render; the rest fail on search/save/delete.
 - **Suspected issue 2 (missing page):** `AdminAiSettingController@index` renders `admin/ai-settings/Index` (`AdminAiSettingController.php:40`) but no such page exists; `tests/Feature/AI/AIIntegrationTest::test_admin_can_view_ai_settings_page` fails with a 500. There is also no nav entry for AI settings.
@@ -110,3 +110,4 @@ php artisan test tests/Feature/Admin
 
 ## Change log
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Admin layout and all admin pages restyled to the design system (tokens, lucide icons, dark mode). `AdminTable` empty row now shows only when there are no rows; `AdminPagination` renders paginator labels as HTML.

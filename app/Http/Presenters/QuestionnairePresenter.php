@@ -32,6 +32,7 @@ final class QuestionnairePresenter
             'estimated_minutes' => $questionnaire->estimated_minutes,
             'question_count' => $includeQuestionCount ? $questionnaire->questions()->count() : null,
             'is_solo' => $questionnaire->is_solo,
+            'partner_optional' => $questionnaire->partner_optional,
         ];
     }
 

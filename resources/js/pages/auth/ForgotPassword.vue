@@ -26,13 +26,18 @@ defineProps<{
 
     <div
         v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        role="status"
+        class="mb-6 rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-center text-sm font-medium text-success"
     >
         {{ status }}
     </div>
 
     <div class="space-y-6">
-        <Form v-bind="email.form()" v-slot="{ errors, processing }">
+        <Form
+            v-bind="email.form()"
+            class="grid gap-5"
+            v-slot="{ errors, processing }"
+        >
             <div class="grid gap-2">
                 <Label for="email">Email address</Label>
                 <Input
@@ -46,17 +51,18 @@ defineProps<{
                 <InputError :message="errors.email" />
             </div>
 
-            <div class="my-6 flex items-center justify-start">
-                <Button
-                    class="w-full"
-                    :disabled="processing"
-                    data-test="email-password-reset-link-button"
-                >
-                    <Spinner v-if="processing" />
-                    Email password reset link
-                </Button>
-            </div>
+            <Button
+                size="lg"
+                class="mt-1 w-full"
+                :disabled="processing"
+                data-test="email-password-reset-link-button"
+            >
+                <Spinner v-if="processing" />
+                Email password reset link
+            </Button>
         </Form>
+
+        <div class="h-px bg-border" />
 
         <div class="space-x-1 text-center text-sm text-muted-foreground">
             <span>Or, return to</span>

@@ -28,7 +28,7 @@ onUnmounted(() => clearTwoFactorAuthData());
 </script>
 
 <template>
-    <div v-if="canManageTwoFactor" class="space-y-6">
+    <div v-if="canManageTwoFactor" class="space-y-5 card-premium p-5">
         <Heading
             variant="small"
             title="Two-factor authentication"
@@ -39,7 +39,7 @@ onUnmounted(() => clearTwoFactorAuthData());
             v-if="!twoFactorEnabled"
             class="flex flex-col items-start justify-start space-y-4"
         >
-            <p class="text-sm text-muted-foreground">
+            <p class="text-sm leading-relaxed text-muted-foreground">
                 When you enable two-factor authentication, you will be prompted
                 for a secure pin during login. This pin can be retrieved from a
                 TOTP-supported application on your phone.
@@ -47,7 +47,7 @@ onUnmounted(() => clearTwoFactorAuthData());
 
             <div>
                 <Button v-if="hasSetupData" @click="showSetupModal = true">
-                    <ShieldCheck />Continue setup
+                    <ShieldCheck aria-hidden="true" />Continue setup
                 </Button>
                 <Form
                     v-else
@@ -63,7 +63,7 @@ onUnmounted(() => clearTwoFactorAuthData());
         </div>
 
         <div v-else class="flex flex-col items-start justify-start space-y-4">
-            <p class="text-sm text-muted-foreground">
+            <p class="text-sm leading-relaxed text-muted-foreground">
                 You will be prompted for a secure, random pin during login,
                 which you can retrieve from the TOTP-supported application on
                 your phone.

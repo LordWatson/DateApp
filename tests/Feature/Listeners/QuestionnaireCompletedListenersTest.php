@@ -209,7 +209,7 @@ class QuestionnaireCompletedListenersTest extends TestCase
             'questionnaire_id' => $questionnaire->id,
         ]);
 
-        $listener = new NotifyPartnerOnQuestionnaireCompleted;
+        $listener = app(NotifyPartnerOnQuestionnaireCompleted::class);
         $listener->handle(new QuestionnaireCompleted($user, $questionnaire, $response));
 
         $this->assertDatabaseHas('app_notifications', [
@@ -239,7 +239,7 @@ class QuestionnaireCompletedListenersTest extends TestCase
             'questionnaire_id' => $questionnaire->id,
         ]);
 
-        $listener = new NotifyPartnerOnQuestionnaireCompleted;
+        $listener = app(NotifyPartnerOnQuestionnaireCompleted::class);
         $listener->handle(new QuestionnaireCompleted($user, $questionnaire, $response));
 
         $this->assertDatabaseCount('app_notifications', 0);

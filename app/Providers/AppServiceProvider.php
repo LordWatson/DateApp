@@ -51,6 +51,13 @@ class AppServiceProvider extends ServiceProvider
     {
         Date::use(CarbonImmutable::class);
 
+        // The default dev worker only listens to "default"; partner notifications, emails,
+        // achievements and AI jobs sit on their own queues and would never run locally.
+        DevCommands::artisan(
+            'queue:listen --tries=1 --timeout=0 --queue=default,notifications,emails,analytics,ai,exports',
+            'queue',
+        );
+
         // Pail needs pcntl, which doesn't exist on Windows; its crash kills the whole `composer dev`.
         if (! extension_loaded('pcntl')) {
             DevCommands::except('logs');

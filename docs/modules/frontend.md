@@ -33,11 +33,11 @@ Resolution order (Inertia): a page's own `defineOptions({ layout })` wins; other
 
 | Layout | What it is | Used by |
 |---|---|---|
-| `layouts/MobileLayout.vue` | The real app shell: sticky glass header (logo, notifications bell with `unreadNotificationsCount`, logout), `<main>`, floating pill tab bar (sticky, ~5rem tall including its offset), `<Toaster />`. Header and `<main>` are centred at `max-w-xl`. **Main nav lives here** in `navItems`: Home, Tonight, Hub, Wins, Profile | Most feature pages set it explicitly via `defineOptions` |
+| `layouts/MobileLayout.vue` | The real app shell: sticky glass header (logo, notifications bell with `unreadNotificationsCount`), `<main>`, floating pill tab bar (sticky, ~5rem tall including its offset), `<Toaster />`. Header and `<main>` are centred at `max-w-xl`. **Main nav lives here** in `navItems`: Home, Tonight, Hub, Wins, Profile | Most feature pages set it explicitly via `defineOptions` |
 | `layouts/AppLayout.vue` | Thin wrapper around `MobileLayout` (forwards `header-actions` slot) | Default for pages that set nothing (e.g. `onboarding/*`, `settings/*`) |
-| `layouts/GuestLayout.vue` | Centered card with floating hearts; props `title`, `description` | via `AuthLayout` |
+| `layouts/GuestLayout.vue` | Auth shell: wordmark, gold hairline, serif title, description, then the form in a `card-premium`; floating hearts behind; props `title`, `description` | via `AuthLayout` |
 | `layouts/AuthLayout.vue` | Wrapper around `GuestLayout` | `auth/*`. Auth pages pass layout props with `defineOptions({ layout: { title, description } })` (or `setLayoutProps` in `TwoFactorChallenge`) |
-| `layouts/settings/Layout.vue` | Settings sub-nav (Profile, Security, Appearance) | `settings/*` |
+| `layouts/settings/Layout.vue` | `PageHeader`, horizontal `chip` links (Profile, Security, Appearance), the page slot, and the **Log out** button (it lives here, not in the header) | `settings/*` |
 | `layouts/AdminLayout.vue` | Admin sidebar shell | `admin/*` via `defineOptions` — see `admin.md` |
 | `layouts/app/AppHeaderLayout.vue`, `app/AppSidebarLayout.vue`, `auth/AuthCardLayout.vue`, `auth/AuthSplitLayout.vue` | Starter-kit leftovers, not referenced by anything. `auth/AuthSimpleLayout.vue` wraps `GuestLayout` but is also unreferenced | – |
 
@@ -85,15 +85,82 @@ Dark mode: `HandleAppearance` passes the `appearance` cookie to Blade (class `da
 ## Components and styling
 - **UI kit** (`components/ui/<kit>`, import from the kit's index, e.g. `@/components/ui/button`): alert, avatar, badge, breadcrumb, button, card, checkbox, collapsible, dialog, dropdown-menu, input, input-otp, label, navigation-menu, select, separator, sheet, sidebar, skeleton, sonner, spinner, tooltip. Built on `reka-ui` + `class-variance-authority`. Excluded from Prettier and ESLint — treat as vendored.
 - **App components most used**: `PrimaryButton` (props `type`, `disabled`, `loading`, `size`, `fullWidth`), `SecondaryButton`, `EmptyState` (props `emoji`, `title`, `description`, `actionLabel`; emits `action`), `InputError`, `Heading`, `PasswordInput`, `FloatingHearts`, `AnimatedBackground`, `AppLogoIcon`, `ProgressBar`, `SuccessAnimation`, `OptionCard`, `StatCard`, `ChallengeCard`, `CompatibilityCard`, `StepIndicator`; `components/questions/*` (`SingleChoice`, `MultipleChoice`, `Slider`, `Text`, `Textarea` question inputs).
-- **Icons**: `@lucide/vue` (`import { Bell } from '@lucide/vue'`). Admin pages use emoji instead.
+- **Icons**: `@lucide/vue` (`import { Bell } from '@lucide/vue'`), in the app and in admin.
 - **Tailwind v4**, CSS-first (no `tailwind.config.js`). `resources/css/app.css`: `@theme inline` maps `--color-*` to CSS variables defined in `:root` / `.dark`; custom `@utility` classes `gradient-primary`, `gradient-primary-soft`, `gradient-text`, `shadow-glow`, `card-premium`, `card-hover`, `btn-primary`, `btn-secondary`, `btn-outline`, `focus-ring`; animation classes `animate-page-fade-in`, `animate-pulse-glow`, `animate-float-heart`, `animate-success-pop`, etc. Use semantic tokens (`bg-background`, `text-foreground`, `text-muted-foreground`, `text-primary`) so dark mode works.
-- **Design system** (all in `app.css`):
-  - Palette: warm ivory background `#fbf7f4` (dark `#150b11`), raspberry primary `#c8245c` (dark `#e64980`), plum secondary `#632c52`. Brand gradient is `--gradient-brand` (`gradient-primary`); `--gradient-brand-text` (`gradient-text`) has a lighter dark-mode value.
-  - Tailwind's `pink-*` and `purple-*` scales (and `fuchsia-100/600`) are **remapped** to the raspberry and plum ramps, so `pink-500` is not Tailwind's pink. Prefer semantic tokens in new code.
-  - Type: Inter for UI (`font-sans`), Fraunces for display (`font-display`). `h1`-`h3` get `font-display` from the base layer; use `font-display` on wordmarks and big numbers.
-  - Shape and depth: `--radius: 0.75rem`; `rounded-3xl` = 24px (cards), buttons are pills (`rounded-full`). `shadow-sm`...`shadow-2xl` are overridden with soft tinted shadows driven by `--shadow-color`; `shadow-glow` is for primary actions only.
-  - `body` carries a fixed ambient gradient, so page and layout wrappers must not set `bg-background` (it would hide it).
-  - `prefers-reduced-motion` disables animations and transitions globally.
+- The full visual language (tokens, primitives, components, rules) is in **Design system** below.
+
+## Design system
+The look is "quiet luxury with a wink": parchment and ink, deep wine as the one brand colour, champagne gold as a thin accent, a serif for display type, and emoji kept as small framed objects rather than decoration. Everything is defined in `resources/css/app.css`. `resources/js/pages/Dashboard.vue` is the reference screen: copy its patterns.
+
+### Tokens
+| Role | Class | Light | Dark |
+|---|---|---|---|
+| Page background | `bg-background` | `#f8f4ee` | `#110b0e` |
+| Surface | `bg-card` | `#fffdfa` | `#1a1216` |
+| Text | `text-foreground` | `#1d1217` | `#f4ebe6` |
+| Secondary text | `text-muted-foreground` | `#6f6068` | `#b3a2a8` |
+| Quiet fill | `bg-muted`, `bg-accent` | `#f1eae2`, `#f5ebe8` | `#241a1f`, `#2a1c22` |
+| Brand | `text-primary`, `bg-primary` | `#8c1c3f` | `#c94a72` |
+| Gold accent | `text-gold`, `bg-gold-soft` | `#8f6a2e` | `#d9b97e` |
+| Hairlines | `border-border`, `border-input` | `#e8dfd4` | `#30232a` |
+| Status | `text-success`, `text-warning`, `text-destructive` | | |
+
+- Never use raw palette utilities (`gray-*`, `pink-*`, `purple-*`, `red-500`, `emerald-500`, `green-600` ...) or hex colours in templates. Use the tokens above so dark mode works. `pink-*` and `purple-*` are remapped to wine and plum ramps and exist only for old code.
+- Colours that come from data (an event's `colour`, a profile's `colour`) stay as inline styles.
+- `body` carries a fixed ambient gradient: page and layout wrappers must not set `bg-background`.
+
+### Type
+- UI text is Inter (`font-sans`). `h1`, `h2`, `h3` are Fraunces automatically; add `font-display` to wordmarks and large numbers.
+- Page title: `PageHeader` (28px serif). Section title: `SectionHeader` (`text-lg`). Card title: `h3` at `text-lg` or `text-xl`. Body `text-sm` or `text-[15px]`, meta `text-xs`.
+- Weights: `font-semibold` for titles, `font-medium` for row titles and labels, normal for body. Not everything is semibold.
+- `eyebrow` (11px, uppercase, wide tracking, gold) labels a section or sits above a title. One per block at most.
+- Numbers that matter (scores, counts, streaks) are `font-display tabular-nums`.
+- Sentence case everywhere: "Plan a date night", not "Plan A Date Night".
+- **No emoji in headings, section titles, tab labels, button labels, badges, toasts or `<Head>` titles.** Emoji appear only as an object inside an `icon-tile`, or where they are user or database content.
+
+### Primitives (`@utility` classes in `app.css`)
+| Class | Use |
+|---|---|
+| `card-premium` | Default surface: 24px radius, hairline border, soft tinted shadow. Padding `p-5` or `p-6`; `p-2` when it only wraps `list-row`s |
+| `card-hover` | Add to a `card-premium` that is itself a link or button |
+| `card-feature` | The single dark wine hero card on a screen (white text, gold hairline). At most one per screen. Inside it use `text-white/80` for secondary text and `eyebrow text-gold-soft` |
+| `icon-tile` | Frame for an emoji or a lucide icon. Size with `h-11 w-11 text-xl`, `h-12 w-12 text-2xl`, `h-14 w-14 text-3xl`, `h-16 w-16 text-3xl` |
+| `list-row` | Clickable row inside a card: tile, text block (`min-w-0 flex-1`), optional badge, `ChevronRight` |
+| `chip` | Filter pill. Selected state comes from `aria-pressed="true"`, `aria-selected="true"` or `data-active="true"` (ink fill), not from extra classes |
+| `badge-soft` | Small status or meta pill |
+| `input-premium` | Any raw `<input>`, `<textarea>` or `<select>` |
+| `eyebrow`, `hairline-gold` | Overline label; thin gold divider |
+| `gradient-primary`, `gradient-text`, `shadow-glow` | Brand gradient fill, gradient text (use rarely, one word), glow for primary actions |
+
+### Components
+| Component | Use |
+|---|---|
+| `PageHeader` (`title`, `eyebrow?`, `description?`, `back-href?`, `back-label?`, `align?`; default slot = action on the right; `#description` slot) | Top of every screen inside `MobileLayout`. Replaces hand-built `h1` blocks and ad-hoc back links |
+| `SectionHeader` (`title`, `action-label?`, `action-href?`; default slot replaces the action) | Above each section |
+| `SegmentedTabs` (`v-model`, `options: {key, label, count?}[]`) | In-page tab switches |
+| `PrimaryButton` / `SecondaryButton` (`variant`: `filled`, `outline`, `ghost`) | Actions. One primary per view. `size="sm"` inside cards |
+| `ui/button` `Button` | Forms in auth, settings and admin. Variants `default` (brand), `outline`, `ghost`, `destructive`, `link` |
+| `ui/input` `Input`, `ui/label` `Label`, `InputError` | Form fields |
+| `EmptyState` (`emoji`, `title`, `description`, `action-label`) | Every empty list. Do not hand-build empty states |
+| `StatCard`, `ProgressBar`, `ChallengeCard` | Stats, progress, the daily challenge |
+| Icons | `@lucide/vue`, `size-4` or `size-5`, `aria-hidden="true"`. Use `ChevronRight`, `ArrowRight`, `ChevronLeft`, `X`, `Plus`, `Check`, `Trash2`, `Pencil` instead of characters like `›`, `←`, `×`, `+`, `✓` |
+
+### Layout and spacing
+- Screen wrapper inside `MobileLayout`: `space-y-8 px-4 pt-6 pb-28`. The bottom padding clears the floating tab bar. A sticky action bar sits at `bottom-24`.
+- Inside a section `space-y-3`; inside a card `space-y-4`. Grids `gap-3`.
+- Radii: cards `rounded-3xl` (via `card-premium`), tiles and rows `rounded-2xl`, inputs `rounded-xl`, buttons, chips and badges `rounded-full`.
+- Shadows only come from the primitives. Do not add `shadow-lg` / `shadow-xl` to ordinary cards.
+- Touch targets are at least 40px high.
+- Modals and bottom sheets: overlay `fixed inset-0 z-50 bg-black/50 backdrop-blur-sm`; panel `card-premium` with `rounded-b-none sm:rounded-3xl`, `p-6`, a serif `h2` title and an icon close button with `aria-label`.
+
+### Interaction
+- Hover on cards is a 2px lift (`card-hover`), never `scale`. Press is `active:scale-[0.98]`.
+- Focus is visible everywhere: `focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background`.
+- Destructive actions use `text-destructive` or the `destructive` button variant, sit away from the primary action, and keep their existing confirmation.
+- Animations are short (200-350ms) and respect `prefers-reduced-motion` (handled globally).
+
+### Admin
+`AdminLayout` is the desktop shell: same tokens, `card-premium` panels at `rounded-2xl`, tables with `eyebrow`-style column heads, hairline row dividers, `hover:bg-muted/60` rows, lucide icons in the sidebar. Denser than the app (`text-sm`, `p-4`/`p-5`) but the same palette and type.
 
 ## Page directory -> module doc
 | `resources/js/pages/` | Doc |
@@ -141,7 +208,9 @@ Style rules enforced: Prettier 4-space, single quotes, semicolons, Tailwind clas
 - **Suspected issue:** `SavedProfileController.php:26` renders `saved-profiles/Index` and `AdminAiSettingController.php:40` renders `admin/ai-settings/Index`; neither page file exists.
 - `animate-page-fade-in` (on `<main>`) uses `animation-fill-mode: backwards` on purpose: a transform left on `<main>` would make it the containing block for `position: fixed` modals in pages.
 - Content inside `MobileLayout` needs about `pb-24` so the floating tab bar does not cover the last element; a page-level sticky action bar should sit at `bottom-24` (see `questionnaires/Question.vue`).
-- `AnimatedBackground` paints behind the `body` background and is effectively invisible; the ambient glow comes from `body` in `app.css`.
+- `AnimatedBackground` is no longer mounted anywhere (it painted behind the `body` background and was invisible); the ambient glow comes from `body` in `app.css`.
+- Do not nest a `<button>` inside a `<button>` (for example row actions inside a clickable card): browsers re-parent the inner one and the layout collapses. Make the outer element a `div` with `role="button"` and `tabindex="0"`, as `calendar/Index.vue` does.
+- Custom utilities can be overridden by a single Tailwind utility on the same element (`card-premium rounded-2xl`, `badge-soft bg-success/10 text-success`); for the `border` shorthand in `card-premium` use the important flag (`border-destructive/30!`).
 - **Dead code:** `AppSidebar.vue` (its nav items all point at `dashboard()`), `NavMain`, `NavFooter`, `NavUser`, `AppHeader`, `AppShell`, `AppContent`, `AppSidebarHeader` are reachable only from the unused starter layouts; `LoadingSpinner`, `PlaceholderPattern`, `ProfileCard`, `QuestionCard` are imported nowhere. Edit `MobileLayout`, not `AppSidebar`, to change navigation.
 - **Suspected issue:** `types/global.d.ts:18-23` `sharedPageProps` omits `unreadNotificationsCount` and `flash`.
 - **Suspected issue:** `vite.config.ts:15` bundles "Instrument Sans", which no CSS references (the app uses Inter and Fraunces from Google Fonts in `app.blade.php`). `components.json:5` points at a non-existent `tailwind.config.js`.
@@ -156,3 +225,4 @@ No JS unit/e2e test runner is configured. Frontend checks are `npm run lint:chec
 ## Change log
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Design-system overhaul: new palette, Fraunces display font, tinted shadows, pill buttons, floating tab bar, centred `max-w-xl` shell, `<Toaster />` mounted in `MobileLayout`, reduced-motion support.
+- 2026-11-24 — Design system v2 applied to every screen (app, auth, marketing, settings, admin): parchment / ink / wine / gold palette, new primitives (`eyebrow`, `icon-tile`, `card-feature`, `chip`, `list-row`, `badge-soft`, `input-premium`, `hairline-gold`), new `PageHeader`, `SectionHeader`, `SegmentedTabs`; emoji removed from headings and buttons; Log out moved to settings; `search` and `timeline` now use Wayfinder instead of an undefined `route()`.

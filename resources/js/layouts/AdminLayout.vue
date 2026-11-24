@@ -1,121 +1,205 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3';
+import {
+    ArrowLeft,
+    BarChart3,
+    CircleAlert,
+    CircleCheck,
+    ClipboardList,
+    Flag,
+    Heart,
+    Images,
+    LayoutDashboard,
+    Mail,
+    Menu,
+    ScrollText,
+    Settings,
+    Sparkles,
+    Target,
+    Trophy,
+    Users,
+} from '@lucide/vue';
+import { ref, computed } from 'vue';
 
-const page = usePage()
-const user = computed(() => page.props.auth?.user)
-const flash = computed(() => page.props.flash as { success?: string; error?: string } | undefined)
+const page = usePage();
+const user = computed(() => page.props.auth?.user);
+const flash = computed(
+    () => page.props.flash as { success?: string; error?: string } | undefined,
+);
 
-const sidebarOpen = ref(true)
+const sidebarOpen = ref(true);
 const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value
-}
+    sidebarOpen.value = !sidebarOpen.value;
+};
 
 const navItems = [
-  { label: 'Dashboard', href: '/admin', icon: '📊', exact: true },
-  { label: 'Users', href: '/admin/users', icon: '👥' },
-  { label: 'Couples', href: '/admin/couples', icon: '💑' },
-  { label: 'Questionnaires', href: '/admin/questionnaires', icon: '📝' },
-  { label: 'Challenges', href: '/admin/challenges', icon: '🎯' },
-  { label: 'Achievements', href: '/admin/achievements', icon: '🏆' },
-  { label: 'Feature Flags', href: '/admin/feature-flags', icon: '🚩' },
-  { label: 'Settings', href: '/admin/settings', icon: '⚙️' },
-  { label: 'Email Templates', href: '/admin/email-templates', icon: '📧' },
-  { label: 'AI Prompts', href: '/admin/ai-prompts', icon: '🤖' },
-  { label: 'Media Library', href: '/admin/media', icon: '🖼️' },
-  { label: 'Analytics', href: '/admin/analytics', icon: '📈' },
-  { label: 'Audit Logs', href: '/admin/audit-logs', icon: '🔍' },
-]
+    { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, exact: true },
+    { label: 'Users', href: '/admin/users', icon: Users },
+    { label: 'Couples', href: '/admin/couples', icon: Heart },
+    {
+        label: 'Questionnaires',
+        href: '/admin/questionnaires',
+        icon: ClipboardList,
+    },
+    { label: 'Challenges', href: '/admin/challenges', icon: Target },
+    { label: 'Achievements', href: '/admin/achievements', icon: Trophy },
+    { label: 'Feature flags', href: '/admin/feature-flags', icon: Flag },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
+    { label: 'Email templates', href: '/admin/email-templates', icon: Mail },
+    { label: 'AI prompts', href: '/admin/ai-prompts', icon: Sparkles },
+    { label: 'Media library', href: '/admin/media', icon: Images },
+    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Audit logs', href: '/admin/audit-logs', icon: ScrollText },
+];
 
 const isActive = (href: string, exact = false) =>
-  exact ? page.url === href || page.url.startsWith(`${href}?`) : page.url.startsWith(href)
+    exact
+        ? page.url === href || page.url.startsWith(`${href}?`)
+        : page.url.startsWith(href);
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
-    <!-- Sidebar -->
-    <aside
-      :class="[
-        'bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out',
-        sidebarOpen ? 'w-64' : 'w-16'
-      ]"
-    >
-      <!-- Logo -->
-      <div class="h-16 flex items-center px-4 border-b border-gray-200 gap-3">
-        <span class="text-2xl">💕</span>
-        <span v-if="sidebarOpen" class="font-bold text-gray-900 text-lg truncate">Date Night Admin</span>
-      </div>
-
-      <!-- Nav -->
-      <nav class="flex-1 py-4 overflow-y-auto">
-        <Link
-          v-for="item in navItems"
-          :key="item.href"
-          :href="item.href"
-          :class="[
-            'flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors rounded-lg mx-2 mb-1',
-            isActive(item.href, item.exact)
-              ? 'bg-pink-50 text-pink-600'
-              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-          ]"
+    <div class="flex min-h-screen text-foreground">
+        <!-- Sidebar -->
+        <aside
+            :class="[
+                'sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-card transition-all duration-300 ease-in-out',
+                sidebarOpen ? 'w-64' : 'w-16',
+            ]"
         >
-          <span class="text-lg flex-shrink-0">{{ item.icon }}</span>
-          <span v-if="sidebarOpen" class="truncate">{{ item.label }}</span>
-        </Link>
-      </nav>
+            <!-- Wordmark -->
+            <div
+                class="flex h-16 items-center gap-2 border-b border-border px-4"
+            >
+                <span
+                    class="flex size-8 shrink-0 items-center justify-center rounded-full font-display text-sm font-semibold text-primary-foreground gradient-primary"
+                    aria-hidden="true"
+                >
+                    D
+                </span>
+                <span
+                    v-if="sidebarOpen"
+                    class="flex min-w-0 items-baseline gap-2"
+                >
+                    <span class="truncate font-display text-lg font-semibold"
+                        >Date Night</span
+                    >
+                    <span class="eyebrow">Admin</span>
+                </span>
+            </div>
 
-      <!-- User -->
-      <div class="border-t border-gray-200 p-4">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-            {{ user?.name?.charAt(0) }}
-          </div>
-          <div v-if="sidebarOpen" class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-900 truncate">{{ user?.name }}</p>
-            <Link href="/dashboard" class="text-xs text-gray-500 hover:text-pink-500">← Back to app</Link>
-          </div>
+            <!-- Nav -->
+            <nav
+                class="flex-1 space-y-0.5 overflow-y-auto p-2"
+                aria-label="Admin"
+            >
+                <Link
+                    v-for="item in navItems"
+                    :key="item.href"
+                    :href="item.href"
+                    :title="sidebarOpen ? undefined : item.label"
+                    :aria-label="sidebarOpen ? undefined : item.label"
+                    :aria-current="
+                        isActive(item.href, item.exact) ? 'page' : undefined
+                    "
+                    :class="[
+                        'flex h-10 items-center gap-3 rounded-xl px-3 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                        isActive(item.href, item.exact)
+                            ? 'bg-accent font-medium text-primary'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    ]"
+                >
+                    <component
+                        :is="item.icon"
+                        class="size-4 shrink-0"
+                        aria-hidden="true"
+                    />
+                    <span v-if="sidebarOpen" class="truncate">{{
+                        item.label
+                    }}</span>
+                </Link>
+            </nav>
+
+            <!-- User -->
+            <div class="border-t border-border p-4">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-primary-foreground gradient-primary"
+                    >
+                        {{ user?.name?.charAt(0) }}
+                    </div>
+                    <div v-if="sidebarOpen" class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium">
+                            {{ user?.name }}
+                        </p>
+                        <Link
+                            href="/dashboard"
+                            class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"
+                        >
+                            <ArrowLeft class="size-3" aria-hidden="true" />
+                            Back to app
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <div class="flex min-w-0 flex-1 flex-col">
+            <!-- Top bar -->
+            <header
+                class="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background/75 px-6 backdrop-blur-xl"
+            >
+                <button
+                    type="button"
+                    @click="toggleSidebar"
+                    class="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                    :aria-label="
+                        sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'
+                    "
+                    :aria-expanded="sidebarOpen"
+                >
+                    <Menu class="size-5" aria-hidden="true" />
+                </button>
+
+                <div class="flex-1" />
+
+                <span class="badge-soft">Admin portal</span>
+            </header>
+
+            <!-- Flash messages -->
+            <div
+                v-if="flash?.success || flash?.error"
+                class="mx-auto w-full max-w-[1280px] space-y-2 px-6 pt-4 lg:px-8"
+            >
+                <div
+                    v-if="flash?.success"
+                    role="status"
+                    class="flex items-start gap-2 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-foreground"
+                >
+                    <CircleCheck
+                        class="mt-0.5 size-4 shrink-0 text-success"
+                        aria-hidden="true"
+                    />
+                    {{ flash.success }}
+                </div>
+                <div
+                    v-if="flash?.error"
+                    role="alert"
+                    class="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-foreground"
+                >
+                    <CircleAlert
+                        class="mt-0.5 size-4 shrink-0 text-destructive"
+                        aria-hidden="true"
+                    />
+                    {{ flash.error }}
+                </div>
+            </div>
+
+            <!-- Page content -->
+            <main class="mx-auto w-full max-w-[1280px] flex-1 p-6 lg:p-8">
+                <slot />
+            </main>
         </div>
-      </div>
-    </aside>
-
-    <!-- Main -->
-    <div class="flex-1 flex flex-col min-w-0">
-      <!-- Header -->
-      <header class="h-16 bg-white border-b border-gray-200 flex items-center px-6 gap-4">
-        <button
-          @click="toggleSidebar"
-          class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-
-        <div class="flex-1" />
-
-        <span class="text-xs font-medium px-2 py-1 rounded-full bg-pink-100 text-pink-700">Admin Portal</span>
-      </header>
-
-      <!-- Flash messages -->
-      <div v-if="flash?.success || flash?.error" class="px-6 pt-4">
-        <div
-          v-if="flash?.success"
-          class="bg-green-50 border border-green-200 text-green-800 rounded-xl px-4 py-3 text-sm font-medium"
-        >
-          ✅ {{ flash.success }}
-        </div>
-        <div
-          v-if="flash?.error"
-          class="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm font-medium"
-        >
-          ❌ {{ flash.error }}
-        </div>
-      </div>
-
-      <!-- Page content -->
-      <main class="flex-1 p-6 overflow-auto">
-        <slot />
-      </main>
     </div>
-  </div>
 </template>

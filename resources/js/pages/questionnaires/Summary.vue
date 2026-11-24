@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
+import { Bookmark, Check, LocateFixed, MapPin, Pencil, X } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
+import SectionHeader from '@/components/SectionHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
 defineOptions({ layout: MobileLayout });
@@ -349,14 +352,14 @@ function openManualEntry(): void {
 
 const locationCardHeadline = computed(() => {
     if (locationStatus.value === 'granted' && locationLabel.value) {
-        return `📍 Near ${locationLabel.value}`;
+        return `Near ${locationLabel.value}`;
     }
 
     if (locationStatus.value === 'granted') {
-        return '📍 Location captured';
+        return 'Location captured';
     }
 
-    return '📍 Where are you starting from?';
+    return 'Where are you starting from?';
 });
 
 onMounted(() => {
@@ -364,6 +367,10 @@ onMounted(() => {
         requestGeolocation();
     }
 });
+
+const answeredCount = computed(
+    () => props.grouped_answers.filter((g) => g.answers.length > 0).length,
+);
 
 const emojiOptions = ['❤️', '🎬', '🏨', '🌧️', '🎉', '💕', '✨', '🌹'];
 const colourOptions = [
@@ -516,83 +523,117 @@ function completeQuestionnaire(): void {
 </script>
 
 <template>
-    <Head title="Your Answers" />
+    <Head title="Your answers" />
 
-    <div class="space-y-4 px-4 py-6 pb-32">
-        <div class="space-y-1">
-            <h1 class="text-2xl font-semibold text-foreground">
-                Your Answers 📋
-            </h1>
-            <p class="text-sm text-muted-foreground">
-                Review and edit before completing.
-            </p>
-        </div>
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            :eyebrow="questionnaire.title"
+            title="Your answers"
+            description="Review and edit before completing."
+        />
+
+        <!-- Headline -->
+        <section class="card-feature flex items-end justify-between gap-4 p-6">
+            <div>
+                <p class="eyebrow text-gold-soft">Answered</p>
+                <p
+                    class="mt-2 font-display text-5xl leading-none font-medium tabular-nums"
+                >
+                    {{ answeredCount }}
+                    <span class="text-2xl text-white/70"
+                        >/ {{ grouped_answers.length }}</span
+                    >
+                </p>
+            </div>
+            <p class="text-sm text-white/80">questions</p>
+        </section>
 
         <!-- Answer cards -->
-        <div
-            v-for="group in grouped_answers"
-            :key="group.question.id"
-            class="card-premium p-5"
-        >
-            <div class="flex items-start justify-between gap-3">
-                <div class="flex min-w-0 flex-1 items-start gap-3">
+        <section class="space-y-3">
+            <SectionHeader title="Answers" />
+
+            <div class="divide-y divide-border card-premium px-5 py-1">
+                <div
+                    v-for="group in grouped_answers"
+                    :key="group.question.id"
+                    class="flex items-start gap-3.5 py-4"
+                >
                     <span
                         v-if="group.question.emoji"
-                        class="shrink-0 text-2xl"
+                        class="icon-tile h-11 w-11 text-xl"
                         aria-hidden="true"
                     >
                         {{ group.question.emoji }}
                     </span>
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1">
                         <p
-                            class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            class="text-xs font-medium text-muted-foreground tabular-nums"
                         >
                             Q{{ group.question.display_order }}
                         </p>
-                        <p class="text-sm font-semibold text-foreground">
+                        <p
+                            class="mt-0.5 text-sm leading-snug font-medium text-foreground"
+                        >
                             {{ group.question.title }}
                         </p>
-                        <p class="mt-1 text-sm font-medium text-primary">
+                        <p class="mt-1 text-sm leading-snug text-primary">
                             {{ formatAnswer(group) }}
                         </p>
                     </div>
+                    <button
+                        type="button"
+                        class="-mr-2 inline-flex min-h-10 shrink-0 items-center rounded-full px-3 text-[13px] font-medium text-primary transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                        @click="editAnswer(group.question.display_order)"
+                    >
+                        Edit
+                    </button>
                 </div>
-                <button
-                    class="shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus:ring-2 focus:ring-primary focus:outline-none"
-                    @click="editAnswer(group.question.display_order)"
-                >
-                    Edit
-                </button>
             </div>
-        </div>
+        </section>
 
         <!-- Combined location + travel radius (solo questionnaires only) -->
-        <div v-if="questionnaire.is_solo" class="space-y-4 card-premium p-5">
-            <div class="space-y-1">
-                <h2 class="text-lg font-semibold text-foreground">
-                    {{ locationCardHeadline }}
-                </h2>
-                <p class="text-sm text-muted-foreground">
-                    We'll plan around this location and stay within your travel
-                    radius. Use your current location, or type in somewhere
-                    you'll be visiting.
-                </p>
+        <section
+            v-if="questionnaire.is_solo"
+            class="space-y-4 card-premium p-5"
+        >
+            <div class="flex items-start gap-3.5">
+                <span class="icon-tile h-11 w-11" aria-hidden="true">
+                    <MapPin class="size-5 text-primary" />
+                </span>
+                <div class="min-w-0 flex-1 space-y-1">
+                    <h2
+                        class="text-lg leading-tight font-semibold text-foreground"
+                    >
+                        {{ locationCardHeadline }}
+                    </h2>
+                    <p class="text-sm leading-relaxed text-muted-foreground">
+                        We'll plan around this location and stay within your
+                        travel radius. Use your current location, or type in
+                        somewhere you'll be visiting.
+                    </p>
+                </div>
             </div>
 
             <!-- Current location summary -->
             <div
                 v-if="locationStatus === 'granted'"
-                class="space-y-2 rounded-2xl bg-primary/5 p-4 text-sm"
+                class="space-y-2 rounded-2xl bg-muted/60 p-4 text-sm"
             >
-                <p class="font-semibold text-foreground">
-                    ✅ Planning around
-                    <span class="text-primary">{{
-                        locationLabel ?? 'your current spot'
-                    }}</span>
+                <p class="flex items-start gap-2 font-medium text-foreground">
+                    <Check
+                        class="mt-0.5 size-4 shrink-0 text-success"
+                        aria-hidden="true"
+                    />
+                    <span>
+                        Planning around
+                        <span class="text-primary">{{
+                            locationLabel ?? 'your current spot'
+                        }}</span>
+                    </span>
                 </p>
                 <p
                     v-if="locationSource === 'fallback'"
-                    class="text-xs text-muted-foreground"
+                    class="text-xs leading-relaxed text-muted-foreground"
                 >
                     {{
                         locationError ??
@@ -605,46 +646,57 @@ function completeQuestionnaire(): void {
                 >
                     Using the location you entered.
                 </p>
-                <div class="flex flex-wrap gap-3 pt-1">
+                <div class="flex flex-wrap gap-x-4">
                     <button
                         type="button"
-                        class="text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                        class="inline-flex min-h-10 items-center gap-1.5 rounded-full text-[13px] font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                         @click="requestGeolocation"
                     >
-                        📍 Use my current location
+                        <LocateFixed class="size-4" aria-hidden="true" />
+                        Use my current location
                     </button>
                     <button
                         type="button"
-                        class="text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                        class="inline-flex min-h-10 items-center gap-1.5 rounded-full text-[13px] font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                         @click="openManualEntry"
                     >
-                        ✏️ Enter a different location
+                        <Pencil class="size-4" aria-hidden="true" />
+                        Enter a different location
                     </button>
                 </div>
             </div>
 
             <div
                 v-else-if="locationStatus === 'requesting'"
-                class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground"
+                class="rounded-2xl bg-muted/60 p-4 text-sm text-muted-foreground"
             >
                 Finding you…
             </div>
 
             <div
                 v-else-if="locationStatus === 'searching'"
-                class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground"
+                class="rounded-2xl bg-muted/60 p-4 text-sm text-muted-foreground"
             >
                 Looking up that location…
             </div>
 
             <div v-else class="space-y-3">
-                <PrimaryButton full-width @click="requestGeolocation">
-                    📍 Use my current location
-                </PrimaryButton>
-                <SecondaryButton full-width @click="openManualEntry">
-                    ✏️ Enter a location manually
+                <SecondaryButton full-width @click="requestGeolocation">
+                    <LocateFixed class="size-4" aria-hidden="true" />
+                    Use my current location
                 </SecondaryButton>
-                <p v-if="locationError" class="text-xs text-muted-foreground">
+                <SecondaryButton
+                    variant="outline"
+                    full-width
+                    @click="openManualEntry"
+                >
+                    <Pencil class="size-4" aria-hidden="true" />
+                    Enter a location manually
+                </SecondaryButton>
+                <p
+                    v-if="locationError"
+                    class="text-xs leading-relaxed text-muted-foreground"
+                >
                     {{ locationError }}
                 </p>
             </div>
@@ -652,38 +704,42 @@ function completeQuestionnaire(): void {
             <!-- Manual entry form -->
             <div
                 v-if="locationStatus === 'manual'"
-                class="space-y-2 rounded-2xl bg-muted/40 p-4"
+                class="space-y-3 border-t border-border pt-4"
             >
                 <label
-                    class="block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    for="manual-location"
+                    class="block text-sm font-medium text-foreground"
                 >
                     Enter a town, city or postcode
                 </label>
                 <input
+                    id="manual-location"
                     v-model="manualLocationQuery"
                     type="text"
                     placeholder="e.g. Bath, United Kingdom"
-                    class="w-full rounded-2xl border-2 border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    class="input-premium"
                     @keydown.enter.prevent="submitManualLocation"
                 />
                 <p v-if="manualLocationError" class="text-xs text-warning">
                     {{ manualLocationError }}
                 </p>
-                <PrimaryButton full-width @click="submitManualLocation">
+                <SecondaryButton full-width @click="submitManualLocation">
                     Use this location
-                </PrimaryButton>
+                </SecondaryButton>
             </div>
 
             <!-- Travel radius slider -->
-            <div class="space-y-2 rounded-2xl bg-background/60 p-4">
-                <div class="flex items-center justify-between">
+            <div class="space-y-3 border-t border-border pt-4">
+                <div class="flex items-baseline justify-between gap-4">
                     <label
                         for="travel-radius"
-                        class="text-sm font-semibold text-foreground"
+                        class="text-sm font-medium text-foreground"
                     >
-                        🚗 How far are you happy to drive?
+                        How far are you happy to drive?
                     </label>
-                    <span class="text-sm font-semibold text-primary">
+                    <span
+                        class="shrink-0 font-display text-lg text-primary tabular-nums"
+                    >
                         {{ formatMinutes(travelRadiusMinutes) }}
                     </span>
                 </div>
@@ -696,25 +752,30 @@ function completeQuestionnaire(): void {
                     :step="TRAVEL_RADIUS_STEP"
                     class="w-full accent-primary"
                 />
-                <p class="text-xs text-muted-foreground">
+                <p class="text-xs leading-relaxed text-muted-foreground">
                     We'll suggest ideas reachable within this driving time (by
                     car) from your location.
                 </p>
             </div>
-        </div>
+        </section>
 
         <!-- Actions -->
-        <div class="space-y-3 pt-2">
+        <div class="space-y-3">
             <PrimaryButton
                 full-width
                 :loading="finishing"
                 @click="completeQuestionnaire"
             >
-                Complete Questionnaire ❤️
+                Complete questionnaire
             </PrimaryButton>
 
-            <SecondaryButton full-width @click="showSaveModal = true">
-                💾 Save as Favourite Profile
+            <SecondaryButton
+                variant="ghost"
+                full-width
+                @click="showSaveModal = true"
+            >
+                <Bookmark class="size-4" aria-hidden="true" />
+                Save as favourite profile
             </SecondaryButton>
         </div>
     </div>
@@ -723,39 +784,54 @@ function completeQuestionnaire(): void {
     <Transition name="fade">
         <div
             v-if="showSaveModal"
-            class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
+            class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
             @click.self="showSaveModal = false"
         >
             <div
-                class="w-full max-w-md space-y-5 rounded-3xl bg-card p-6 shadow-xl"
+                class="w-full max-w-md space-y-5 card-premium rounded-b-none p-6 sm:rounded-3xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="save-profile-title"
             >
-                <h3 class="text-lg font-semibold text-foreground">
-                    Save as Profile
-                </h3>
+                <div class="flex items-center justify-between gap-4">
+                    <h2
+                        id="save-profile-title"
+                        class="text-xl font-semibold text-foreground"
+                    >
+                        Save as profile
+                    </h2>
+                    <button
+                        type="button"
+                        class="-mr-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                        aria-label="Close"
+                        @click="showSaveModal = false"
+                    >
+                        <X class="size-5" aria-hidden="true" />
+                    </button>
+                </div>
 
-                <div class="space-y-3">
+                <div class="space-y-4">
                     <input
                         v-model="profileName"
                         type="text"
                         placeholder="Give this profile a name…"
-                        class="w-full rounded-2xl border-2 border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        aria-label="Profile name"
+                        class="input-premium"
                     />
 
                     <div>
-                        <p
-                            class="mb-2 text-xs font-medium text-muted-foreground"
-                        >
-                            Choose an emoji
-                        </p>
+                        <p class="mb-2 eyebrow">Choose an emoji</p>
                         <div class="flex flex-wrap gap-2">
                             <button
                                 v-for="e in emojiOptions"
                                 :key="e"
+                                type="button"
+                                :aria-pressed="profileEmoji === e"
                                 :class="[
-                                    'rounded-xl p-2 text-xl transition-all',
+                                    'icon-tile h-11 w-11 text-xl transition-all focus-visible:outline-none',
                                     profileEmoji === e
-                                        ? 'bg-primary/20 ring-2 ring-primary'
-                                        : 'hover:bg-muted',
+                                        ? 'ring-2 ring-primary'
+                                        : 'focus-visible:ring-2 focus-visible:ring-primary/50',
                                 ]"
                                 @click="profileEmoji = e"
                             >
@@ -765,19 +841,18 @@ function completeQuestionnaire(): void {
                     </div>
 
                     <div>
-                        <p
-                            class="mb-2 text-xs font-medium text-muted-foreground"
-                        >
-                            Choose a colour
-                        </p>
-                        <div class="flex gap-2">
+                        <p class="mb-2 eyebrow">Choose a colour</p>
+                        <div class="flex gap-3">
                             <button
                                 v-for="c in colourOptions"
                                 :key="c"
+                                type="button"
+                                :aria-pressed="profileColour === c"
+                                :aria-label="`Colour ${c}`"
                                 :class="[
-                                    'h-8 w-8 rounded-full transition-all',
+                                    'size-9 rounded-full ring-offset-2 ring-offset-card transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none',
                                     profileColour === c
-                                        ? 'scale-110 ring-2 ring-foreground ring-offset-2'
+                                        ? 'ring-2 ring-foreground'
                                         : '',
                                 ]"
                                 :style="{ backgroundColor: c }"
@@ -793,9 +868,12 @@ function completeQuestionnaire(): void {
                         :loading="saving"
                         @click="saveProfile"
                     >
-                        Save Profile
+                        Save profile
                     </PrimaryButton>
-                    <SecondaryButton full-width @click="showSaveModal = false"
+                    <SecondaryButton
+                        variant="ghost"
+                        full-width
+                        @click="showSaveModal = false"
                         >Cancel</SecondaryButton
                     >
                 </div>

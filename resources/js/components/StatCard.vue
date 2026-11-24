@@ -7,13 +7,7 @@ interface Props {
     variant?: 'default' | 'primary' | 'secondary';
 }
 
-const {
-    label,
-    value,
-    emoji,
-    description,
-    variant = 'default',
-} = defineProps<Props>();
+const { label, value, description, variant = 'default' } = defineProps<Props>();
 </script>
 
 <template>
@@ -27,21 +21,16 @@ const {
         <div class="flex items-center justify-between gap-1">
             <span
                 :class="[
-                    'truncate text-[11px] font-semibold tracking-widest uppercase',
-                    variant === 'default'
-                        ? 'text-muted-foreground'
-                        : 'text-white/80',
+                    'truncate eyebrow',
+                    variant !== 'default' && '!text-white/80',
                 ]"
             >
                 {{ label }}
             </span>
-            <span v-if="emoji" class="text-base" aria-hidden="true">{{
-                emoji
-            }}</span>
         </div>
         <div
             :class="[
-                'font-display text-3xl leading-none font-semibold tabular-nums',
+                'font-display text-4xl leading-none font-medium tabular-nums',
                 variant === 'default' ? 'text-foreground' : 'text-white',
             ]"
         >

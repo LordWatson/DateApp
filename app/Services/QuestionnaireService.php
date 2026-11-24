@@ -18,7 +18,10 @@ use Illuminate\Support\Collection;
 
 class QuestionnaireService
 {
-    public function findOrCreateResponse(User $user, Questionnaire $questionnaire): Response
+    /**
+     * @param  bool|null  $solo  Mode picked by the user; only used by questionnaires that offer the choice.
+     */
+    public function findOrCreateResponse(User $user, Questionnaire $questionnaire, ?bool $solo = null): Response
     {
         $inProgress = Response::where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
@@ -27,6 +30,10 @@ class QuestionnaireService
             ->first();
 
         if ($inProgress) {
+            if ($solo !== null && $questionnaire->partner_optional && $inProgress->is_solo !== $solo) {
+                $inProgress->update(['is_solo' => $solo]);
+            }
+
             return $inProgress;
         }
 
@@ -34,11 +41,12 @@ class QuestionnaireService
             'user_id' => $user->id,
             'questionnaire_id' => $questionnaire->id,
             'status' => CompletionStatus::InProgress,
+            'is_solo' => $this->modeFor($questionnaire, $solo),
             'started_at' => Carbon::now(),
         ]);
     }
 
-    public function startNewResponse(User $user, Questionnaire $questionnaire): Response
+    public function startNewResponse(User $user, Questionnaire $questionnaire, ?bool $solo = null): Response
     {
         Response::where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
@@ -49,8 +57,17 @@ class QuestionnaireService
             'user_id' => $user->id,
             'questionnaire_id' => $questionnaire->id,
             'status' => CompletionStatus::InProgress,
+            'is_solo' => $this->modeFor($questionnaire, $solo),
             'started_at' => Carbon::now(),
         ]);
+    }
+
+    /**
+     * Null for questionnaires without a choice, so the questionnaire's own is_solo applies.
+     */
+    private function modeFor(Questionnaire $questionnaire, ?bool $solo): ?bool
+    {
+        return $questionnaire->partner_optional ? ($solo ?? $questionnaire->is_solo) : null;
     }
 
     public function getResponseWithAnswers(User $user, Questionnaire $questionnaire): ?Response
@@ -62,12 +79,16 @@ class QuestionnaireService
             ->first();
     }
 
-    public function getLatestCompletedResponse(User $user, Questionnaire $questionnaire): ?Response
+    /**
+     * @param  bool|null  $solo  Restrict to attempts in this mode; null means any mode.
+     */
+    public function getLatestCompletedResponse(User $user, Questionnaire $questionnaire, ?bool $solo = null): ?Response
     {
         return Response::with('answers')
             ->where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
             ->where('status', CompletionStatus::Completed)
+            ->when($solo !== null, fn ($query) => $query->inMode($questionnaire, $solo))
             ->latest('completed_at')
             ->latest('id')
             ->first();
@@ -179,8 +200,8 @@ class QuestionnaireService
     }
 
     /**
-     * Persist the location fields on a solo response (if provided) and
-     * mark it as completed. No-op when the response is already completed.
+     * Persist the location fields on a date-out response (if provided) and
+     * mark it as completed. Couple attempts of a date-out questionnaire keep them too. No-op when the response is already completed.
      *
      * @param  array<string, mixed>  $locationData
      */
@@ -219,13 +240,14 @@ class QuestionnaireService
         $questionnaire = $latestResponse->questionnaire;
         $user = $latestResponse->user;
 
-        if (! $questionnaire || $questionnaire->is_solo) {
+        if (! $questionnaire || $latestResponse->isSolo()) {
             return;
         }
 
         $previousCompleted = Response::where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
             ->where('status', CompletionStatus::Completed)
+            ->inMode($questionnaire, false)
             ->where('id', '!=', $latestResponse->id)
             ->orderByDesc('completed_at')
             ->orderByDesc('id')
@@ -275,7 +297,7 @@ class QuestionnaireService
      */
     public function partnerHasFreshCompletedResponse(User $user, User $partner, Questionnaire $questionnaire): bool
     {
-        $partnerLatest = $this->getLatestCompletedResponse($partner, $questionnaire);
+        $partnerLatest = $this->getLatestCompletedResponse($partner, $questionnaire, false);
 
         if (! $partnerLatest) {
             return false;
@@ -284,6 +306,7 @@ class QuestionnaireService
         $userResponseIds = Response::where('user_id', $user->id)
             ->where('questionnaire_id', $questionnaire->id)
             ->where('status', CompletionStatus::Completed)
+            ->inMode($questionnaire, false)
             ->pluck('id');
 
         if ($userResponseIds->isEmpty()) {
@@ -326,7 +349,7 @@ class QuestionnaireService
             return false;
         }
 
-        $userLatestCompleted = $this->getLatestCompletedResponse($user, $questionnaire);
+        $userLatestCompleted = $this->getLatestCompletedResponse($user, $questionnaire, false);
 
         if (! $userLatestCompleted) {
             return false;

@@ -44,6 +44,9 @@ final class NullAIProvider implements AIProvider
                 'summary' => 'A calm, connection-focused evening at home.',
                 'activities' => [],
             ],
+            AIUseCase::DateNightPlanOutCouple => [
+                'summary' => 'An easy evening out that gives each of you something you asked for.',
+            ],
             AIUseCase::ConversationPrompt => [
                 'prompt' => 'What made you smile this week?',
             ],

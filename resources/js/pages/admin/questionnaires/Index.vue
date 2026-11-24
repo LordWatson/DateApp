@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
+import { Plus, X } from '@lucide/vue';
 import { ref } from 'vue';
 import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
+import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 import { create } from '@/routes/admin/questionnaires';
 import { edit } from '@/routes/admin/questionnaires';
@@ -68,53 +70,49 @@ const columns = [
     <div>
         <div class="mb-6 flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Questionnaires</h1>
-                <p class="mt-1 text-sm text-gray-500">
+                <h1 class="text-2xl font-semibold text-foreground">
+                    Questionnaires
+                </h1>
+                <p class="mt-1 text-sm text-muted-foreground">
                     {{ questionnaires.total }} total
                 </p>
             </div>
-            <Link
-                :href="create().url"
-                class="rounded-xl bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600"
+            <Button as-child size="sm"
+                ><Link :href="create().url">
+                    <Plus class="size-4" aria-hidden="true" />New questionnaire
+                </Link></Button
             >
-                + New Questionnaire
-            </Link>
         </div>
 
         <!-- Filters -->
-        <div
-            class="mb-6 flex flex-wrap gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
-        >
+        <div class="mb-6 flex flex-wrap gap-3 card-premium rounded-2xl p-4">
             <input
                 v-model="search"
                 type="text"
                 placeholder="Search questionnaires…"
-                class="min-w-48 flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                class="input-premium min-w-48 flex-1 px-3 py-2 text-sm"
                 @keyup.enter="applyFilters"
+                aria-label="Search questionnaires"
             />
             <select
                 v-model="status"
-                class="rounded-xl border border-gray-200 px-4 py-2 text-sm focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                class="input-premium w-auto px-3 py-2 text-sm"
                 @change="applyFilters"
+                aria-label="Status"
             >
-                <option value="">All Statuses</option>
+                <option value="">All statuses</option>
                 <option value="active">Active</option>
                 <option value="draft">Draft</option>
                 <option value="archived">Archived</option>
             </select>
-            <button
-                @click="applyFilters"
-                class="rounded-xl bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600"
-            >
-                Search
-            </button>
+            <Button size="sm" @click="applyFilters"> Search </Button>
         </div>
 
         <AdminTable :columns="columns" empty="No questionnaires found.">
             <tr
                 v-for="q in questionnaires.data"
                 :key="q.id"
-                class="border-b border-gray-50 transition-colors hover:bg-gray-50"
+                class="transition-colors hover:bg-muted/60"
             >
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
@@ -122,13 +120,11 @@ const columns = [
                             q.emoji
                         }}</span>
                         <div>
-                            <p class="font-medium text-gray-900">
+                            <p class="font-medium text-foreground">
                                 {{ q.title }}
                             </p>
-                            <span
-                                v-if="q.is_seasonal"
-                                class="text-xs text-purple-500"
-                                >🌸 Seasonal</span
+                            <span v-if="q.is_seasonal" class="badge-soft"
+                                >Seasonal</span
                             >
                         </div>
                     </div>
@@ -136,42 +132,42 @@ const columns = [
                 <td class="px-4 py-3">
                     <span
                         :class="[
-                            'rounded-full px-2 py-1 text-xs font-medium capitalize',
+                            'badge-soft capitalize',
                             q.status === 'active'
-                                ? 'bg-green-100 text-green-700'
+                                ? 'bg-success/10 text-success'
                                 : q.status === 'draft'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-gray-100 text-gray-600',
+                                  ? 'bg-warning/10 text-warning'
+                                  : 'bg-muted text-muted-foreground',
                         ]"
                     >
                         {{ q.status }}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-600">
+                <td class="px-4 py-3 text-sm text-muted-foreground">
                     {{ q.questions_count }}
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-600">
+                <td class="px-4 py-3 text-sm text-muted-foreground">
                     {{ q.responses_count }}
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-600">
+                <td class="px-4 py-3 text-sm text-muted-foreground">
                     {{ q.display_order }}
                 </td>
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
                         <Link
                             :href="edit(q.id).url"
-                            class="text-xs text-gray-600 hover:underline"
+                            class="text-xs font-medium text-foreground hover:underline"
                             >Edit</Link
                         >
                         <button
                             @click="doDuplicate(q.id)"
-                            class="text-xs text-blue-500 hover:underline"
+                            class="text-xs text-primary hover:underline"
                         >
                             Duplicate
                         </button>
                         <button
                             @click="confirmDelete = q.id"
-                            class="text-xs text-red-500 hover:underline"
+                            class="text-xs text-destructive hover:underline"
                         >
                             Delete
                         </button>
@@ -185,29 +181,47 @@ const columns = [
         <!-- Delete Modal -->
         <div
             v-if="confirmDelete"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
         >
-            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-                <h3 class="mb-2 font-bold text-gray-900">
-                    Delete Questionnaire?
-                </h3>
-                <p class="mb-6 text-sm text-gray-500">
+            <div
+                class="w-full max-w-md card-premium p-6"
+                role="dialog"
+                aria-modal="true"
+            >
+                <div class="mb-1 flex items-start justify-between gap-4">
+                    <h2 class="text-xl font-semibold text-foreground">
+                        Delete questionnaire?
+                    </h2>
+                    <button
+                        type="button"
+                        class="-mt-1 -mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label="Close"
+                        @click="confirmDelete = null"
+                    >
+                        <X class="size-4" aria-hidden="true" />
+                    </button>
+                </div>
+                <p class="mb-6 text-sm text-muted-foreground">
                     This will permanently delete the questionnaire and all its
                     questions.
                 </p>
                 <div class="flex gap-3">
-                    <button
+                    <Button
+                        variant="destructive"
+                        size="sm"
                         @click="doDelete(confirmDelete!)"
-                        class="flex-1 rounded-xl bg-red-500 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                        class="flex-1"
                     >
                         Delete
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
                         @click="confirmDelete = null"
-                        class="flex-1 rounded-xl bg-gray-100 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+                        class="flex-1"
                     >
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
