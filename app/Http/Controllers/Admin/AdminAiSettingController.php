@@ -40,7 +40,7 @@ final class AdminAiSettingController extends AdminController
         return Inertia::render('admin/ai-settings/Index', [
             'settings' => $this->settings->current(),
             'analytics' => $this->analyticsSnapshot(),
-            'providers' => ['deepseek', 'null'],
+            'providers' => ['anthropic', 'deepseek', 'null'],
             'useCases' => array_map(static fn (AIUseCase $c) => $c->value, AIUseCase::cases()),
         ]);
     }

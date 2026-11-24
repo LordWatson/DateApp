@@ -10,6 +10,8 @@ use App\DTOs\AI\AIResponse;
 use App\Enums\AI\AIUseCase;
 use App\Models\AiPromptTemplate;
 use App\Services\AI\AIService;
+use App\Services\AI\AISettingsService;
+use App\Services\AI\AnthropicProvider;
 use App\Services\AI\DeepSeekProvider;
 use App\Services\AI\NullAIProvider;
 use Database\Seeders\AiPromptTemplateSeeder;
@@ -395,5 +397,149 @@ class AIInfrastructureTest extends TestCase
         $this->assertSame([], $response->data);
         $this->assertSame('boom', $response->errorCode);
         $this->assertSame('went wrong', $response->errorMessage);
+    }
+
+    public function test_provider_binding_resolves_anthropic_by_default(): void
+    {
+        $this->assertSame('anthropic', (require config_path('ai.php'))['provider'] ?? null);
+
+        $this->useAnthropic();
+
+        $this->assertInstanceOf(AnthropicProvider::class, $this->app->make(AIProvider::class));
+    }
+
+    public function test_anthropic_provider_sends_expected_messages_api_payload(): void
+    {
+        $this->useAnthropic();
+        Http::fake(['api.anthropic.test/*' => Http::response($this->anthropicBody('{"prompt":"ok"}'), 200)]);
+
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+            'system_prompt' => 'sys',
+            'user_prompt_template' => 'usr',
+        ]);
+
+        $this->app->make(AIService::class)->generateConversationPrompt();
+
+        Http::assertSent(function ($request): bool {
+            $body = $request->data();
+
+            return $request->url() === 'https://api.anthropic.test/v1/messages'
+                && $request->hasHeader('x-api-key', 'test-key')
+                && $request->hasHeader('anthropic-version', '2026-10-21')
+                && $request->hasHeader('anthropic-beta', 'server-side-fallback-2026-07-01')
+                && $body['model'] === 'claude-test'
+                && $body['max_tokens'] === 16000
+                && $body['system'] === 'sys'
+                && $body['messages'] === [['role' => 'user', 'content' => 'usr']]
+                && $body['output_config'] === ['effort' => 'medium']
+                && $body['fallbacks'] === 'default'
+                && ! array_key_exists('temperature', $body);
+        });
+    }
+
+    public function test_anthropic_provider_parses_fenced_json_and_maps_usage(): void
+    {
+        $this->useAnthropic();
+        Http::fake([
+            'api.anthropic.test/*' => Http::response([
+                'model' => 'claude-test',
+                'stop_reason' => 'end_turn',
+                'content' => [
+                    ['type' => 'thinking', 'thinking' => ''],
+                    ['type' => 'text', 'text' => "```json\n{\"prompt\":\"Hi\"}\n```"],
+                ],
+                'usage' => ['input_tokens' => 30, 'output_tokens' => 12],
+            ], 200),
+        ]);
+
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+
+        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+
+        $this->assertTrue($response->successful);
+        $this->assertSame(['prompt' => 'Hi'], $response->data);
+        $this->assertSame('claude-test', $response->model);
+        $this->assertSame(
+            ['prompt_tokens' => 30, 'completion_tokens' => 12, 'total_tokens' => 42],
+            $response->usage,
+        );
+    }
+
+    public function test_anthropic_provider_returns_typed_errors_for_truncation_refusal_and_bad_json(): void
+    {
+        $this->useAnthropic();
+        Http::fakeSequence('api.anthropic.test/*')
+            ->push($this->anthropicBody('{"prompt":"Hel', 'max_tokens'), 200)
+            ->push($this->anthropicBody('', 'refusal'), 200)
+            ->push($this->anthropicBody('Sorry, here is some prose.'), 200)
+            ->push(['unexpected' => true], 200)
+            ->push(['type' => 'error'], 400);
+
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        $service = $this->app->make(AIService::class);
+
+        foreach (['response_truncated', 'refused', 'invalid_json', 'invalid_payload', 'http_error'] as $expected) {
+            $response = $service->generateConversationPrompt();
+
+            $this->assertFalse($response->successful);
+            $this->assertSame($expected, $response->errorCode);
+        }
+    }
+
+    public function test_anthropic_provider_reports_missing_api_key(): void
+    {
+        $this->useAnthropic();
+        config()->set('ai.providers.anthropic.api_key', '');
+        Http::fake();
+
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+
+        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+
+        $this->assertSame('missing_api_key', $response->errorCode);
+        Http::assertNothingSent();
+    }
+
+    public function test_admin_model_setting_applies_to_the_selected_provider(): void
+    {
+        $settings = $this->app->make(AISettingsService::class);
+
+        $settings->update(['provider' => 'anthropic', 'model' => 'claude-custom']);
+
+        $this->assertSame('claude-custom', config('ai.providers.anthropic.model'));
+        $this->assertSame('deepseek-v4-flash', config('ai.providers.deepseek.model'));
+
+        config()->set('ai.provider', 'deepseek');
+        config()->set('ai.providers.anthropic.model', 'reset');
+        $settings->hydrateConfig();
+
+        $this->assertSame('anthropic', config('ai.provider'));
+        $this->assertSame('claude-custom', config('ai.providers.anthropic.model'));
+        $this->assertSame('claude-custom', $settings->current()['model']);
+    }
+
+    private function useAnthropic(): void
+    {
+        config()->set('ai.provider', 'anthropic');
+        config()->set('ai.providers.anthropic.api_key', 'test-key');
+        config()->set('ai.providers.anthropic.base_url', 'https://api.anthropic.test');
+        config()->set('ai.providers.anthropic.model', 'claude-test');
+        config()->set('ai.providers.anthropic.effort', 'medium');
+        config()->set('ai.providers.anthropic.min_max_tokens', 16000);
+        config()->set('ai.providers.anthropic.fallbacks', true);
+        $this->app->forgetInstance(AIProvider::class);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function anthropicBody(string $text, string $stopReason = 'end_turn'): array
+    {
+        return [
+            'model' => 'claude-test',
+            'stop_reason' => $stopReason,
+            'content' => [['type' => 'text', 'text' => $text]],
+            'usage' => ['input_tokens' => 1, 'output_tokens' => 1],
+        ];
     }
 }

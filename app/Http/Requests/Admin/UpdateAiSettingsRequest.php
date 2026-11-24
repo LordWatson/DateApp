@@ -19,7 +19,7 @@ final class UpdateAiSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'provider' => ['required', 'string', 'in:deepseek,null'],
+            'provider' => ['required', 'string', 'in:anthropic,deepseek,null'],
             'model' => ['required', 'string', 'max:120'],
             'temperature' => ['required', 'numeric', 'min:0', 'max:2'],
             'max_tokens' => ['required', 'integer', 'min:1', 'max:8000'],

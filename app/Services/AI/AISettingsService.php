@@ -18,7 +18,6 @@ final class AISettingsService
 {
     private const KEYS = [
         'provider' => 'ai.provider',
-        'model' => 'ai.providers.deepseek.model',
         'temperature' => 'ai.defaults.temperature',
         'max_tokens' => 'ai.defaults.max_tokens',
         'timeout' => 'ai.defaults.timeout',
@@ -36,7 +35,7 @@ final class AISettingsService
     {
         return [
             'provider' => (string) $this->config->get('ai.provider'),
-            'model' => (string) $this->config->get('ai.providers.deepseek.model'),
+            'model' => (string) $this->config->get($this->modelPath()),
             'temperature' => (float) $this->config->get('ai.defaults.temperature'),
             'max_tokens' => (int) $this->config->get('ai.defaults.max_tokens'),
             'timeout' => (int) $this->config->get('ai.defaults.timeout'),
@@ -49,7 +48,7 @@ final class AISettingsService
      */
     public function update(array $values): void
     {
-        foreach (self::KEYS as $field => $configPath) {
+        foreach ($this->paths() as $field => $configPath) {
             if (! array_key_exists($field, $values)) {
                 continue;
             }
@@ -87,14 +86,39 @@ final class AISettingsService
             return;
         }
 
-        foreach ($rows as $row) {
-            $short = substr($row->key, 3); // strip "ai." prefix
-            if (! isset(self::KEYS[$short]) || $row->value === null) {
+        $stored = $rows->pluck('value', 'key');
+
+        foreach ($this->paths() as $field => $configPath) {
+            $value = $stored->get('ai.'.$field);
+
+            if ($value === null) {
                 continue;
             }
 
-            $this->config->set(self::KEYS[$short], $this->cast($short, $row->value));
+            $this->config->set($configPath, $this->cast($field, $value));
         }
+    }
+
+    /**
+     * Field => config path, provider first so the model lands on the provider just selected.
+     *
+     * @return iterable<string, string>
+     */
+    private function paths(): iterable
+    {
+        yield 'provider' => self::KEYS['provider'];
+        yield 'model' => $this->modelPath();
+
+        foreach (self::KEYS as $field => $configPath) {
+            if ($field !== 'provider') {
+                yield $field => $configPath;
+            }
+        }
+    }
+
+    private function modelPath(): string
+    {
+        return 'ai.providers.'.$this->config->get('ai.provider').'.model';
     }
 
     private function cast(string $field, string $value): float|int|string

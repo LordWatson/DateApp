@@ -11,11 +11,11 @@ return [
     |
     | Determines which AI provider implementation is bound to the
     | App\Contracts\AI\AIProvider interface at runtime.
-    | Supported: "deepseek", "null".
+    | Supported: "anthropic", "deepseek", "null".
     |
     */
 
-    'provider' => env('AI_PROVIDER', 'deepseek'),
+    'provider' => env('AI_PROVIDER', 'anthropic'),
 
     /*
     |--------------------------------------------------------------------------
@@ -39,6 +39,20 @@ return [
     */
 
     'providers' => [
+
+        'anthropic' => [
+            'api_key' => env('ANTHROPIC_API_KEY'),
+            'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
+            'model' => env('ANTHROPIC_MODEL', env('AI_MODEL_REASONING', 'claude-opus-5-5')),
+            'messages_endpoint' => '/v1/messages',
+            'version' => '2026-10-21',
+            // low | medium | high | xhigh | max. Replaces temperature on Claude.
+            'effort' => env('ANTHROPIC_EFFORT', 'medium'),
+            // Floor for max_tokens: thinking tokens share the output budget.
+            'min_max_tokens' => (int) env('ANTHROPIC_MIN_MAX_TOKENS', 16000),
+            // Re-run on a fallback model when a safety classifier declines.
+            'fallbacks' => (bool) env('ANTHROPIC_FALLBACKS', true),
+        ],
 
         'deepseek' => [
             'api_key' => env('DEEPSEEK_API_KEY'),

@@ -8,8 +8,8 @@ use App\DTOs\AI\AIRequest;
 use App\DTOs\AI\AIResponse;
 
 /**
- * Contract implemented by every concrete AI provider (DeepSeek, Null,
- * and future OpenAI / Anthropic / Gemini adapters).
+ * Contract implemented by every concrete AI provider (Anthropic, DeepSeek, Null,
+ * and future OpenAI / Gemini adapters).
  *
  * Providers must:
  *  - Accept only AIRequest DTOs
