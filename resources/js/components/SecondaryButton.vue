@@ -23,18 +23,18 @@ const {
         :type="type"
         :disabled="disabled || loading"
         :class="[
-            'inline-flex items-center justify-center gap-2 rounded-3xl font-semibold transition-all duration-200',
-            'hover:-translate-y-0.5 active:scale-95',
+            'inline-flex items-center justify-center gap-2 rounded-full font-semibold tracking-tight transition-all duration-200',
+            'hover:-translate-y-px active:translate-y-0 active:scale-[0.97]',
             'disabled:transform-none disabled:cursor-not-allowed disabled:opacity-50',
-            'focus:ring-2 focus:ring-secondary focus:ring-offset-2 focus:outline-none',
+            'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none',
             variant === 'filled' &&
-                'bg-secondary text-white shadow-md hover:opacity-90 hover:shadow-lg',
+                'bg-secondary text-white shadow-md hover:brightness-110',
             variant === 'outline' &&
-                'border-2 border-primary text-primary hover:bg-primary hover:text-white',
+                'border border-primary/30 bg-card text-primary hover:border-primary hover:bg-accent',
             variant === 'ghost' && 'text-primary hover:bg-accent',
             size === 'sm' && 'min-h-10 px-5 text-sm',
-            size === 'md' && 'min-h-14 px-8 text-base',
-            size === 'lg' && 'min-h-16 px-10 text-lg',
+            size === 'md' && 'min-h-12 px-7 text-[15px]',
+            size === 'lg' && 'min-h-14 px-9 text-base',
             fullWidth && 'w-full',
         ]"
     >

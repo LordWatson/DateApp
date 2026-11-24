@@ -13,10 +13,10 @@ defineEmits<{ action: [] }>();
 
 <template>
     <div
-        class="flex flex-col items-center justify-center gap-5 px-6 py-16 text-center"
+        class="flex flex-col items-center justify-center gap-4 px-6 py-10 text-center"
     >
         <div
-            class="flex h-20 w-20 items-center justify-center rounded-3xl text-4xl shadow-inner gradient-primary-soft"
+            class="flex h-16 w-16 items-center justify-center rounded-2xl text-3xl ring-1 ring-border gradient-primary-soft"
         >
             {{ emoji }}
         </div>

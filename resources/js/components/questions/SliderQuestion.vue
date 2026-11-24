@@ -69,7 +69,9 @@ function onInput(event: Event): void {
 <template>
     <div class="space-y-6 px-2">
         <div class="flex items-center justify-center">
-            <div class="flex min-h-20 min-w-20 items-center justify-center rounded-3xl bg-primary/10 px-5 py-3 text-center text-2xl font-semibold text-primary">
+            <div
+                class="flex min-h-20 min-w-20 items-center justify-center rounded-3xl bg-primary/10 px-5 py-3 text-center text-2xl font-semibold text-primary"
+            >
                 {{ displayCurrent }}
             </div>
         </div>
@@ -100,8 +102,8 @@ function onInput(event: Event): void {
     height: 8px;
     background: linear-gradient(
         to right,
-        #ec4899 0%,
-        #9333ea v-bind('`${percentage}%`'),
+        #d6336c 0%,
+        #6d2452 v-bind('`${percentage}%`'),
         #e5e7eb v-bind('`${percentage}%`'),
         #e5e7eb 100%
     );
@@ -112,9 +114,9 @@ function onInput(event: Event): void {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #ec4899, #9333ea);
+    background: linear-gradient(135deg, #d6336c, #6d2452);
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(236, 72, 153, 0.4);
+    box-shadow: 0 2px 8px rgba(200, 36, 92, 0.35);
     transition: transform 0.15s ease;
 }
 
@@ -126,9 +128,9 @@ function onInput(event: Event): void {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #ec4899, #9333ea);
+    background: linear-gradient(135deg, #d6336c, #6d2452);
     cursor: pointer;
     border: none;
-    box-shadow: 0 2px 8px rgba(236, 72, 153, 0.4);
+    box-shadow: 0 2px 8px rgba(200, 36, 92, 0.35);
 }
 </style>

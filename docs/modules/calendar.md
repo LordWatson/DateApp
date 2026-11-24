@@ -1,0 +1,101 @@
+# Calendar
+
+> Last verified against code: 2026-11-24
+
+## Purpose
+
+A simple shared event list for a couple: date nights, anniversaries, birthdays, trips and custom events. Each user creates their own events; the calendar page shows both partners' events split into upcoming and past. Date night plans can be added to the calendar in one step.
+
+## Key files
+
+| Path | Role |
+|---|---|
+| **Backend** | |
+| `app/Http/Controllers/CalendarEventController.php` | CRUD; `formatEvent()` and `eventTypes()` build the page payload |
+| `app/Models/CalendarEvent.php` | Model; `user()` |
+| `app/Policies/CalendarEventPolicy.php` | `view` (owner or partner), `update`/`delete` (owner) |
+| `app/Http/Requests/CalendarEvent/StoreCalendarEventRequest.php`, `UpdateCalendarEventRequest.php` | Identical rule sets |
+| `app/Enums/CalendarEventType.php` | 8 types with `label()` / `emoji()` - not referenced by any code (see gotchas) |
+| `app/Events/CalendarEventCreated.php` | Defined, registered with no listeners, never dispatched |
+| `app/Actions/AddDateNightPlanToCalendarAction.php` | Creates an event from a plan - owned by date-night.md |
+| `database/migrations/2026_07_14_000001_create_calendar_events_table.php` | Schema |
+| `database/factories/CalendarEventFactory.php` | Factory |
+| **Frontend** | |
+| `resources/js/pages/calendar/Index.vue` | Upcoming/past lists + create/edit form |
+| `resources/js/pages/calendar/Show.vue` | Event detail; delete for owner |
+| **Tests** | |
+| `tests/Feature/CalendarEventTest.php` | Feature tests |
+
+## Data model
+
+`calendar_events`: `user_id` (FK, cascade), `title`, `description?`, `type` (string, default `custom`), `emoji?`, `date` (cast `date`), `time?` (TIME column, not cast), `location?`, `notes?`, `colour` (default `#EC4899`), `reminder?` (string), `reminder_sent` (bool, default false). Indexes: `(user_id, date)`, `type`.
+
+- Relation: `User::calendarEvents()` hasMany.
+- `type` values: `date_night`, `anniversary`, `birthday`, `holiday`, `weekend_away`, `movie_night`, `dinner_reservation`, `custom`.
+- `reminder` values: `same_day`, `1_day`, `3_days`, `1_week`.
+- Events are single-day; there is no end date, recurrence or attendee list.
+
+## Routes
+
+All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
+
+| Name | Method + URI | Controller@method | Notes |
+|---|---|---|---|
+| `calendar.index` | GET `/calendar` | `CalendarEventController@index` | All own + all partner events (no pagination) |
+| `calendar.store` | POST `/calendar` | `CalendarEventController@store` | `StoreCalendarEventRequest` |
+| `calendar.show` | GET `/calendar/{calendarEvent}` | `CalendarEventController@show` | Policy `view` |
+| `calendar.update` | PUT `/calendar/{calendarEvent}` | `CalendarEventController@update` | Policy `update` |
+| `calendar.destroy` | DELETE `/calendar/{calendarEvent}` | `CalendarEventController@destroy` | Policy `delete` |
+| `date-night.add-to-calendar` | POST `/date-night/{dateNightPlan}/add-to-calendar` | `DateNightPlanController@addToCalendar` | See date-night.md |
+
+## Flows
+
+### Create / edit / delete
+
+1. `calendar/Index.vue` posts the form (`store`) or puts it (`update`) using Wayfinder helpers from `@/routes/calendar`.
+2. Request class validates; the event is created via `$request->user()->calendarEvents()->create()`.
+3. Redirect to `calendar.index` with flash `success`. No event is dispatched, no notification is sent, no activity is logged.
+
+### Add a date night plan to the calendar
+
+1. `DateNightPlanController@addToCalendar` authorises `addToCalendar` on the plan, then calls `AddDateNightPlanToCalendarAction::execute($user, $plan, $data)`.
+2. The action creates an event for the acting user (`title` = plan theme, `description` = plan summary, `type` = `date_night`, `emoji` = theme emoji, `colour` = `#EC4899`, plus `date`, optional `time` / `location`).
+3. If the user has a partner, `NotificationService::notifyPartnerAddedDateNightToCalendar()` is called. Details in date-night.md and notifications-activity-mail.md.
+
+## Rules and gotchas
+
+- **Who can see / edit**:
+  - View: owner and the owner's partner. Enforced by `CalendarEventPolicy::view` on show, and by `CalendarEventController@index` loading `$user->calendarEvents()` plus `$partner->calendarEvents()`.
+  - Update / delete: owner only (`CalendarEventPolicy::update` / `delete` via `$this->authorize()`). The partner cannot edit, even though the calendar is presented as shared.
+  - The payload carries `is_mine` and `owner` (owner's `name`); both Vue pages use `is_mine` to hide edit/delete.
+  - Policies rely on Laravel's auto-discovery (no explicit registration).
+- Validation: `title` required max 255; `type` required and in the list above; `date` required; `time` must be `H:i`; `description` max 1000; `notes` max 2000; `location` max 255; `emoji` max 10; `colour` max 20 (not validated as a colour); `reminder` nullable and in the list above.
+- The type list is duplicated in three places that must be kept in sync: the two request classes (`in:` rule), `CalendarEventController::eventTypes()` and `CalendarEventType`.
+- Upcoming vs past is split in the browser using the client's date (`calendar/Index.vue:57-69`).
+- Suspected issue: reminders are stored but never sent. `reminder` and `reminder_sent` are not read by any command or job (`SendRemindersCommand` only handles questionnaire reminders).
+- Suspected issue: `CalendarEventCreated` is never dispatched (not in `store`, not in `AddDateNightPlanToCalendarAction`) and has an empty listener list in `app/Providers/EventServiceProvider.php:96`. As a result `calendar_events_created` achievements are only awarded on the next questionnaire completion or moment creation (see challenges-achievements-streaks.md).
+- Suspected issue: `time` is validated as `H:i`, but the column is `TIME` and is not cast, so on databases that return `HH:MM:SS` the edit form would send back a value that fails validation. Not verified against the production database driver.
+- Dead code: `App\Enums\CalendarEventType` (the model does not cast `type`), `App\Events\CalendarEventCreated`.
+- `StoreCalendarEventRequest` and `UpdateCalendarEventRequest` are byte-for-byte the same rules.
+
+## Related modules
+
+- date-night.md - `AddDateNightPlanToCalendarAction`, `AddToCalendarRequest`, plan policy.
+- notifications-activity-mail.md - partner notification when a plan is added.
+- moments-timeline.md - the user's own events appear in the timeline.
+- challenges-achievements-streaks.md - `calendar_events_created` achievements.
+- dashboard-insights-search.md - relationship hub (upcoming events), insights and search read calendar events.
+- weekly-reflection.md - calendar events feed the weekly recap.
+- onboarding-partner.md - `partner_id` drives sharing.
+
+## Tests
+
+- `tests/Feature/CalendarEventTest.php` - index, create, update own, cannot update other's, delete own, cannot delete other's.
+
+Run: `php artisan test --filter=CalendarEventTest`
+
+Not covered: partner visibility on index/show, validation limits.
+
+## Change log
+
+- 2026-11-24 — Initial doc.

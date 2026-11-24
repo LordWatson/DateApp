@@ -78,19 +78,20 @@ const hasAnswer = computed(() => {
 
 const canContinue = computed(() => {
     if (!props.question.required) {
-return true;
-}
+        return true;
+    }
 
     return hasAnswer.value;
 });
 
 const minutesLeft = computed(() => {
     if (!props.questionnaire.estimated_minutes) {
-return null;
-}
+        return null;
+    }
 
     const remaining = props.progress.total - props.progress.current;
-    const perQuestion = props.questionnaire.estimated_minutes / props.progress.total;
+    const perQuestion =
+        props.questionnaire.estimated_minutes / props.progress.total;
 
     return Math.max(1, Math.round(remaining * perQuestion));
 });
@@ -100,20 +101,30 @@ let advanceTimeout: ReturnType<typeof setTimeout> | null = null;
 const AUTO_ADVANCE_DELAY_MS = 400;
 
 watch(answer, (newVal) => {
-    if (newVal !== null && newVal !== '' && !(Array.isArray(newVal) && newVal.length === 0)) {
+    if (
+        newVal !== null &&
+        newVal !== '' &&
+        !(Array.isArray(newVal) && newVal.length === 0)
+    ) {
         continueVisible.value = true;
     }
 
     if (saveTimeout) {
-clearTimeout(saveTimeout);
-}
+        clearTimeout(saveTimeout);
+    }
 
     saveTimeout = setTimeout(() => {
         saveAnswer().then(() => {
-            const currentValue = typeof answer.value === 'string' ? answer.value : null;
-            const isCustomBudget = currentValue?.startsWith('custom_amount') ?? false;
+            const currentValue =
+                typeof answer.value === 'string' ? answer.value : null;
+            const isCustomBudget =
+                currentValue?.startsWith('custom_amount') ?? false;
 
-            if (props.question.type === 'single_choice' && hasAnswer.value && !isCustomBudget) {
+            if (
+                props.question.type === 'single_choice' &&
+                hasAnswer.value &&
+                !isCustomBudget
+            ) {
                 if (advanceTimeout) {
                     clearTimeout(advanceTimeout);
                 }
@@ -145,7 +156,9 @@ async function saveAnswer(): Promise<void> {
 
 function goBack(): void {
     if (props.has_previous) {
-        router.visit(`/questionnaires/${props.questionnaire.slug}/question/${props.question.display_order - 1}`);
+        router.visit(
+            `/questionnaires/${props.questionnaire.slug}/question/${props.question.display_order - 1}`,
+        );
     } else {
         router.visit(`/questionnaires/${props.questionnaire.slug}`);
     }
@@ -153,13 +166,15 @@ function goBack(): void {
 
 function goNext(): void {
     if (!canContinue.value) {
-return;
-}
+        return;
+    }
 
     if (props.is_last) {
         router.visit(`/questionnaires/${props.questionnaire.slug}/summary`);
     } else {
-        router.visit(`/questionnaires/${props.questionnaire.slug}/question/${props.question.display_order + 1}`);
+        router.visit(
+            `/questionnaires/${props.questionnaire.slug}/question/${props.question.display_order + 1}`,
+        );
     }
 }
 </script>
@@ -167,11 +182,16 @@ return;
 <template>
     <Head :title="`Question ${progress.current} of ${progress.total}`" />
 
-    <div class="flex min-h-screen flex-col px-4 py-6 pb-32">
+    <div class="flex min-h-screen flex-col px-4 py-6 pb-28">
         <!-- Progress header -->
         <div class="mb-6 space-y-3">
-            <div class="flex items-center justify-between text-sm text-muted-foreground">
-                <span class="font-medium">Question {{ progress.current }} of {{ progress.total }}</span>
+            <div
+                class="flex items-center justify-between text-sm text-muted-foreground"
+            >
+                <span class="font-medium"
+                    >Question {{ progress.current }} of
+                    {{ progress.total }}</span
+                >
                 <span v-if="minutesLeft">~{{ minutesLeft }} min left</span>
             </div>
             <ProgressBar :value="progress.current" :max="progress.total" />
@@ -179,14 +199,30 @@ return;
 
         <!-- Question card -->
         <div class="flex-1 space-y-6">
-            <div class="card-premium p-6 space-y-4">
+            <div class="space-y-4 card-premium p-6">
                 <div v-if="question.emoji" class="flex justify-center">
-                    <span class="text-6xl" aria-hidden="true">{{ question.emoji }}</span>
+                    <span class="text-6xl" aria-hidden="true">{{
+                        question.emoji
+                    }}</span>
                 </div>
                 <div class="space-y-2 text-center">
-                    <h2 class="text-xl font-semibold leading-snug text-foreground">{{ question.title }}</h2>
-                    <p v-if="question.description" class="text-sm text-muted-foreground">{{ question.description }}</p>
-                    <p v-if="!question.required" class="text-xs text-muted-foreground italic">Optional — you may skip this</p>
+                    <h2
+                        class="text-xl leading-snug font-semibold text-foreground"
+                    >
+                        {{ question.title }}
+                    </h2>
+                    <p
+                        v-if="question.description"
+                        class="text-sm text-muted-foreground"
+                    >
+                        {{ question.description }}
+                    </p>
+                    <p
+                        v-if="!question.required"
+                        class="text-xs text-muted-foreground italic"
+                    >
+                        Optional — you may skip this
+                    </p>
                 </div>
             </div>
 
@@ -225,17 +261,21 @@ return;
             <!-- Save status -->
             <div class="flex items-center justify-center gap-2 text-xs">
                 <span v-if="saving" class="text-muted-foreground">Saving…</span>
-                <span v-else-if="saveError" class="text-destructive">⚠️ Connection issue — retrying…</span>
+                <span v-else-if="saveError" class="text-destructive"
+                    >⚠️ Connection issue — retrying…</span
+                >
                 <span v-else-if="hasAnswer" class="text-success">✓ Saved</span>
             </div>
         </div>
 
         <!-- Navigation -->
-        <div class="fixed inset-x-0 bottom-0 space-y-3 bg-background/95 px-4 pb-8 pt-4 backdrop-blur-sm">
+        <div
+            class="sticky bottom-24 z-30 mt-6 flex flex-row-reverse items-center gap-2 rounded-full border border-border/70 bg-card/85 p-1.5 shadow-xl backdrop-blur-xl"
+        >
             <Transition name="slide-up">
                 <PrimaryButton
                     v-if="continueVisible || !question.required"
-                    full-width
+                    class="flex-1"
                     :disabled="!canContinue"
                     @click="goNext"
                 >
@@ -243,7 +283,7 @@ return;
                 </PrimaryButton>
             </Transition>
 
-            <SecondaryButton full-width @click="goBack">
+            <SecondaryButton variant="ghost" @click="goBack">
                 {{ has_previous ? '← Back' : '← Introduction' }}
             </SecondaryButton>
         </div>

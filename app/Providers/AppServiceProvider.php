@@ -6,6 +6,7 @@ use App\AI\NullAIProvider;
 use App\Contracts\AIProvider;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -49,6 +50,11 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        // Pail needs pcntl, which doesn't exist on Windows; its crash kills the whole `composer dev`.
+        if (! extension_loaded('pcntl')) {
+            DevCommands::except('logs');
+        }
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),

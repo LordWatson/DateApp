@@ -13,7 +13,7 @@ defineProps<{
 
 <template>
     <div
-        class="relative flex min-h-svh flex-col items-center justify-center bg-background px-4 py-12"
+        class="relative flex min-h-svh flex-col items-center justify-center px-4 py-12"
     >
         <AnimatedBackground variant="hearts" />
         <FloatingHearts />
@@ -25,11 +25,12 @@ defineProps<{
                     class="flex flex-col items-center gap-3 rounded-2xl p-2 focus:ring-2 focus:ring-primary focus:ring-offset-4 focus:outline-none"
                 >
                     <div
-                        class="animate-pulse-glow flex h-16 w-16 items-center justify-center rounded-3xl shadow-xl gradient-primary"
+                        class="animate-pulse-glow flex h-16 w-16 items-center justify-center rounded-2xl shadow-glow gradient-primary"
                     >
                         <AppLogoIcon class="size-9 text-white" />
                     </div>
-                    <span class="gradient-text text-2xl font-semibold"
+                    <span
+                        class="font-display text-3xl font-semibold tracking-tight text-foreground"
                         >Date Night</span
                     >
                 </Link>
@@ -40,7 +41,7 @@ defineProps<{
                 >
                     <h1
                         v-if="title"
-                        class="text-xl font-semibold text-foreground"
+                        class="text-2xl font-semibold text-foreground"
                     >
                         {{ title }}
                     </h1>
@@ -50,7 +51,7 @@ defineProps<{
                 </div>
             </div>
 
-            <div class="card-premium p-6">
+            <div class="card-premium p-6 sm:p-8">
                 <slot />
             </div>
         </div>
