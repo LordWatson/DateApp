@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
+import { ChevronRight, Search } from '@lucide/vue';
 import { ref, watch } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import SectionHeader from '@/components/SectionHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { index as searchIndex } from '@/routes/search';
 
 defineOptions({ layout: MobileLayout });
 
@@ -35,21 +39,27 @@ let debounceTimer: ReturnType<typeof setTimeout>;
 watch(searchQuery, (val) => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-        router.get(route('search.index'), { q: val }, { preserveState: true, replace: true });
+        router.get(
+            searchIndex().url,
+            { q: val },
+            { preserveState: true, replace: true },
+        );
     }, 400);
 });
 
 const groupLabels: Record<string, string> = {
-    plans: '🌙 Plans',
-    moments: '📖 Moments',
-    love_notes: '💌 Love Notes',
-    questionnaires: '📋 Questionnaires',
-    saved_profiles: '💾 Saved Profiles',
-    calendar_events: '📅 Calendar Events',
-    achievements: '🏆 Achievements',
+    plans: 'Plans',
+    moments: 'Moments',
+    love_notes: 'Love notes',
+    questionnaires: 'Questionnaires',
+    saved_profiles: 'Saved profiles',
+    calendar_events: 'Calendar events',
+    achievements: 'Achievements',
 };
 
-const hasResults = Object.values(props.results).some((group) => group && group.length > 0);
+const hasResults = Object.values(props.results).some(
+    (group) => group && group.length > 0,
+);
 
 function highlight(text: string | null, query: string): string {
     if (!text || !query) {
@@ -59,84 +69,103 @@ function highlight(text: string | null, query: string): string {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escaped})`, 'gi');
 
-    return text.replace(regex, '<mark class="rounded bg-warning/20 px-0.5 text-warning-foreground">$1</mark>');
+    return text.replace(
+        regex,
+        '<mark class="rounded bg-gold-soft/30 px-0.5 text-foreground">$1</mark>',
+    );
 }
 </script>
 
 <template>
     <Head title="Search" />
 
-    <div class="space-y-6 px-4 py-6 pb-24">
-        <!-- Header & Search Input -->
-        <div>
-            <h1 class="mb-4 text-2xl font-semibold text-foreground">🔍 Search</h1>
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <!-- Header and search input -->
+        <div class="space-y-5">
+            <PageHeader title="Search" />
+
             <div class="relative">
+                <Search
+                    class="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                />
                 <input
                     v-model="searchQuery"
                     type="search"
-                    class="w-full rounded-3xl border border-border bg-card px-5 py-4 pr-12 text-foreground placeholder:text-muted-foreground shadow-xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    class="input-premium pl-11"
                     placeholder="Search everything..."
                     autofocus
                     aria-label="Search"
                 />
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true">🔍</span>
             </div>
         </div>
 
         <!-- Results -->
-        <div v-if="searchQuery.length >= 2">
-            <div v-if="hasResults" class="space-y-6">
-                <div
-                    v-for="(group, key) in results"
-                    :key="key"
-                >
-                    <div v-if="group && group.length > 0">
-                        <h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            {{ groupLabels[key as string] ?? key }}
-                        </h2>
-                        <div class="space-y-2">
+        <template v-if="searchQuery.length >= 2">
+            <div v-if="hasResults" class="space-y-8">
+                <template v-for="(group, key) in results" :key="key">
+                    <section v-if="group && group.length > 0" class="space-y-3">
+                        <SectionHeader
+                            :title="groupLabels[key as string] ?? key"
+                        />
+
+                        <div class="card-premium p-2">
                             <Link
                                 v-for="item in group"
                                 :key="item.id"
                                 :href="item.url"
-                                class="card-premium card-hover flex items-center gap-3 p-4"
+                                class="list-row"
                             >
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xl" aria-hidden="true">
-                                    {{ item.emoji }}
-                                </div>
-                                <div class="flex-1 overflow-hidden">
+                                <span
+                                    class="icon-tile h-11 w-11 text-xl"
+                                    aria-hidden="true"
+                                    >{{ item.emoji }}</span
+                                >
+                                <div class="min-w-0 flex-1">
                                     <p
-                                        class="font-semibold text-foreground"
-                                        v-html="highlight(item.title, searchQuery)"
+                                        class="truncate font-medium text-foreground"
+                                        v-html="
+                                            highlight(item.title, searchQuery)
+                                        "
                                     />
                                     <p
                                         v-if="item.description"
-                                        class="line-clamp-1 text-sm text-muted-foreground"
-                                        v-html="highlight(item.description, searchQuery)"
+                                        class="line-clamp-1 text-xs text-muted-foreground"
+                                        v-html="
+                                            highlight(
+                                                item.description,
+                                                searchQuery,
+                                            )
+                                        "
                                     />
                                 </div>
-                                <span class="text-muted-foreground" aria-hidden="true">›</span>
+                                <ChevronRight
+                                    class="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
                             </Link>
                         </div>
-                    </div>
-                </div>
+                    </section>
+                </template>
             </div>
 
-            <!-- No Results -->
+            <!-- No results -->
+            <div v-else class="card-premium">
+                <EmptyState
+                    emoji="🔍"
+                    title="No results found"
+                    description="Try a different search term or explore another section."
+                />
+            </div>
+        </template>
+
+        <!-- Initial state -->
+        <div v-else class="card-premium">
             <EmptyState
-                v-else
-                emoji="🔍"
-                title="No results found"
-                description="Try a different search term or explore another section."
+                emoji="✨"
+                title="Search everything"
+                description="Plans, moments, love notes, questionnaires and more."
             />
         </div>
-
-        <!-- Initial State -->
-        <EmptyState
-            v-else
-            emoji="✨"
-            title="Search everything"
-            description="Plans, moments, love notes, questionnaires and more."
-        />
     </div>
 </template>

@@ -19,10 +19,10 @@ defineProps<Props>();
             :class="[
                 'rounded-full transition-all duration-300',
                 step === current
-                    ? 'h-2.5 w-6 gradient-primary'
+                    ? 'h-1.5 w-6 gradient-primary'
                     : step < current
-                      ? 'h-2.5 w-2.5 bg-primary/60'
-                      : 'h-2.5 w-2.5 bg-muted',
+                      ? 'h-1.5 w-1.5 bg-primary/60'
+                      : 'h-1.5 w-1.5 bg-border',
             ]"
             :aria-current="step === current ? 'step' : undefined"
         />

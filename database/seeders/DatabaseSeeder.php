@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $alex = User::create([
-            'name' => 'Linda',
+            'name' => 'Alex',
             'email' => 'squatty.watson@gmail.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
@@ -29,11 +29,11 @@ class DatabaseSeeder extends Seeder
             'dark_mode' => false,
         ]);
 
-        $elizaEmail = config('app.env') == 'local' ? 'alexander.watson.work@gmail.com' : 'elizarudowicz@gmail.com';
+        $rimmaEmail = config('app.env') == 'local' ? 'alexander.watson.work@gmail.com' : 'elizarudowicz@gmail.com';
 
         $eliza = User::create([
-            'name' => 'Fanny',
-            'email' => $elizaEmail,
+            'name' => 'Rimma',
+            'email' => $rimmaEmail,
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
             'gender' => Gender::Female,

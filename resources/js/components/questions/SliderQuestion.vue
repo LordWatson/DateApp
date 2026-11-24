@@ -67,29 +67,29 @@ function onInput(event: Event): void {
 </script>
 
 <template>
-    <div class="space-y-6 px-2">
-        <div class="flex items-center justify-center">
-            <div
-                class="flex min-h-20 min-w-20 items-center justify-center rounded-3xl bg-primary/10 px-5 py-3 text-center text-2xl font-semibold text-primary"
-            >
-                {{ displayCurrent }}
-            </div>
-        </div>
+    <div class="space-y-8 card-premium px-5 py-8">
+        <p
+            class="text-center font-display text-5xl leading-none font-medium text-foreground tabular-nums"
+        >
+            {{ displayCurrent }}
+        </p>
 
-        <div class="space-y-2">
+        <div class="space-y-3">
             <input
                 type="range"
                 :min="min"
                 :max="max"
                 :step="step"
                 :value="current"
-                class="slider-input w-full cursor-pointer appearance-none rounded-full bg-muted focus:outline-none"
+                class="slider-input block w-full cursor-pointer appearance-none rounded-full focus:outline-none"
                 :aria-valuemin="min"
                 :aria-valuemax="max"
                 :aria-valuenow="current"
                 @input="onInput"
             />
-            <div class="flex justify-between text-xs text-muted-foreground">
+            <div
+                class="flex justify-between text-xs text-muted-foreground tabular-nums"
+            >
                 <span>{{ displayMin }}</span>
                 <span>{{ displayMax }}</span>
             </div>
@@ -99,14 +99,11 @@ function onInput(event: Event): void {
 
 <style scoped>
 .slider-input {
-    height: 8px;
-    background: linear-gradient(
-        to right,
-        #d6336c 0%,
-        #6d2452 v-bind('`${percentage}%`'),
-        #e5e7eb v-bind('`${percentage}%`'),
-        #e5e7eb 100%
-    );
+    height: 6px;
+    background-color: var(--muted);
+    background-image: var(--gradient-brand);
+    background-repeat: no-repeat;
+    background-size: v-bind('`${percentage}%`') 100%;
 }
 
 .slider-input::-webkit-slider-thumb {
@@ -114,23 +111,35 @@ function onInput(event: Event): void {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #d6336c, #6d2452);
+    background: var(--card);
+    border: 2px solid var(--primary);
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(200, 36, 92, 0.35);
-    transition: transform 0.15s ease;
+    box-shadow: 0 2px 6px var(--shadow-color);
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .slider-input::-webkit-slider-thumb:active {
-    transform: scale(1.2);
+    transform: scale(1.1);
+}
+
+.slider-input:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
 .slider-input::-moz-range-thumb {
+    box-sizing: border-box;
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #d6336c, #6d2452);
+    background: var(--card);
+    border: 2px solid var(--primary);
     cursor: pointer;
-    border: none;
-    box-shadow: 0 2px 8px rgba(200, 36, 92, 0.35);
+    box-shadow: 0 2px 6px var(--shadow-color);
+}
+
+.slider-input:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 </style>

@@ -20,12 +20,10 @@ const confetti = ref<
 >([]);
 
 const colors = [
-    '#d6336c',
-    '#6d2452',
-    '#10b981',
-    '#f59e0b',
-    '#3b82f6',
-    '#f43f5e',
+    'var(--primary)',
+    'var(--gold)',
+    'var(--gold-soft)',
+    'var(--success)',
 ];
 
 onMounted(() => {
@@ -55,11 +53,25 @@ onMounted(() => {
             aria-hidden="true"
         />
 
-        <div class="animate-success-pop text-7xl">{{ emoji }}</div>
+        <div
+            class="animate-success-pop icon-tile h-16 w-16 text-3xl"
+            aria-hidden="true"
+        >
+            {{ emoji }}
+        </div>
 
         <div class="space-y-2">
-            <h2 class="text-2xl font-semibold text-foreground">{{ title }}</h2>
-            <p v-if="message" class="text-muted-foreground">{{ message }}</p>
+            <h2
+                class="text-[1.75rem] leading-tight font-semibold text-foreground"
+            >
+                {{ title }}
+            </h2>
+            <p
+                v-if="message"
+                class="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground"
+            >
+                {{ message }}
+            </p>
         </div>
 
         <slot />

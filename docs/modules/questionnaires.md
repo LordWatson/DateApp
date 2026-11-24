@@ -4,7 +4,7 @@
 
 ## Purpose
 
-The questionnaire engine. A user picks a questionnaire, answers it one question per screen (answers autosave), reviews a summary and finishes. For couple questionnaires each partner answers separately; once both have a fresh completed response the pair is compared and a date night plan is generated. Solo questionnaires are answered by one person, capture a location and travel radius, and produce a plan immediately. Attempts can be repeated: each attempt is a new `responses` row.
+The questionnaire engine. A user picks a questionnaire, answers it one question per screen (answers autosave), reviews a summary and finishes. For couple questionnaires each partner answers separately; once both have a fresh completed response the pair is compared and a date night plan is generated. Solo questionnaires are answered by one person, capture a location and travel radius, and produce a plan immediately. A questionnaire flagged `partner_optional` ("Plan a Date Out") lets the user choose per attempt: alone, or together with their partner. Attempts can be repeated: each attempt is a new `responses` row.
 
 ## Key files
 
@@ -18,7 +18,7 @@ The questionnaire engine. A user picks a questionnaire, answers it one question 
 | `app/Http/Presenters/QuestionnairePresenter.php` | Shapes every Inertia prop array for this module |
 | `app/Models/{Questionnaire,Question,QuestionOption,Response,Answer}.php` | Models |
 | `app/Enums/{QuestionType,QuestionnaireStatus,QuestionnaireVisibility,CompletionStatus}.php` | Enums |
-| `app/Http/Requests/Questionnaire/{SaveAnswerRequest,FinishQuestionnaireRequest}.php` | Validation |
+| `app/Http/Requests/Questionnaire/{SaveAnswerRequest,FinishQuestionnaireRequest,StartQuestionnaireRequest}.php` | Validation. `StartQuestionnaireRequest` validates `mode` (`solo`/`couple`) and exposes `solo(): ?bool` |
 | `app/Policies/ResponsePolicy.php` | Owner-only view/update/delete (not called anywhere, see gotchas) |
 | `app/Http/Resources/{Questionnaire,Question,Response}Resource.php` | JSON resources (not used anywhere) |
 | `app/Events/{QuestionnaireStarted,QuestionAnswered,QuestionnaireCompleted,CompatibilityCalculated}.php` | Events (only `QuestionnaireCompleted` is dispatched by app code) |
@@ -47,10 +47,10 @@ The questionnaire engine. A user picks a questionnaire, answers it one question 
 
 | Table | Important columns | Notes |
 |---|---|---|
-| `questionnaires` | `slug` (unique, route key), `status`, `visibility`, `display_order`, `estimated_minutes`, `active_from`, `active_until`, `artwork`, `is_seasonal`, `is_intimacy`, `is_solo` | Casts: `status` -> `QuestionnaireStatus` (draft/active/archived), `visibility` -> `QuestionnaireVisibility` (public/private), three booleans. `questions()` is ordered by `display_order`. |
+| `questionnaires` | `slug` (unique, route key), `status`, `visibility`, `display_order`, `estimated_minutes`, `active_from`, `active_until`, `artwork`, `is_seasonal`, `is_intimacy`, `is_solo`, `partner_optional` | Casts: `status` -> `QuestionnaireStatus` (draft/active/archived), `visibility` -> `QuestionnaireVisibility` (public/private), three booleans. `questions()` is ordered by `display_order`. |
 | `questions` | `questionnaire_id` (cascade), `type`, `required` (default true), `minimum_value`, `maximum_value`, `step_value`, `unit` (max 32), `display_order` | `type` -> `QuestionType`. `display_order` is the `{order}` URL segment. |
 | `question_options` | `question_id` (cascade), `title`, `description`, `emoji`, `value`, `display_order` | `value` is what gets stored in `answers.value`. |
-| `responses` | `user_id`, `questionnaire_id` (both cascade), `status`, `started_at`, `completed_at`, `compatibility_score`, `location_label/city/region/country`, `location_latitude/longitude` (decimal 10,7), `travel_radius_minutes` | One row per attempt. `status` -> `CompletionStatus` (in_progress/completed). |
+| `responses` | `user_id`, `questionnaire_id` (both cascade), `status`, `is_solo` (nullable: the mode chosen for this attempt), `started_at`, `completed_at`, `compatibility_score`, `location_label/city/region/country`, `location_latitude/longitude` (decimal 10,7), `travel_radius_minutes` | One row per attempt. `status` -> `CompletionStatus` (in_progress/completed). |
 | `answers` | `response_id`, `question_id` (cascade), `question_option_id` (nullable, null on delete), `value` (text), `created_at` | `$timestamps = false`; `created_at` is set manually. |
 
 Migrations worth knowing:
@@ -58,6 +58,7 @@ Migrations worth knowing:
 - `2026_07_17_233800_allow_multiple_responses_per_questionnaire` drops the unique `(user_id, questionnaire_id)` on `responses` and adds index `(user_id, questionnaire_id, status)`.
 - `2026_07_14_000005` adds `artwork`, `is_seasonal`; `2026_07_19_143700_create_intimacy_module_tables` adds `is_intimacy`.
 - `2026_07_26_150000_add_solo_and_location_support` adds `questionnaires.is_solo`, the four `responses.location_*` text columns, and drops the unique response pair on `date_night_plans` so a solo plan can reference the same response twice.
+- `2026_11_24_192850_add_partner_optional_mode_to_questionnaires` adds `questionnaires.partner_optional` and `responses.is_solo`, and sets `partner_optional` on the `plan-a-date-out` row.
 - `2026_07_29_150000` adds latitude/longitude/`travel_radius_minutes`; `2026_07_29_150500` adds `questions.step_value` and `unit`.
 
 ### How each question type is stored and rendered
@@ -82,8 +83,8 @@ All in `routes/web.php` under `auth`, `verified`, `onboarding`; prefix `question
 |---|---|---|---|
 | `index` | GET `/` | `index` | Active only, 10 per page, `?filter=all\|couples\|solo\|intimacy\|seasonal` |
 | `show` | GET `/{slug}` | `show` | May auto-start a new cycle and redirect to question 1 |
-| `start` | POST `/{slug}/start` | `start` | Find-or-create in-progress response, redirect to first unanswered question |
-| `restart` | POST `/{slug}/restart` | `restart` | Deletes in-progress responses, creates a new one |
+| `start` | POST `/{slug}/start` | `start` | Find-or-create in-progress response, redirect to first unanswered question. Optional `mode` (`solo`/`couple`); also updates the mode of an attempt already in progress |
+| `restart` | POST `/{slug}/restart` | `restart` | Deletes in-progress responses, creates a new one. Optional `mode` |
 | `past-attempt` | GET `/{slug}/past-attempts/{response}` | `pastAttempt` | Renders `PartnerAnswers` with `is_past_attempt` |
 | `question` | GET `/{slug}/question/{order}` | `question` | Unknown order redirects to `show` |
 | `answer` | POST `/{slug}/question/{order}/answer` | `answer` | JSON `{saved: true}`; `SaveAnswerRequest` |
@@ -112,8 +113,8 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 | Listener | Queue | Effect |
 |---|---|---|
 | `UpdateStreakOnQuestionnairCompleted` | `default` | `UpdateStreakAction` |
-| `NotifyPartnerOnQuestionnaireCompleted` | `notifications` | Skips solo / no partner. Creates `AppNotification` (`PartnerCompleted`), dispatches `SendQuestionnaireCompletedNotificationJob` (queue `notifications`) which queues `QuestionnaireCompletedMail` |
-| `DispatchDateNightPlanOnQuestionnaireCompleted` | `default` | Solo: always dispatches `GenerateDateNightPlanJob(user, null, q)`. Couple: only if partner has a fresh completed response. See `date-night.md` |
+| `NotifyPartnerOnQuestionnaireCompleted` | `notifications` | Skips solo attempts / no partner. Creates `AppNotification` (`PartnerCompleted`): "{name} wants to plan a date with you" when the partner still has to answer, the older "completed the questionnaire" copy when they already have. Then dispatches `SendQuestionnaireCompletedNotificationJob` (queue `notifications`) which queues `QuestionnaireCompletedMail` |
+| `DispatchDateNightPlanOnQuestionnaireCompleted` | `default` | Solo attempt: always dispatches `GenerateDateNightPlanJob(user, null, q)`. Couple: only if partner has a fresh completed response. See `date-night.md` |
 | `EvaluateAchievementsOnQuestionnaireCompleted` | `analytics` | `AchievementEvaluationJob` |
 | `RefreshDashboardOnQuestionnaireCompleted` | `analytics` | `RefreshRelationshipStatisticsJob` |
 | `LogActivityOnQuestionnaireCompleted` | sync | Activity log entry `questionnaire_completed` |
@@ -128,11 +129,21 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 - `Index.vue` shows "Pending Partner" when the latest response is completed, not solo and not paired.
 - Past results on `Show.vue` list only the user's responses that appear in a plan; `pastAttempt` shows the two responses of that plan.
 
+**Choosing solo or couple per attempt (`partner_optional`)**
+
+- `Show.vue` shows a "Who's planning?" choice when the `mode.selectable` prop is true and posts `mode` to `start` / `restart`. Without a partner only "Just me" is offered, with a link to `/partner`; `couple` is rejected server-side when the user has no partner.
+- The choice is stored in `responses.is_solo`. `Response::isSolo()` is the single source of truth for an attempt: the stored value, or the questionnaire's `is_solo` when it is null (every questionnaire without the choice, and attempts made before the choice existed).
+- Everything downstream reads the attempt, not the questionnaire: partner notification, plan dispatch, overhang cleanup, `awaiting_plan`, the index status label.
+- Couple pairing only ever looks at couple attempts: `Response::scopeInMode($questionnaire, $solo)` filters completed responses by mode (a no-op for questionnaires without the choice), so a solo attempt is never paired with the partner's couple attempt.
+- Solo: the plan is generated as soon as the attempt is finished. Couple: the first partner finishes, the other gets a notification asking them to answer, and the plan is generated when both couple attempts are complete.
+- When the partner is already waiting, `Show.vue` preselects "With {partner}", and `show` auto-starts a couple attempt under the existing new-cycle rule.
+- `Questionnaire::forcesSolo()` (`is_solo` and not `partner_optional`) marks a solo-only questionnaire.
+
 **Solo vs couple**
 
-| | Couple | Solo (`is_solo`) |
+| | Couple attempt | Solo attempt |
 |---|---|---|
-| Location + travel radius | Not collected, not saved | Collected on `Summary.vue` (browser geolocation, Nominatim reverse/forward geocode, manual entry, Bristol fallback), saved on the response |
+| Location + travel radius | Collected and saved only when the questionnaire is `is_solo` (so both modes of "Plan a Date Out") | Collected on `Summary.vue` (browser geolocation, Nominatim reverse/forward geocode, manual entry, Bristol fallback), saved on the response |
 | Partner notification/email | Yes | No |
 | Plan generation | When both are fresh-completed | Immediately; same response used for both plan refs, compatibility fixed at 100 |
 | Overhang cleanup | Yes | No |
@@ -143,7 +154,7 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 - **Queues must be running.** Listeners use queues `default`, `notifications`, `analytics` (`.env.example` sets `QUEUE_CONNECTION=database`; `phpunit.xml` uses `sync`). Without a worker no plan is created and `Complete.vue` polls forever (it has no timeout).
 - Event discovery is off (`bootstrap/app.php` `withEvents(discover: false)`); a new listener must be added to `EventServiceProvider::$listen`.
 - Only `index` filters by `status = active`. Every other action works for any questionnaire reachable by slug. `visibility`, `active_from` and `active_until` are stored and editable in admin but never enforced.
-- "couples" filter means not solo, not intimacy, not seasonal.
+- "couples" filter means not solo, not intimacy, not seasonal. A `partner_optional` questionnaire keeps `is_solo = true`, so it is listed under "solo" even though it can be answered together.
 - Authorization is by query scoping (responses are always looked up by `user_id`). `pastAttempt` checks ownership inline. `SaveAnswerRequest::authorize` returns true.
 - Validation: `SaveAnswerRequest` only requires `value` to be present. The server does not check that a value matches an option, a slider range, or `required`; `finish` does not check that all questions are answered. `required` is enforced only in `Question.vue`.
 - `FinishQuestionnaireRequest`: label max 120, city/region/country max 80, lat -90..90, lng -180..180, `travel_radius_minutes` 0..600 (UI slider is 0..240, step 30, default 60).
@@ -194,6 +205,7 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 | `tests/Feature/ResponseTest.php` | Response/answer models, multiple responses allowed |
 | `tests/Feature/Events/QuestionnaireCompletedEventTest.php` | Event dispatch |
 | `tests/Feature/Listeners/QuestionnaireCompletedListenersTest.php` | Listener registration, plan dispatch rules, partner notification |
+| `tests/Feature/DateOutPlanningModeTest.php` | Solo vs couple attempts of a `partner_optional` questionnaire: immediate solo plan, partner request then shared plan, no cross-mode pairing, couple refused without a partner, intro props |
 
 ```
 php artisan test --filter=QuestionnaireTest
@@ -207,4 +219,5 @@ No dedicated tests for: `restart`, `pastAttempt`, `planStatus`, solo location sa
 ## Change log
 
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — "Plan a Date Out" can be answered alone or with a partner: `partner_optional`, `responses.is_solo`, `Response::isSolo()` / `scopeInMode()`, mode chooser on `Show.vue`.
 - 2026-11-24 — `questionnaires/Question.vue`: Back / Continue moved from a fixed block (hidden behind the tab bar) to a sticky pill bar above it.

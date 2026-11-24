@@ -5,7 +5,6 @@ import { usePasskeyVerify } from '@laravel/passkeys/vue';
 import { KeyRound } from '@lucide/vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 
 type Props = {
@@ -41,12 +40,13 @@ const { verify, isLoading, error, isSupported } = usePasskeyVerify({
             <Button
                 type="button"
                 variant="outline"
+                size="lg"
                 class="w-full"
                 @click="verify"
                 :disabled="isLoading"
             >
                 <Spinner v-if="isLoading" />
-                <KeyRound v-else class="h-4 w-4" />
+                <KeyRound v-else class="size-4" aria-hidden="true" />
                 {{
                     isLoading
                         ? (props.loadingLabel ?? 'Authenticating...')
@@ -59,15 +59,14 @@ const { verify, isLoading, error, isSupported } = usePasskeyVerify({
             </div>
         </div>
 
-        <div class="relative my-6">
-            <div class="absolute inset-0 flex items-center">
-                <Separator class="w-full" />
-            </div>
-            <div class="relative flex justify-center text-xs uppercase">
-                <span class="bg-background px-2 text-muted-foreground">
-                    {{ props.separator ?? 'Or continue with email' }}
-                </span>
-            </div>
+        <div class="my-6 flex items-center gap-3">
+            <span class="h-px flex-1 bg-border" aria-hidden="true" />
+            <span
+                class="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase"
+            >
+                {{ props.separator ?? 'Or continue with email' }}
+            </span>
+            <span class="h-px flex-1 bg-border" aria-hidden="true" />
         </div>
     </div>
 </template>

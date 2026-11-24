@@ -33,9 +33,12 @@ final class GenerateDateNightPlanJob implements ShouldQueue
 
     public function handle(GenerateDateNightPlanAction $action): void
     {
+        $solo = $this->userTwo === null || $this->questionnaire->forcesSolo();
+
         $latestOne = Response::where('user_id', $this->userOne->id)
             ->where('questionnaire_id', $this->questionnaire->id)
             ->where('status', CompletionStatus::Completed)
+            ->inMode($this->questionnaire, $solo)
             ->latest('completed_at')
             ->latest('id')
             ->first();
@@ -45,7 +48,7 @@ final class GenerateDateNightPlanJob implements ShouldQueue
         }
 
         // Solo flow: single user's response is used for both partner refs.
-        if ($this->questionnaire->is_solo || $this->userTwo === null) {
+        if ($solo) {
             $existingSolo = DateNightPlan::where('questionnaire_id', $this->questionnaire->id)
                 ->where('partner_one_response_id', $latestOne->id)
                 ->where('partner_two_response_id', $latestOne->id)
@@ -63,6 +66,7 @@ final class GenerateDateNightPlanJob implements ShouldQueue
         $latestTwo = Response::where('user_id', $this->userTwo->id)
             ->where('questionnaire_id', $this->questionnaire->id)
             ->where('status', CompletionStatus::Completed)
+            ->inMode($this->questionnaire, false)
             ->latest('completed_at')
             ->latest('id')
             ->first();

@@ -33,8 +33,10 @@ function parseCustomAmount(value: string | null): string {
 }
 
 function isCustomAmountSelected(value: string | null): boolean {
-    return value === CUSTOM_AMOUNT_PREFIX
-        || (value?.startsWith(`${CUSTOM_AMOUNT_PREFIX}:`) ?? false);
+    return (
+        value === CUSTOM_AMOUNT_PREFIX ||
+        (value?.startsWith(`${CUSTOM_AMOUNT_PREFIX}:`) ?? false)
+    );
 }
 
 const customAmount = ref<string>(parseCustomAmount(props.modelValue));
@@ -59,7 +61,12 @@ function select(value: string | number): void {
 
     if (stringValue === CUSTOM_AMOUNT_PREFIX) {
         const trimmed = customAmount.value.trim();
-        emit('update:modelValue', trimmed === '' ? CUSTOM_AMOUNT_PREFIX : `${CUSTOM_AMOUNT_PREFIX}:${trimmed}`);
+        emit(
+            'update:modelValue',
+            trimmed === ''
+                ? CUSTOM_AMOUNT_PREFIX
+                : `${CUSTOM_AMOUNT_PREFIX}:${trimmed}`,
+        );
 
         return;
     }
@@ -75,7 +82,9 @@ function onCustomAmountInput(event: Event): void {
 
     emit(
         'update:modelValue',
-        digits === '' ? CUSTOM_AMOUNT_PREFIX : `${CUSTOM_AMOUNT_PREFIX}:${digits}`,
+        digits === ''
+            ? CUSTOM_AMOUNT_PREFIX
+            : `${CUSTOM_AMOUNT_PREFIX}:${digits}`,
     );
 }
 </script>
@@ -94,14 +103,22 @@ function onCustomAmountInput(event: Event): void {
             />
 
             <div
-                v-if="hasCustomAmountOption && option.value === 'custom_amount' && isSelected(option)"
-                class="rounded-2xl border-2 border-primary/40 bg-primary/5 p-4"
+                v-if="
+                    hasCustomAmountOption &&
+                    option.value === 'custom_amount' &&
+                    isSelected(option)
+                "
+                class="rounded-2xl border border-primary/30 bg-accent/60 p-4"
             >
-                <label for="custom-budget-amount" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-primary">
+                <label for="custom-budget-amount" class="mb-2 block eyebrow">
                     Your budget
                 </label>
-                <div class="flex items-center gap-2">
-                    <span class="text-lg font-semibold text-foreground" aria-hidden="true">£</span>
+                <div class="flex items-center gap-3">
+                    <span
+                        class="font-display text-2xl text-foreground"
+                        aria-hidden="true"
+                        >£</span
+                    >
                     <input
                         id="custom-budget-amount"
                         :value="customAmount"
@@ -109,12 +126,13 @@ function onCustomAmountInput(event: Event): void {
                         inputmode="numeric"
                         pattern="[0-9]*"
                         placeholder="e.g. 80"
-                        class="flex-1 rounded-2xl border-2 border-border bg-background px-4 py-3 text-base font-semibold text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        class="input-premium tabular-nums"
                         @input="onCustomAmountInput"
                     />
                 </div>
-                <p class="mt-2 text-xs text-muted-foreground">
-                    We'll tailor suggestions to roughly this amount for the whole date.
+                <p class="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    We'll tailor suggestions to roughly this amount for the
+                    whole date.
                 </p>
             </div>
         </template>

@@ -106,12 +106,12 @@ All jobs set `$tries = 3`, set their queue with `onQueue()` in the constructor, 
 
 ### Queue configuration and local running
 - Default connection: `database` (`config/queue.php`, `.env.example`). Jobs live in the `jobs` table; failures in `failed_jobs`.
-- `composer dev` runs `php artisan dev`, whose framework defaults start `serve`, `queue:listen --tries=1 --timeout=0`, `pail` (removed on Windows by `AppServiceProvider`) and Vite. Nothing in `composer dev` runs the scheduler; use `php artisan schedule:work` or run the commands by hand.
+- `composer dev` runs `php artisan dev`, whose framework defaults start `serve`, `queue:listen --tries=1 --timeout=0` on all six queues, `pail` (removed on Windows by `AppServiceProvider`) and Vite. Nothing in `composer dev` runs the scheduler; use `php artisan schedule:work` or run the commands by hand.
 - Tests: `QUEUE_CONNECTION=sync` in `phpunit.xml`, so queued listeners and jobs run inline.
 
 ## Rules and gotchas
 - **Auto-discovery is off** in two places (`EventServiceProvider::shouldDiscoverEvents()` and `withEvents(discover: false)`). A new listener does nothing until it is added to `$listen` by hand.
-- **Six queue names are in use**: `default`, `notifications`, `emails`, `analytics`, `ai`, `exports`. `queue:listen` without `--queue` only reads the connection's default queue (`DB_QUEUE`, default `default`). Suspected issue: with the stock `composer dev` worker, everything on `notifications`, `emails`, `analytics` (in-app notifications, all emails, achievements) stays in the `jobs` table. Run `php artisan queue:listen --queue=default,notifications,emails,analytics,ai,exports` to process them; production needs the same queue list.
+- **Six queue names are in use**: `default`, `notifications`, `emails`, `analytics`, `ai`, `exports`. `queue:listen` without `--queue` only reads the connection's default queue (`DB_QUEUE`, default `default`). `AppServiceProvider` re-registers the dev `queue` command with `--queue=default,notifications,emails,analytics,ai,exports`, so `composer dev` works every queue. Production workers still need the same list.
 - A typical email takes three hops (queued listener -> job -> `ShouldQueue` mailable), and the mailable lands on the default queue, not `emails`.
 - Sync `LogActivityOn*` listeners run before the dispatching code continues; an exception there fails the request/job.
 - Events use `SerializesModels`; queued listeners re-fetch models, so a model deleted before the worker runs makes the listener fail with `ModelNotFoundException`.
@@ -143,3 +143,4 @@ Run: `php artisan test tests/Feature/Events tests/Feature/Listeners tests/Featur
 
 ## Change log
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Dev queue worker now listens to all six queues (re-registered in `AppServiceProvider`).

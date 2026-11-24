@@ -4,13 +4,6 @@ import { Eye, EyeOff, LockKeyhole, RefreshCw } from '@lucide/vue';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import AlertError from '@/components/AlertError.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
@@ -39,24 +32,34 @@ onMounted(async () => {
 </script>
 
 <template>
-    <Card class="w-full">
-        <CardHeader>
-            <CardTitle class="flex gap-3">
-                <LockKeyhole class="size-4" />2FA recovery codes
-            </CardTitle>
-            <CardDescription>
-                Recovery codes let you regain access if you lose your 2FA
-                device. Store them in a secure password manager.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div class="w-full space-y-4 rounded-2xl border border-border p-4">
+        <div class="flex items-start gap-3.5">
+            <span class="icon-tile h-11 w-11 text-primary" aria-hidden="true">
+                <LockKeyhole class="size-5" />
+            </span>
+            <div class="min-w-0 space-y-1">
+                <h3 class="text-lg leading-tight font-semibold text-foreground">
+                    2FA recovery codes
+                </h3>
+                <p class="text-sm leading-relaxed text-muted-foreground">
+                    Recovery codes let you regain access if you lose your 2FA
+                    device. Store them in a secure password manager.
+                </p>
+            </div>
+        </div>
+        <div>
             <div
                 class="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between"
             >
-                <Button @click="toggleRecoveryCodesVisibility" class="w-fit">
+                <Button
+                    variant="outline"
+                    @click="toggleRecoveryCodesVisibility"
+                    class="w-fit"
+                >
                     <component
                         :is="isRecoveryCodesVisible ? EyeOff : Eye"
                         class="size-4"
+                        aria-hidden="true"
                     />
                     {{ isRecoveryCodesVisible ? 'Hide' : 'View' }} recovery
                     codes
@@ -75,7 +78,7 @@ onMounted(async () => {
                         type="submit"
                         :disabled="processing"
                     >
-                        <RefreshCw /> Regenerate codes
+                        <RefreshCw aria-hidden="true" /> Regenerate codes
                     </Button>
                 </Form>
             </div>
@@ -87,13 +90,13 @@ onMounted(async () => {
                         : 'h-0 opacity-0',
                 ]"
             >
-                <div v-if="errors?.length" class="mt-6">
+                <div v-if="errors?.length" class="mt-4">
                     <AlertError :errors="errors" />
                 </div>
                 <div v-else class="mt-3 space-y-3">
                     <div
                         ref="recoveryCodeSectionRef"
-                        class="grid gap-1 rounded-lg bg-muted p-4 font-mono text-sm"
+                        class="grid gap-1.5 rounded-2xl bg-muted p-4 font-mono text-sm text-foreground"
                     >
                         <div v-if="!recoveryCodesList.length" class="space-y-2">
                             <div
@@ -114,10 +117,13 @@ onMounted(async () => {
                         Each recovery code can be used once to access your
                         account and will be removed after use. If you need more,
                         click
-                        <span class="font-bold">Regenerate codes</span> above.
+                        <span class="font-medium text-foreground"
+                            >Regenerate codes</span
+                        >
+                        above.
                     </p>
                 </div>
             </div>
-        </CardContent>
-    </Card>
+        </div>
+    </div>
 </template>

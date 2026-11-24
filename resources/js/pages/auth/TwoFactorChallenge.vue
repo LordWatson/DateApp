@@ -54,7 +54,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
         <template v-if="!showRecoveryInput">
             <Form
                 v-bind="store.form()"
-                class="space-y-4"
+                class="space-y-5"
                 reset-on-error
                 @error="code = ''"
                 #default="{ errors, processing, clearErrors }"
@@ -82,14 +82,18 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     </div>
                     <InputError :message="errors.code" />
                 </div>
-                <Button type="submit" class="w-full" :disabled="processing"
+                <Button
+                    type="submit"
+                    size="lg"
+                    class="w-full"
+                    :disabled="processing"
                     >Continue</Button
                 >
                 <div class="text-center text-sm text-muted-foreground">
                     <span>or you can </span>
                     <button
                         type="button"
-                        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                        class="rounded font-medium text-primary underline decoration-primary/30 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                         @click="() => toggleRecoveryMode(clearErrors)"
                     >
                         {{ authConfigContent.buttonText }}
@@ -101,7 +105,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
         <template v-else>
             <Form
                 v-bind="store.form()"
-                class="space-y-4"
+                class="space-y-5"
                 reset-on-error
                 #default="{ errors, processing, clearErrors }"
             >
@@ -113,7 +117,11 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     required
                 />
                 <InputError :message="errors.recovery_code" />
-                <Button type="submit" class="w-full" :disabled="processing"
+                <Button
+                    type="submit"
+                    size="lg"
+                    class="w-full"
+                    :disabled="processing"
                     >Continue</Button
                 >
 
@@ -121,7 +129,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     <span>or you can </span>
                     <button
                         type="button"
-                        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                        class="rounded font-medium text-primary underline decoration-primary/30 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                         @click="() => toggleRecoveryMode(clearErrors)"
                     >
                         {{ authConfigContent.buttonText }}

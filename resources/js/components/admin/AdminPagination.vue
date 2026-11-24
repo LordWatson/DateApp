@@ -1,24 +1,27 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3'
+import { Link } from '@inertiajs/vue3';
 
 defineProps<{
-  links: Array<{ url: string | null; label: string; active: boolean }>
-}>()
+    links: Array<{ url: string | null; label: string; active: boolean }>;
+}>();
 </script>
 
 <template>
-  <div class="flex gap-1 mt-4 flex-wrap">
-    <Link
-      v-for="link in links"
-      :key="link.label"
-      :href="link.url ?? '#'"
-      :class="[
-        'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-        link.active ? 'bg-pink-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50',
-        !link.url ? 'opacity-40 pointer-events-none' : '',
-      ]"
-    >
-      {{ link.label }}
-    </Link>
-  </div>
+    <nav class="mt-4 flex flex-wrap gap-1" aria-label="Pagination">
+        <Link
+            v-for="link in links"
+            :key="link.label"
+            :href="link.url ?? '#'"
+            :aria-current="link.active ? 'page' : undefined"
+            :class="[
+                'inline-flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-medium tabular-nums transition-colors',
+                link.active
+                    ? 'bg-foreground text-background'
+                    : 'border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
+                !link.url ? 'pointer-events-none opacity-40' : '',
+            ]"
+        >
+            <span v-html="link.label" />
+        </Link>
+    </nav>
 </template>

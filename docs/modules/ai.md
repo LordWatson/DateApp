@@ -46,7 +46,7 @@ There are two interfaces with the same short name in different namespaces, so th
 
 **`system_settings`** rows with keys `ai.provider`, `ai.model`, `ai.temperature`, `ai.max_tokens`, `ai.timeout`, `ai.retry_attempts` hold admin overrides (table owned by `admin.md`).
 
-**`AIUseCase` values**: `date_night_plan`, `date_night_plan_solo`, `conversation_prompt`, `relationship_insight`, `compatibility_summary`, `challenge_variation`, `theme_description`, `moment_caption`, `intimacy_game`, `weekly_reflection`.
+**`AIUseCase` values**: `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple`, `conversation_prompt`, `relationship_insight`, `compatibility_summary`, `challenge_variation`, `theme_description`, `moment_caption`, `intimacy_game`, `weekly_reflection`.
 
 ## Routes
 None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-settings.*` (`routes/admin.php`) are documented in `admin.md`.
@@ -81,7 +81,7 @@ None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-setting
 
 | Caller | Use case | Dispatched / invoked from |
 |--------|----------|---------------------------|
-| `app/Services/DateNightGeneratorService.php` | `date_night_plan`, `date_night_plan_solo` | Inside `GenerateDateNightPlanJob` (see `date-night.md`) |
+| `app/Services/DateNightGeneratorService.php` | `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple` | Inside `GenerateDateNightPlanJob` (see `date-night.md`) |
 | `app/Services/WeeklyReflectionService.php` | `weekly_reflection` | Web request (see `weekly-reflection.md`) |
 | `app/Http/Controllers/Admin/AdminAiSettingController.php` | Any (test connection, preview) | Admin UI (see `admin.md`) |
 | `app/Jobs/EnhanceDateNightPlanWithAIJob.php` | `date_night_plan` | Never dispatched in app code (queue `ai`) |
@@ -141,3 +141,4 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 ## Change log
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Added `AnthropicProvider` and made it the default; DeepSeek kept as a selectable provider. Admin model setting now follows the selected provider.
+- 2026-11-24 — New use case `date_night_plan_out_couple` (compromise date-out plan for two sets of answers). Its template must be seeded: `php artisan db:seed --class=AiPromptTemplateSeeder`.

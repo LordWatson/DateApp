@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
+import { Check } from '@lucide/vue';
 import { computed } from 'vue';
-import FloatingHearts from '@/components/FloatingHearts.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
+import SectionHeader from '@/components/SectionHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
 defineOptions({ layout: MobileLayout });
@@ -55,202 +58,197 @@ const dashOffset = computed(() => {
         circumference - (props.compatibility.percentage / 100) * circumference
     );
 });
-
-const scoreColour = computed(() => {
-    if (!props.compatibility) {
-        return '#6d2452';
-    }
-
-    if (props.compatibility.percentage >= 80) {
-        return '#10B981';
-    }
-
-    if (props.compatibility.percentage >= 60) {
-        return '#F59E0B';
-    }
-
-    return '#d6336c';
-});
 </script>
 
 <template>
     <Head title="Compatibility" />
 
-    <div class="relative min-h-screen overflow-hidden">
-        <FloatingHearts />
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            :eyebrow="questionnaire.title"
+            title="Compatibility"
+            :description="
+                partner_name ? `You & ${partner_name}` : 'You & your partner'
+            "
+        />
 
-        <div class="relative z-10 space-y-6 px-4 py-6 pb-24">
-            <div class="space-y-1">
-                <h1 class="text-2xl font-semibold text-foreground">
-                    Compatibility 💕
-                </h1>
-                <p class="text-sm text-muted-foreground">
-                    {{
-                        partner_name
-                            ? `You & ${partner_name}`
-                            : 'You & your partner'
-                    }}
-                </p>
-            </div>
-
-            <!-- Waiting state -->
-            <div
-                v-if="!partner_completed"
-                class="space-y-4 card-premium p-8 text-center"
+        <!-- Waiting state -->
+        <div v-if="!partner_completed" class="card-premium">
+            <EmptyState
+                emoji="⏳"
+                title="Waiting for your partner"
+                :description="`Once ${partner_name ?? 'your partner'} completes the questionnaire, your compatibility score will appear here.`"
             >
-                <div class="animate-pulse text-6xl">⏳</div>
-                <h2 class="text-xl font-semibold text-foreground">
-                    Waiting for your partner ❤️
-                </h2>
-                <p class="text-sm text-muted-foreground">
-                    Once {{ partner_name ?? 'your partner' }} completes the
-                    questionnaire, your compatibility score will appear here.
-                </p>
-                <SecondaryButton full-width @click="router.visit('/dashboard')">
-                    Return Home
-                </SecondaryButton>
-            </div>
-
-            <!-- Compatibility results -->
-            <template v-else-if="compatibility">
-                <!-- Score circle -->
-                <div
-                    class="flex flex-col items-center space-y-4 card-premium p-6"
+                <SecondaryButton
+                    variant="outline"
+                    full-width
+                    @click="router.visit('/dashboard')"
                 >
+                    Return home
+                </SecondaryButton>
+            </EmptyState>
+        </div>
+
+        <!-- Compatibility results -->
+        <template v-else-if="compatibility">
+            <!-- Score circle -->
+            <section
+                class="card-feature flex flex-col items-center gap-5 p-6 text-center"
+            >
+                <p class="eyebrow text-gold-soft">Overall match</p>
+
+                <div class="relative size-40">
                     <svg
-                        width="120"
-                        height="120"
                         viewBox="0 0 100 100"
-                        class="-rotate-90"
+                        class="size-full -rotate-90"
+                        aria-hidden="true"
                     >
                         <circle
                             cx="50"
                             cy="50"
                             r="45"
                             fill="none"
-                            stroke="#e5e7eb"
-                            stroke-width="8"
+                            stroke="currentColor"
+                            stroke-width="5"
+                            class="text-white/15"
                         />
                         <circle
                             cx="50"
                             cy="50"
                             r="45"
                             fill="none"
-                            :stroke="scoreColour"
-                            stroke-width="8"
+                            stroke="currentColor"
+                            stroke-width="5"
                             stroke-linecap="round"
                             :stroke-dasharray="circumference"
                             :stroke-dashoffset="dashOffset"
-                            class="transition-all duration-1000 ease-out"
+                            class="text-gold-soft transition-all duration-1000 ease-out"
                         />
                     </svg>
-                    <div class="absolute text-center" style="margin-top: -80px">
-                        <p
-                            class="text-3xl font-semibold"
-                            :style="{ color: scoreColour }"
-                        >
-                            {{ compatibility.percentage }}%
-                        </p>
-                    </div>
-                    <div class="space-y-1 text-center">
-                        <p class="text-lg font-semibold text-foreground">
-                            Overall Match
-                        </p>
-                        <p class="text-sm text-muted-foreground">
-                            {{ compatibility.breakdown.matched_count }} matched
-                            ·
-                            {{
-                                compatibility.breakdown.different_count
-                            }}
-                            differed
-                        </p>
-                    </div>
+                    <p
+                        class="absolute inset-0 flex items-center justify-center font-display text-5xl leading-none font-medium tabular-nums"
+                    >
+                        {{ compatibility.percentage
+                        }}<span class="text-2xl text-white/70">%</span>
+                    </p>
                 </div>
 
-                <!-- Matched answers -->
-                <div v-if="compatibility.matched.length > 0" class="space-y-3">
-                    <h2 class="text-base font-semibold text-foreground">
-                        ✅ Things you both matched on
-                    </h2>
+                <p class="text-sm text-white/80 tabular-nums">
+                    {{ compatibility.breakdown.matched_count }} matched ·
+                    {{ compatibility.breakdown.different_count }}
+                    differed
+                </p>
+            </section>
+
+            <!-- Matched answers -->
+            <section v-if="compatibility.matched.length > 0" class="space-y-3">
+                <SectionHeader title="Things you both matched on">
+                    <span class="badge-soft tabular-nums">{{
+                        compatibility.matched.length
+                    }}</span>
+                </SectionHeader>
+                <div class="divide-y divide-border card-premium px-5 py-1">
                     <div
                         v-for="(entry, i) in compatibility.matched"
                         :key="i"
-                        class="space-y-2 card-premium p-4"
+                        class="flex items-start gap-3.5 py-4"
                     >
-                        <div class="flex items-center gap-2">
-                            <span v-if="entry.emoji" class="text-xl">{{
-                                entry.emoji
-                            }}</span>
-                            <p class="text-sm font-semibold text-foreground">
+                        <span
+                            v-if="entry.emoji"
+                            class="icon-tile h-11 w-11 text-xl"
+                            aria-hidden="true"
+                            >{{ entry.emoji }}</span
+                        >
+                        <div class="min-w-0 flex-1 space-y-1.5">
+                            <p
+                                class="text-sm leading-snug font-medium text-foreground"
+                            >
                                 {{ entry.question }}
                             </p>
-                        </div>
-                        <div
-                            v-if="entry.type !== 'text'"
-                            class="flex items-center gap-2 text-sm font-medium text-success"
-                        >
-                            <span>{{ entry.user_answer }}</span>
-                        </div>
-                        <div
-                            v-else
-                            class="space-y-1 text-xs text-muted-foreground"
-                        >
-                            <p>
-                                <span class="font-medium">You:</span>
-                                {{ entry.user_answer }}
+                            <p
+                                v-if="entry.type !== 'text'"
+                                class="flex items-start gap-1.5 text-sm leading-snug text-success"
+                            >
+                                <Check
+                                    class="mt-0.5 size-4 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <span>{{ entry.user_answer }}</span>
                             </p>
-                            <p>
-                                <span class="font-medium"
-                                    >{{ partner_name ?? 'Partner' }}:</span
-                                >
-                                {{ entry.partner_answer }}
-                            </p>
+                            <div
+                                v-else
+                                class="space-y-1 text-[13px] leading-snug text-muted-foreground"
+                            >
+                                <p>
+                                    <span class="font-medium text-foreground"
+                                        >You:</span
+                                    >
+                                    {{ entry.user_answer }}
+                                </p>
+                                <p>
+                                    <span class="font-medium text-foreground"
+                                        >{{ partner_name ?? 'Partner' }}:</span
+                                    >
+                                    {{ entry.partner_answer }}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <!-- Different answers -->
-                <div
-                    v-if="compatibility.different.length > 0"
-                    class="space-y-3"
-                >
-                    <h2 class="text-base font-semibold text-foreground">
-                        💬 Things that differed
-                    </h2>
+            <!-- Different answers -->
+            <section
+                v-if="compatibility.different.length > 0"
+                class="space-y-3"
+            >
+                <SectionHeader title="Things that differed">
+                    <span class="badge-soft tabular-nums">{{
+                        compatibility.different.length
+                    }}</span>
+                </SectionHeader>
+                <div class="divide-y divide-border card-premium px-5 py-1">
                     <div
                         v-for="(entry, i) in compatibility.different"
                         :key="i"
-                        class="space-y-2 card-premium p-4"
+                        class="flex items-start gap-3.5 py-4"
                     >
-                        <div class="flex items-center gap-2">
-                            <span v-if="entry.emoji" class="text-xl">{{
-                                entry.emoji
-                            }}</span>
-                            <p class="text-sm font-semibold text-foreground">
+                        <span
+                            v-if="entry.emoji"
+                            class="icon-tile h-11 w-11 text-xl"
+                            aria-hidden="true"
+                            >{{ entry.emoji }}</span
+                        >
+                        <div class="min-w-0 flex-1 space-y-1.5">
+                            <p
+                                class="text-sm leading-snug font-medium text-foreground"
+                            >
                                 {{ entry.question }}
                             </p>
-                        </div>
-                        <div class="space-y-1 text-xs">
-                            <p class="text-muted-foreground">
-                                <span class="font-medium text-foreground"
-                                    >You:</span
-                                >
-                                {{ entry.user_answer }}
-                            </p>
-                            <p class="text-muted-foreground">
-                                <span class="font-medium text-foreground"
-                                    >{{ partner_name ?? 'Partner' }}:</span
-                                >
-                                {{ entry.partner_answer }}
-                            </p>
+                            <div
+                                class="space-y-1 text-[13px] leading-snug text-muted-foreground"
+                            >
+                                <p>
+                                    <span class="font-medium text-foreground"
+                                        >You:</span
+                                    >
+                                    {{ entry.user_answer }}
+                                </p>
+                                <p>
+                                    <span class="font-medium text-foreground"
+                                        >{{ partner_name ?? 'Partner' }}:</span
+                                    >
+                                    {{ entry.partner_answer }}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <PrimaryButton full-width @click="router.visit('/dashboard')">
-                    Return Home ❤️
-                </PrimaryButton>
-            </template>
-        </div>
+            <PrimaryButton full-width @click="router.visit('/dashboard')">
+                Return home
+            </PrimaryButton>
+        </template>
     </div>
 </template>

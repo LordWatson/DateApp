@@ -49,7 +49,7 @@ When both partners finish the same questionnaire (or one user finishes a solo qu
 - `date_night_theme_id` (nullable, null on delete), `partner_user_id` (nullable FK to users, null on delete; set only on solo plans to the filler's partner).
 - `compatibility_score` (unsigned tinyint), `is_solo`, `is_favourite`, `ai_enhanced`, `fallback_used` (booleans).
 - Text content: `theme`, `theme_emoji`, `summary`, `meal_suggestion`, `atmosphere`, `activity`, `conversation_prompt`, `romantic_challenge` (the suggestion columns were widened from string to text).
-- `local_suggestions` (json, cast to array; solo only), `location_label` (solo only).
+- `local_suggestions` (json, cast to array) and `location_label`: set on solo plans and on couple date-out plans.
 - Index `dnp_responses_index` on the two response ids. It is no longer unique (dropped so solo plans can reuse one response).
 - `drink_suggestion` and `music_vibe` were removed by `2026_08_02_213000_remove_drink_and_music_from_date_night_plans`.
 - Relations: `questionnaire`, `partnerOneResponse`, `partnerTwoResponse`, `dateNightTheme`, `partnerUser`, `likedBy` (belongsToMany). Scope `favourites()`.
@@ -79,13 +79,13 @@ All under `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 ### 1. Questionnaire completion to finished plan
 1. `QuestionnaireService` dispatches `QuestionnaireCompleted` (`app/Services/QuestionnaireService.php`). See `questionnaires.md`.
 2. `DispatchDateNightPlanOnQuestionnaireCompleted` (queued):
-   - Solo questionnaire (`questionnaire.is_solo`): dispatch `GenerateDateNightPlanJob(user, null, questionnaire)`.
+   - Solo attempt (`$event->response->isSolo()`, see `questionnaires.md`): dispatch `GenerateDateNightPlanJob(user, null, questionnaire)`.
    - Otherwise: stop if the user has no partner, or if `QuestionnaireService::partnerHasFreshCompletedResponse()` is false (partner has no completed response, or it is already paired with one of this user's responses). Else dispatch the job with the partner.
 3. `GenerateDateNightPlanJob` re-reads the latest completed response(s), returns silently if any is missing or if a plan already exists for those response ids, then calls `GenerateDateNightPlanAction`.
-4. The action computes compatibility with `CompatibilityService::calculate()` for couples (falls back to percentage 0 if it returns null). Solo plans use a fixed percentage of 100.
+4. Job and action treat the run as solo when `userTwo` is null or `questionnaire.forcesSolo()`, and load each user's latest completed response in that mode (`Response::scopeInMode`). The action computes compatibility with `CompatibilityService::calculate()` for couples, passing the two exact responses (falls back to percentage 0 if it returns null). Solo plans use a fixed percentage of 100.
 5. `DateNightGeneratorService::generate()`:
    1. Rule based (authoritative): `RuleEngineService::selectTheme()` over active themes (in-memory "Cozy Night In" theme if the table has no active themes), `deriveContext()`, then `buildPlan()` picks fixed strings per context flag.
-   2. AI enhancement: calls `AIService::generateDateNightPlan()` or `generateDateNightPlanSolo()` synchronously inside the job. Only `theme`, `summary`, `meal_suggestion`, `atmosphere`, `activity`, `conversation_prompt`, `romantic_challenge` may be replaced, and only by non-empty strings. Solo plans also accept `local_suggestions` (needs `name` and `description`, capped at 6 by the code).
+   2. AI enhancement: synchronously inside the job. One response: `generateDateNightPlanSolo()`. Two responses on a date-out questionnaire (`questionnaire.is_solo`): use case `date_night_plan_out_couple`, which asks for a compromise between both partners' answers and gets the location (the first partner's who gave one) with the **smaller** of the two travel radii. Two responses otherwise: `generateDateNightPlan()`. Only `theme`, `summary`, `meal_suggestion`, `atmosphere`, `activity`, `conversation_prompt`, `romantic_challenge` may be replaced, and only by non-empty strings. Plans that use a location (solo, and couple date-out plans) also accept `local_suggestions` (needs `name` and `description`, capped at 6 by the code).
    3. Validation: any non-enhanceable key (currently `theme_emoji`) is reset to the deterministic value.
    4. Persist the plan with the flags below.
 6. The action dispatches `DateNightPlanGenerated(userOne, userTwo, plan)`. For solo plans `userTwo` is the filler's partner or null.
@@ -122,7 +122,7 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - **`partner_one` is not a stable role**: for couples the job is dispatched by whoever completed second, and that user becomes `userOne` / `partner_one_response_id`.
 - **The AI can rename the theme**: `theme` is enhanceable, while `theme_emoji` and `date_night_theme_id` stay rule-engine values. The stored `theme` string may not match any `date_night_themes.name`.
 - **Rule engine is keyword matching**: context flags come from substring matches on answer `value`s; themes are scored by keywords in the theme name (`cozy`, `candlelit`, `movie`, `pizza`, `rainy`, `sunset`, `game`, `picnic`, `anniversary`, `coffee`, `music`, `slow`). Renaming or adding a theme without one of these keywords means it never scores. `romance_high` is the average of all numeric answers (8 or more), not a specific question.
-- **Queues**: the pipeline spans the `default`, `notifications` and `emails` queues. `php artisan dev` starts `queue:listen` without `--queue`, so it only consumes `default`; notifications and emails need a worker that also listens on the other queues. See `events-jobs.md`.
+- **Queues**: the pipeline spans the `default`, `notifications` and `emails` queues. `AppServiceProvider` re-registers the dev `queue` command with `--queue=default,notifications,emails,analytics,ai,exports`, so `composer dev` works every queue. Production workers still need the same list.
 - **Tests run with the `sync` queue and no AI templates seeded**, so generation tests exercise the fallback path (`fallback_used` true).
 - **History filtering is done in PHP** after loading every plan for the user; there is no pagination. Compatibility buckets are hard-coded (high 75+, medium 50 to 74, low under 50).
 - `presenter->detail()` does not expose `ai_enhanced` or `fallback_used`, so the frontend cannot show them.
@@ -154,3 +154,4 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 
 ## Change log
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Couple date-out plans: mode comes from the response, new `date_night_plan_out_couple` prompt (compromise), shared location with the smaller travel radius; the generator no longer guesses the partner response.

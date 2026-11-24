@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
+import { ArrowRight, Check, ChevronLeft, CircleAlert } from '@lucide/vue';
 import axios from 'axios';
 import { computed, ref, watch } from 'vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
@@ -182,49 +183,52 @@ function goNext(): void {
 <template>
     <Head :title="`Question ${progress.current} of ${progress.total}`" />
 
-    <div class="flex min-h-screen flex-col px-4 py-6 pb-28">
-        <!-- Progress header -->
-        <div class="mb-6 space-y-3">
-            <div
-                class="flex items-center justify-between text-sm text-muted-foreground"
-            >
-                <span class="font-medium"
-                    >Question {{ progress.current }} of
-                    {{ progress.total }}</span
-                >
-                <span v-if="minutesLeft">~{{ minutesLeft }} min left</span>
-            </div>
-            <ProgressBar :value="progress.current" :max="progress.total" />
-        </div>
+    <div class="flex min-h-screen flex-col px-4 pt-6 pb-28">
+        <!-- Progress -->
+        <ProgressBar :value="progress.current" :max="progress.total" />
 
-        <!-- Question card -->
-        <div class="flex-1 space-y-6">
-            <div class="space-y-4 card-premium p-6">
-                <div v-if="question.emoji" class="flex justify-center">
-                    <span class="text-6xl" aria-hidden="true">{{
-                        question.emoji
-                    }}</span>
+        <div class="mt-8 flex-1 space-y-8">
+            <!-- Question -->
+            <header class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                    <p class="eyebrow tabular-nums">
+                        Question {{ progress.current }} of {{ progress.total }}
+                    </p>
+                    <span
+                        v-if="minutesLeft"
+                        class="text-xs text-muted-foreground tabular-nums"
+                        >~{{ minutesLeft }} min left</span
+                    >
                 </div>
-                <div class="space-y-2 text-center">
-                    <h2
-                        class="text-xl leading-snug font-semibold text-foreground"
+
+                <div
+                    v-if="question.emoji"
+                    class="icon-tile h-14 w-14 text-3xl"
+                    aria-hidden="true"
+                >
+                    {{ question.emoji }}
+                </div>
+
+                <div class="space-y-2.5">
+                    <h1
+                        class="text-[2rem] leading-[1.15] font-medium text-balance text-foreground"
                     >
                         {{ question.title }}
-                    </h2>
+                    </h1>
                     <p
                         v-if="question.description"
-                        class="text-sm text-muted-foreground"
+                        class="text-[15px] leading-relaxed text-muted-foreground"
                     >
                         {{ question.description }}
                     </p>
                     <p
                         v-if="!question.required"
-                        class="text-xs text-muted-foreground italic"
+                        class="text-xs text-muted-foreground"
                     >
                         Optional — you may skip this
                     </p>
                 </div>
-            </div>
+            </header>
 
             <!-- Answer component -->
             <Transition name="slide-fade" mode="out-in">
@@ -259,18 +263,31 @@ function goNext(): void {
             </Transition>
 
             <!-- Save status -->
-            <div class="flex items-center justify-center gap-2 text-xs">
+            <div
+                class="flex min-h-4 items-center justify-center gap-1.5 text-xs"
+                aria-live="polite"
+            >
                 <span v-if="saving" class="text-muted-foreground">Saving…</span>
-                <span v-else-if="saveError" class="text-destructive"
-                    >⚠️ Connection issue — retrying…</span
+                <span
+                    v-else-if="saveError"
+                    class="inline-flex items-center gap-1.5 text-destructive"
                 >
-                <span v-else-if="hasAnswer" class="text-success">✓ Saved</span>
+                    <CircleAlert class="size-3.5" aria-hidden="true" />
+                    Connection issue — retrying…
+                </span>
+                <span
+                    v-else-if="hasAnswer"
+                    class="inline-flex items-center gap-1 text-muted-foreground"
+                >
+                    <Check class="size-3.5 text-success" aria-hidden="true" />
+                    Saved
+                </span>
             </div>
         </div>
 
         <!-- Navigation -->
         <div
-            class="sticky bottom-24 z-30 mt-6 flex flex-row-reverse items-center gap-2 rounded-full border border-border/70 bg-card/85 p-1.5 shadow-xl backdrop-blur-xl"
+            class="sticky bottom-24 z-30 mt-8 flex flex-row-reverse items-center gap-2 rounded-full border border-border bg-card/90 p-1.5 shadow-[0_12px_32px_-16px_var(--shadow-color)] backdrop-blur-xl"
         >
             <Transition name="slide-up">
                 <PrimaryButton
@@ -279,12 +296,14 @@ function goNext(): void {
                     :disabled="!canContinue"
                     @click="goNext"
                 >
-                    {{ is_last ? 'Review Answers ❤️' : 'Continue' }}
+                    {{ is_last ? 'Review answers' : 'Continue' }}
+                    <ArrowRight class="size-4" aria-hidden="true" />
                 </PrimaryButton>
             </Transition>
 
-            <SecondaryButton variant="ghost" @click="goBack">
-                {{ has_previous ? '← Back' : '← Introduction' }}
+            <SecondaryButton variant="ghost" class="mr-auto" @click="goBack">
+                <ChevronLeft class="size-4" aria-hidden="true" />
+                {{ has_previous ? 'Back' : 'Introduction' }}
             </SecondaryButton>
         </div>
     </div>

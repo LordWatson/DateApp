@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CompletionStatus;
 use Database\Factories\ResponseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -37,6 +38,7 @@ class Response extends Model
         'user_id',
         'questionnaire_id',
         'status',
+        'is_solo',
         'started_at',
         'completed_at',
         'compatibility_score',
@@ -53,6 +55,7 @@ class Response extends Model
     {
         return [
             'status' => CompletionStatus::class,
+            'is_solo' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'location_latitude' => 'float',
@@ -74,5 +77,32 @@ class Response extends Model
     public function answers(): HasMany
     {
         return $this->hasMany(Answer::class);
+    }
+
+    /**
+     * Whether this attempt is answered by one person. Falls back to the questionnaire's own setting.
+     */
+    public function isSolo(): bool
+    {
+        return $this->is_solo ?? (bool) $this->questionnaire?->is_solo;
+    }
+
+    /**
+     * Limit to attempts made in the given mode. Only questionnaires that offer the choice are filtered;
+     * attempts made before the choice existed (null) count as the questionnaire's default mode.
+     */
+    public function scopeInMode(Builder $query, Questionnaire $questionnaire, bool $solo): Builder
+    {
+        if (! $questionnaire->partner_optional) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $query) use ($questionnaire, $solo): void {
+            $query->where('is_solo', $solo);
+
+            if ($questionnaire->is_solo === $solo) {
+                $query->orWhereNull('is_solo');
+            }
+        });
     }
 }

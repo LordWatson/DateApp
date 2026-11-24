@@ -17,9 +17,9 @@ final class DispatchDateNightPlanOnQuestionnaireCompleted implements ShouldQueue
 
     public function handle(QuestionnaireCompleted $event): void
     {
-        // Solo questionnaires generate a plan from the single user's response
+        // Solo attempts generate a plan from the single user's response
         // and reuse the exact same pipeline (job → action → generator → events).
-        if ($event->questionnaire->is_solo) {
+        if ($event->response->isSolo()) {
             GenerateDateNightPlanJob::dispatch($event->user, null, $event->questionnaire);
 
             return;

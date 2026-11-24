@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { X } from '@lucide/vue';
 import { ref } from 'vue';
 import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
+import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 import { index } from '@/routes/admin/users';
 import { show } from '@/routes/admin/users';
@@ -80,42 +82,37 @@ const columns = [
     <div>
         <div class="mb-6 flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Users</h1>
-                <p class="mt-1 text-sm text-gray-500">
+                <h1 class="text-2xl font-semibold text-foreground">Users</h1>
+                <p class="mt-1 text-sm text-muted-foreground">
                     {{ users.total }} total users
                 </p>
             </div>
         </div>
 
         <!-- Filters -->
-        <div
-            class="mb-6 flex flex-wrap gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
-        >
+        <div class="mb-6 flex flex-wrap gap-3 card-premium rounded-2xl p-4">
             <input
                 v-model="search"
                 type="text"
                 placeholder="Search by name or email…"
-                class="min-w-48 flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                class="input-premium min-w-48 flex-1 px-3 py-2 text-sm"
                 @keyup.enter="applyFilters"
+                aria-label="Search by name or email"
             />
             <select
                 v-model="filter"
-                class="rounded-xl border border-gray-200 px-4 py-2 text-sm focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                class="input-premium w-auto px-3 py-2 text-sm"
                 @change="applyFilters"
+                aria-label="Filter"
             >
-                <option value="">All Users</option>
+                <option value="">All users</option>
                 <option value="active">Active</option>
                 <option value="suspended">Suspended</option>
                 <option value="connected">Connected</option>
-                <option value="waiting">Waiting for Partner</option>
+                <option value="waiting">Waiting for partner</option>
                 <option value="admins">Admins</option>
             </select>
-            <button
-                @click="applyFilters"
-                class="rounded-xl bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600"
-            >
-                Search
-            </button>
+            <Button size="sm" @click="applyFilters"> Search </Button>
         </div>
 
         <!-- Table -->
@@ -123,20 +120,20 @@ const columns = [
             <tr
                 v-for="user in users.data"
                 :key="user.id"
-                class="border-b border-gray-50 transition-colors hover:bg-gray-50"
+                class="transition-colors hover:bg-muted/60"
             >
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-3">
                         <div
-                            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-500 text-xs font-bold text-white"
+                            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground gradient-primary"
                         >
                             {{ user.name.charAt(0) }}
                         </div>
                         <div>
-                            <p class="font-medium text-gray-900">
+                            <p class="font-medium text-foreground">
                                 {{ user.name }}
                             </p>
-                            <p class="text-xs text-gray-500">
+                            <p class="text-xs text-muted-foreground">
                                 {{ user.email }}
                             </p>
                         </div>
@@ -145,44 +142,46 @@ const columns = [
                 <td class="px-4 py-3">
                     <span
                         v-if="user.role"
-                        class="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700"
+                        class="badge-soft bg-accent text-primary"
                     >
                         {{ user.role.label }}
                     </span>
-                    <span v-else class="text-xs text-gray-400">User</span>
+                    <span v-else class="text-xs text-muted-foreground"
+                        >User</span
+                    >
                 </td>
                 <td class="px-4 py-3">
                     <span
                         :class="[
-                            'rounded-full px-2 py-1 text-xs font-medium',
+                            'badge-soft',
                             user.is_suspended
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-green-100 text-green-700',
+                                ? 'bg-destructive/10 text-destructive'
+                                : 'bg-success/10 text-success',
                         ]"
                     >
                         {{ user.is_suspended ? 'Suspended' : 'Active' }}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-600">
-                    {{ user.partner_id ? '✅ Connected' : '⏳ Waiting' }}
+                <td class="px-4 py-3 text-sm text-muted-foreground">
+                    {{ user.partner_id ? 'Connected' : 'Waiting' }}
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-600">
+                <td class="px-4 py-3 text-sm text-muted-foreground">
                     {{ user.responses_count }}
                 </td>
-                <td class="px-4 py-3 text-xs text-gray-500">
+                <td class="px-4 py-3 text-xs text-muted-foreground">
                     {{ new Date(user.created_at).toLocaleDateString() }}
                 </td>
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
                         <Link
                             :href="show(user.id).url"
-                            class="text-xs text-gray-600 hover:underline"
+                            class="text-xs font-medium text-foreground hover:underline"
                             >View</Link
                         >
                         <button
                             v-if="!user.is_suspended"
                             @click="suspendUserId = user.id"
-                            class="text-xs text-yellow-600 hover:underline"
+                            class="text-xs text-warning hover:underline"
                         >
                             Suspend
                         </button>
@@ -193,13 +192,13 @@ const columns = [
                                     route('admin.users.unsuspend', user.id),
                                 )
                             "
-                            class="text-xs text-green-600 hover:underline"
+                            class="text-xs text-success hover:underline"
                         >
                             Unsuspend
                         </button>
                         <button
                             @click="confirmDelete = user.id"
-                            class="text-xs text-red-500 hover:underline"
+                            class="text-xs text-destructive hover:underline"
                         >
                             Delete
                         </button>
@@ -213,29 +212,53 @@ const columns = [
         <!-- Suspend Modal -->
         <div
             v-if="suspendUserId"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
         >
-            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-                <h3 class="mb-4 font-bold text-gray-900">Suspend User</h3>
-                <textarea
-                    v-model="suspendReason"
-                    placeholder="Reason for suspension (optional)…"
-                    class="mb-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:ring-2 focus:ring-pink-300 focus:outline-none"
-                    rows="3"
-                />
-                <div class="flex gap-3">
+            <div
+                class="w-full max-w-md card-premium p-6"
+                role="dialog"
+                aria-modal="true"
+            >
+                <div class="mb-1 flex items-start justify-between gap-4">
+                    <h2 class="text-xl font-semibold text-foreground">
+                        Suspend user
+                    </h2>
                     <button
+                        type="button"
+                        class="-mt-1 -mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label="Close"
+                        @click="suspendUserId = null"
+                    >
+                        <X class="size-4" aria-hidden="true" />
+                    </button>
+                </div>
+                <label class="mb-4 block"
+                    ><span
+                        class="mb-1 block text-xs font-medium text-muted-foreground"
+                        >Reason for suspension (optional)</span
+                    ><textarea
+                        v-model="suspendReason"
+                        class="input-premium px-3 py-2 text-sm"
+                        rows="3"
+                    />
+                </label>
+                <div class="flex gap-3">
+                    <Button
+                        variant="outline"
+                        size="sm"
                         @click="doSuspend(suspendUserId!)"
-                        class="flex-1 rounded-xl bg-yellow-500 py-2 text-sm font-medium text-white transition-colors hover:bg-yellow-600"
+                        class="flex-1 border-warning/40 text-warning"
                     >
                         Suspend
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
                         @click="suspendUserId = null"
-                        class="flex-1 rounded-xl bg-gray-100 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+                        class="flex-1"
                     >
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -243,27 +266,47 @@ const columns = [
         <!-- Delete Confirm Modal -->
         <div
             v-if="confirmDelete"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
         >
-            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-                <h3 class="mb-2 font-bold text-gray-900">Delete User?</h3>
-                <p class="mb-6 text-sm text-gray-500">
+            <div
+                class="w-full max-w-md card-premium p-6"
+                role="dialog"
+                aria-modal="true"
+            >
+                <div class="mb-1 flex items-start justify-between gap-4">
+                    <h2 class="text-xl font-semibold text-foreground">
+                        Delete user?
+                    </h2>
+                    <button
+                        type="button"
+                        class="-mt-1 -mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label="Close"
+                        @click="confirmDelete = null"
+                    >
+                        <X class="size-4" aria-hidden="true" />
+                    </button>
+                </div>
+                <p class="mb-6 text-sm text-muted-foreground">
                     This action cannot be undone. All user data will be
                     permanently deleted.
                 </p>
                 <div class="flex gap-3">
-                    <button
+                    <Button
+                        variant="destructive"
+                        size="sm"
                         @click="doDelete(confirmDelete!)"
-                        class="flex-1 rounded-xl bg-red-500 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                        class="flex-1"
                     >
                         Delete
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
                         @click="confirmDelete = null"
-                        class="flex-1 rounded-xl bg-gray-100 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+                        class="flex-1"
                     >
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

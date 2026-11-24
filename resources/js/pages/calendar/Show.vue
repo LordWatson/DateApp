@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
-import PrimaryButton from '@/components/PrimaryButton.vue';
+import { Head, router } from '@inertiajs/vue3';
+import { Bell, MapPin, Trash2 } from '@lucide/vue';
+import PageHeader from '@/components/PageHeader.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import { destroy, index } from '@/routes/calendar';
@@ -44,67 +45,93 @@ function deleteEvent(): void {
 <template>
     <Head :title="event.title" />
 
-    <div class="space-y-6 px-4 py-6 pb-24">
-        <div>
-            <Link
-                :href="index.url()"
-                class="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-opacity hover:opacity-70"
-            >
-                ← Back to calendar
-            </Link>
-        </div>
-
-        <div class="card-premium relative overflow-hidden">
-            <div
-                class="absolute left-0 top-0 h-full w-1 rounded-l-3xl"
-                :style="{ backgroundColor: event.colour }"
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            :eyebrow="
+                event.is_mine ? 'Added by you' : 'Added by ' + event.owner
+            "
+            :title="event.title"
+            :description="
+                formatDate(event.date) + (event.time ? ' · ' + event.time : '')
+            "
+            :back-href="index.url()"
+            back-label="Back to calendar"
+        >
+            <span
+                class="icon-tile h-14 w-14 text-3xl"
+                :style="{ boxShadow: `inset 0 0 0 1.5px ${event.colour}` }"
                 aria-hidden="true"
-            />
-            <div class="space-y-5 p-6 pl-7">
-                <div class="flex items-start gap-4">
-                    <div
-                        class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl"
-                        :style="{ backgroundColor: event.colour + '20' }"
+                >{{ event.emoji ?? '📅' }}</span
+            >
+        </PageHeader>
+
+        <div
+            v-if="
+                event.location ||
+                event.description ||
+                event.notes ||
+                event.reminder
+            "
+            class="divide-y divide-border card-premium px-6"
+        >
+            <div v-if="event.location" class="space-y-1.5 py-5">
+                <p class="eyebrow">Location</p>
+                <p class="flex items-center gap-2 text-[15px] text-foreground">
+                    <MapPin
+                        class="size-4 shrink-0 text-muted-foreground"
                         aria-hidden="true"
-                    >
-                        {{ event.emoji ?? '📅' }}
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <h1 class="text-2xl font-semibold text-foreground">{{ event.title }}</h1>
-                        <p class="mt-1 text-sm text-muted-foreground">
-                            {{ formatDate(event.date) }}{{ event.time ? ' · ' + event.time : '' }}
-                        </p>
-                        <p class="mt-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            {{ event.is_mine ? 'Added by you' : 'Added by ' + event.owner }}
-                        </p>
-                    </div>
-                </div>
+                    />
+                    {{ event.location }}
+                </p>
+            </div>
 
-                <div v-if="event.location" class="rounded-2xl bg-background/60 p-4">
-                    <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Location</p>
-                    <p class="mt-1 text-sm text-foreground">📍 {{ event.location }}</p>
-                </div>
+            <div v-if="event.description" class="space-y-1.5 py-5">
+                <p class="eyebrow">Description</p>
+                <p
+                    class="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground"
+                >
+                    {{ event.description }}
+                </p>
+            </div>
 
-                <div v-if="event.description" class="rounded-2xl bg-background/60 p-4">
-                    <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Description</p>
-                    <p class="mt-1 whitespace-pre-wrap text-sm text-foreground">{{ event.description }}</p>
-                </div>
+            <div v-if="event.notes" class="space-y-1.5 py-5">
+                <p class="eyebrow">Notes</p>
+                <p
+                    class="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground"
+                >
+                    {{ event.notes }}
+                </p>
+            </div>
 
-                <div v-if="event.notes" class="rounded-2xl bg-background/60 p-4">
-                    <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Notes</p>
-                    <p class="mt-1 whitespace-pre-wrap text-sm text-foreground">{{ event.notes }}</p>
-                </div>
-
-                <div v-if="event.reminder" class="rounded-2xl bg-background/60 p-4">
-                    <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Reminder</p>
-                    <p class="mt-1 text-sm text-foreground">🔔 {{ event.reminder.replace('_', ' ') }}</p>
-                </div>
+            <div v-if="event.reminder" class="space-y-1.5 py-5">
+                <p class="eyebrow">Reminder</p>
+                <p class="flex items-center gap-2 text-[15px] text-foreground">
+                    <Bell
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    {{ event.reminder.replace('_', ' ') }}
+                </p>
             </div>
         </div>
 
-        <div v-if="event.is_mine" class="flex gap-3">
-            <PrimaryButton full-width @click="router.get(index.url())">Back</PrimaryButton>
-            <SecondaryButton variant="outline" full-width @click="deleteEvent">Delete</SecondaryButton>
+        <div v-if="event.is_mine" class="space-y-3">
+            <SecondaryButton
+                variant="outline"
+                full-width
+                @click="router.get(index.url())"
+            >
+                Back
+            </SecondaryButton>
+            <SecondaryButton
+                variant="ghost"
+                full-width
+                class="text-destructive! hover:bg-destructive/10!"
+                @click="deleteEvent"
+            >
+                <Trash2 class="size-4" aria-hidden="true" />
+                Delete
+            </SecondaryButton>
         </div>
     </div>
 </template>

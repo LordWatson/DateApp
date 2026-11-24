@@ -19,9 +19,9 @@ defineOptions({
 <template>
     <Head title="Appearance settings" />
 
-    <h1 class="sr-only">Appearance settings</h1>
+    <h2 class="sr-only">Appearance settings</h2>
 
-    <div class="space-y-6">
+    <div class="space-y-5 card-premium p-5">
         <Heading
             variant="small"
             title="Appearance settings"

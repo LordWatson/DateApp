@@ -34,9 +34,9 @@ defineOptions({
 <template>
     <Head title="Security settings" />
 
-    <h1 class="sr-only">Security settings</h1>
+    <h2 class="sr-only">Security settings</h2>
 
-    <div class="space-y-6">
+    <div class="space-y-5 card-premium p-5">
         <Heading
             variant="small"
             title="Update password"
@@ -54,7 +54,7 @@ defineOptions({
                 'password_confirmation',
                 'current_password',
             ]"
-            class="space-y-6"
+            class="space-y-5"
             v-slot="{ errors, processing }"
         >
             <div class="grid gap-2">
@@ -62,7 +62,6 @@ defineOptions({
                 <PasswordInput
                     id="current_password"
                     name="current_password"
-                    class="mt-1 block w-full"
                     autocomplete="current-password"
                     placeholder="Current password"
                 />
@@ -74,7 +73,6 @@ defineOptions({
                 <PasswordInput
                     id="password"
                     name="password"
-                    class="mt-1 block w-full"
                     autocomplete="new-password"
                     placeholder="New password"
                     :passwordrules="props.passwordRules"
@@ -87,7 +85,6 @@ defineOptions({
                 <PasswordInput
                     id="password_confirmation"
                     name="password_confirmation"
-                    class="mt-1 block w-full"
                     autocomplete="new-password"
                     placeholder="Confirm password"
                     :passwordrules="props.passwordRules"

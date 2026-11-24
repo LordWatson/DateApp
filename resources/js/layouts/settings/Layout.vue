@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { Link, router } from '@inertiajs/vue3';
+import { LogOut } from '@lucide/vue';
+import PageHeader from '@/components/PageHeader.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
+import { logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
@@ -29,43 +29,42 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 </script>
 
 <template>
-    <div class="px-4 py-6">
-        <Heading
+    <div class="space-y-6 px-4 pt-6 pb-28">
+        <PageHeader
             title="Settings"
+            eyebrow="Account"
             description="Manage your profile and account settings"
         />
 
-        <div class="flex flex-col lg:flex-row lg:space-x-12">
-            <aside class="w-full max-w-xl lg:w-48">
-                <nav
-                    class="flex flex-col space-y-1 space-x-0"
-                    aria-label="Settings"
-                >
-                    <Button
-                        v-for="item in sidebarNavItems"
-                        :key="toUrl(item.href)"
-                        variant="ghost"
-                        :class="[
-                            'w-full justify-start',
-                            { 'bg-muted': isCurrentOrParentUrl(item.href) },
-                        ]"
-                        as-child
-                    >
-                        <Link :href="item.href">
-                            <component :is="item.icon" class="h-4 w-4" />
-                            {{ item.title }}
-                        </Link>
-                    </Button>
-                </nav>
-            </aside>
+        <nav
+            class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+            aria-label="Settings"
+        >
+            <Link
+                v-for="item in sidebarNavItems"
+                :key="toUrl(item.href)"
+                :href="item.href"
+                class="chip focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                :data-active="isCurrentOrParentUrl(item.href)"
+                :aria-current="
+                    isCurrentOrParentUrl(item.href) ? 'page' : undefined
+                "
+            >
+                {{ item.title }}
+            </Link>
+        </nav>
 
-            <Separator class="my-6 lg:hidden" />
+        <section class="space-y-4">
+            <slot />
+        </section>
 
-            <div class="flex-1 md:max-w-2xl">
-                <section class="max-w-xl space-y-12">
-                    <slot />
-                </section>
-            </div>
-        </div>
+        <button
+            type="button"
+            class="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-card text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+            @click="router.post(logout().url)"
+        >
+            <LogOut class="size-4" aria-hidden="true" />
+            Log out
+        </button>
     </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import PrimaryButton from '@/components/PrimaryButton.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
 defineOptions({ layout: MobileLayout });
@@ -27,42 +28,49 @@ function formatDate(iso: string): string {
 </script>
 
 <template>
-    <Head title="Love Note 💌" />
+    <Head title="Love note" />
 
-    <div class="min-h-screen px-4 py-6 pb-28">
-        <div class="mb-6 flex items-center gap-3">
-            <button
-                class="flex h-10 w-10 items-center justify-center rounded-2xl bg-card shadow-sm"
-                aria-label="Back to love notes"
-                @click="router.visit('/love-notes')"
-            >
-                ←
-            </button>
-            <h1 class="text-2xl font-semibold text-foreground">💌 Love Note</h1>
-        </div>
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            title="Love note"
+            back-href="/love-notes"
+            back-label="Love notes"
+        />
 
-        <div class="card-premium p-6 space-y-6">
-            <!-- Sender -->
-            <div class="flex items-center gap-4">
-                <div class="flex h-14 w-14 items-center justify-center rounded-3xl bg-primary/10 text-3xl">
-                    {{ note.person_avatar || '💕' }}
-                </div>
-                <div>
-                    <p class="font-semibold text-foreground">{{ note.person_name ?? 'Your partner' }}</p>
-                    <p class="text-xs text-muted-foreground">{{ formatDate(note.created_at) }}</p>
-                </div>
-            </div>
+        <article class="card-feature px-6 py-8">
+            <p class="eyebrow text-gold-soft">
+                {{ formatDate(note.created_at) }}
+            </p>
 
             <!-- Message -->
-            <div class="rounded-3xl bg-primary/5 border border-primary/20 p-5">
-                <p class="text-base leading-relaxed text-foreground">{{ note.message }}</p>
-            </div>
-        </div>
+            <p
+                class="mt-4 font-display text-2xl leading-snug font-medium whitespace-pre-line"
+            >
+                {{ note.message }}
+            </p>
 
-        <div class="mt-6">
-            <PrimaryButton full-width @click="router.visit('/love-notes')">
-                Back to Love Notes
-            </PrimaryButton>
-        </div>
+            <div class="my-6 hairline-gold opacity-60" />
+
+            <!-- Sender -->
+            <div class="flex items-center gap-3.5">
+                <div
+                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl ring-1 ring-white/20"
+                    aria-hidden="true"
+                >
+                    {{ note.person_avatar || '💕' }}
+                </div>
+                <p class="min-w-0 truncate font-medium">
+                    {{ note.person_name ?? 'Your partner' }}
+                </p>
+            </div>
+        </article>
+
+        <SecondaryButton
+            variant="outline"
+            full-width
+            @click="router.visit('/love-notes')"
+        >
+            Back to love notes
+        </SecondaryButton>
     </div>
 </template>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
+import { ChevronRight } from '@lucide/vue';
 import EmptyState from '@/components/EmptyState.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { index as timelineIndex } from '@/routes/timeline';
 
 defineOptions({ layout: MobileLayout });
 
@@ -32,7 +35,7 @@ defineProps<{
 }>();
 
 function setFilter(value: string): void {
-    router.get(route('timeline.index'), { filter: value }, { preserveState: true });
+    router.get(timelineIndex().url, { filter: value }, { preserveState: true });
 }
 
 function formatDate(dateStr: string): string {
@@ -42,46 +45,40 @@ function formatDate(dateStr: string): string {
         year: 'numeric',
     });
 }
-
-const typeConfig: Record<string, { bg: string }> = {
-    questionnaire: { bg: 'bg-secondary/10' },
-    plan: { bg: 'bg-primary/10' },
-    moment: { bg: 'bg-success/10' },
-    love_note: { bg: 'bg-primary/10' },
-    calendar: { bg: 'bg-blue-500/10' },
-    achievement: { bg: 'bg-warning/10' },
-};
 </script>
 
 <template>
     <Head title="Timeline" />
 
-    <div class="space-y-4 px-4 py-6 pb-24">
-        <!-- Header -->
-        <div>
-            <h1 class="text-2xl font-semibold text-foreground">⏳ Timeline</h1>
-            <p class="text-sm text-muted-foreground">Your relationship story</p>
-        </div>
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader title="Timeline" description="Your relationship story" />
 
         <!-- Filters -->
-        <div class="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filter timeline entries">
+        <div
+            class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+            role="tablist"
+            aria-label="Filter timeline entries"
+        >
             <button
                 v-for="f in filters"
                 :key="f.value"
+                type="button"
                 role="tab"
                 :aria-selected="filter === f.value"
-                class="shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                :class="filter === f.value ? 'gradient-primary text-white shadow-md' : 'bg-card text-muted-foreground shadow'"
+                class="chip focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                 @click="setFilter(f.value)"
             >
                 {{ f.label }}
             </button>
         </div>
 
-        <!-- Timeline Entries -->
+        <!-- Timeline entries -->
         <div v-if="entries.length > 0" class="relative">
             <!-- Vertical line -->
-            <div class="absolute left-6 top-0 h-full w-0.5 bg-gradient-to-b from-primary/30 to-secondary/30" aria-hidden="true" />
+            <div
+                class="absolute top-0 left-6 h-full w-px bg-border"
+                aria-hidden="true"
+            />
 
             <div class="space-y-4">
                 <div
@@ -89,10 +86,9 @@ const typeConfig: Record<string, { bg: string }> = {
                     :key="entry.id"
                     class="relative flex gap-4"
                 >
-                    <!-- Dot -->
+                    <!-- Marker -->
                     <div
-                        class="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xl shadow-md"
-                        :class="typeConfig[entry.type]?.bg ?? 'bg-muted'"
+                        class="relative z-10 icon-tile h-12 w-12 text-xl"
                         aria-hidden="true"
                     >
                         {{ entry.emoji }}
@@ -102,37 +98,66 @@ const typeConfig: Record<string, { bg: string }> = {
                     <component
                         :is="entry.link ? Link : 'div'"
                         :href="entry.link ?? undefined"
-                        class="card-premium flex-1 overflow-hidden p-4 transition-all"
+                        class="min-w-0 flex-1 card-premium p-4"
                         :class="entry.link ? 'card-hover' : ''"
                     >
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-foreground">{{ entry.title }}</p>
-                                <p class="mt-0.5 text-xs text-muted-foreground">{{ formatDate(entry.occurred_at) }}</p>
-                                <p v-if="entry.description" class="mt-1 line-clamp-2 text-sm text-foreground/80">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <p class="font-medium text-foreground">
+                                    {{ entry.title }}
+                                </p>
+                                <p class="mt-0.5 text-xs text-muted-foreground">
+                                    {{ formatDate(entry.occurred_at) }}
+                                </p>
+                                <p
+                                    v-if="entry.description"
+                                    class="mt-1.5 line-clamp-2 text-sm text-muted-foreground"
+                                >
                                     {{ entry.description }}
                                 </p>
                             </div>
-                            <div v-if="entry.compatibility_score !== undefined" class="shrink-0 text-right">
-                                <p class="text-lg font-semibold text-primary">{{ entry.compatibility_score }}%</p>
-                                <p class="text-xs text-muted-foreground">match</p>
+                            <div
+                                v-if="entry.compatibility_score !== undefined"
+                                class="shrink-0 text-right"
+                            >
+                                <p
+                                    class="font-display text-xl leading-tight font-medium text-primary tabular-nums"
+                                >
+                                    {{ entry.compatibility_score }}%
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    match
+                                </p>
                             </div>
-                            <div v-if="entry.points !== undefined" class="shrink-0 text-right">
-                                <p class="text-lg font-semibold text-warning">+{{ entry.points }}</p>
+                            <div
+                                v-if="entry.points !== undefined"
+                                class="shrink-0 text-right"
+                            >
+                                <p
+                                    class="font-display text-xl leading-tight font-medium text-gold tabular-nums"
+                                >
+                                    +{{ entry.points }}
+                                </p>
                                 <p class="text-xs text-muted-foreground">pts</p>
                             </div>
+                            <ChevronRight
+                                v-if="entry.link"
+                                class="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
                         </div>
                     </component>
                 </div>
             </div>
         </div>
 
-        <!-- Empty State -->
-        <EmptyState
-            v-else
-            emoji="⏳"
-            title="Nothing here yet"
-            description="Your story will appear here as you use the app together."
-        />
+        <!-- Empty state -->
+        <div v-else class="card-premium">
+            <EmptyState
+                emoji="⏳"
+                title="Nothing here yet"
+                description="Your story will appear here as you use the app together."
+            />
+        </div>
     </div>
 </template>

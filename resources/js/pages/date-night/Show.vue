@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { CalendarPlus, Check, Heart, Printer, Star, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
 import InputError from '@/components/InputError.vue';
@@ -56,6 +57,38 @@ const generatedDate = new Date(props.plan.created_at).toLocaleDateString([], {
     month: 'long',
     day: 'numeric',
 });
+
+const planSections = computed(() =>
+    [
+        {
+            label: 'Meal suggestion',
+            emoji: '🍽️',
+            text: props.plan.meal_suggestion,
+            quoted: false,
+        },
+        {
+            label: 'Atmosphere',
+            emoji: '🕯️',
+            text: props.plan.atmosphere,
+            quoted: false,
+        },
+        {
+            label: 'Activity',
+            emoji: '✨',
+            text: props.plan.activity,
+            quoted: false,
+        },
+        {
+            label: 'Conversation prompt',
+            emoji: '💬',
+            text: props.plan.conversation_prompt,
+            quoted: true,
+        },
+    ].filter((section) => section.text),
+);
+
+const actionChipClass =
+    'chip focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 function toggleFavourite(): void {
     router.post(
@@ -130,180 +163,140 @@ function submitCalendar(): void {
 </script>
 
 <template>
-    <Head title="Your Date Night ❤️" />
+    <Head title="Your date night" />
 
     <div class="relative min-h-screen overflow-hidden">
         <FloatingHearts />
 
-        <div class="relative z-10 px-4 py-6 pb-28">
-            <!-- Hero Card -->
-            <div
-                class="mb-6 overflow-hidden rounded-3xl shadow-xl"
-                style="background: linear-gradient(135deg, #d6336c, #6d2452)"
-            >
-                <div class="px-6 py-8 text-center text-white">
-                    <!--                    <div class="mb-3 text-5xl">{{ plan.theme_emoji ?? '❤️' }}</div>-->
-                    <div class="mb-3 text-5xl">❤️</div>
-                    <h1 class="mb-1 text-2xl font-semibold">
-                        Your Perfect Evening
-                    </h1>
-                    <p class="mb-4 text-sm opacity-85">{{ plan.theme }}</p>
+        <div class="relative z-10 space-y-8 px-4 pt-6 pb-28">
+            <!-- Hero -->
+            <section class="card-feature px-6 py-8 text-center">
+                <p class="eyebrow text-gold-soft">Your perfect evening</p>
+                <h1 class="mt-3 text-4xl leading-tight font-medium">
+                    {{ plan.theme }}
+                </h1>
+                <p class="mt-2 text-xs text-white/80">{{ generatedDate }}</p>
 
-                    <!-- Compatibility Score (couple plans only) -->
-                    <div
-                        v-if="!plan.is_solo"
-                        class="inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2 backdrop-blur-sm"
+                <!-- Compatibility score (couple plans only) -->
+                <template v-if="!plan.is_solo">
+                    <div class="my-6 hairline-gold opacity-60" />
+                    <p
+                        class="font-display text-6xl leading-none font-medium tabular-nums"
                     >
-                        <span class="text-2xl font-bold"
-                            >{{ plan.compatibility_score }}%</span
-                        >
-                        <span class="text-sm opacity-90">Compatible ❤️</span>
-                    </div>
-                </div>
+                        {{ plan.compatibility_score }}%
+                    </p>
+                    <p class="mt-2 eyebrow text-gold-soft">Compatible</p>
+                </template>
 
-                <!-- Partner Avatars -->
-                <div
-                    v-if="plan.partner_one || plan.partner_two"
-                    class="flex items-center justify-center gap-4 border-t border-white/20 px-6 py-4"
-                >
-                    <div
-                        v-if="plan.partner_one"
-                        class="flex flex-col items-center gap-1"
-                    >
+                <!-- Partners -->
+                <template v-if="plan.partner_one || plan.partner_two">
+                    <div class="my-6 hairline-gold opacity-60" />
+                    <div class="flex items-center justify-center gap-4">
                         <div
-                            class="flex h-10 w-10 items-center justify-center rounded-full bg-white/30 text-sm font-bold text-white"
+                            v-if="plan.partner_one"
+                            class="flex flex-col items-center gap-1.5"
                         >
-                            {{ getInitial(plan.partner_one.name) }}
+                            <div
+                                class="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 font-display text-lg ring-1 ring-white/20"
+                                aria-hidden="true"
+                            >
+                                {{ getInitial(plan.partner_one.name) }}
+                            </div>
+                            <span class="text-xs text-white/80">{{
+                                plan.partner_one.name
+                            }}</span>
                         </div>
-                        <span class="text-xs text-white/80">{{
-                            plan.partner_one.name
-                        }}</span>
-                    </div>
-                    <div
-                        v-if="!plan.is_solo && plan.partner_two"
-                        class="text-white/60"
-                    >
-                        ❤️
-                    </div>
-                    <div
-                        v-if="!plan.is_solo && plan.partner_two"
-                        class="flex flex-col items-center gap-1"
-                    >
+                        <Heart
+                            v-if="!plan.is_solo && plan.partner_two"
+                            class="size-4 fill-current text-gold-soft"
+                            aria-hidden="true"
+                        />
                         <div
-                            class="flex h-10 w-10 items-center justify-center rounded-full bg-white/30 text-sm font-bold text-white"
+                            v-if="!plan.is_solo && plan.partner_two"
+                            class="flex flex-col items-center gap-1.5"
                         >
-                            {{ getInitial(plan.partner_two.name) }}
+                            <div
+                                class="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 font-display text-lg ring-1 ring-white/20"
+                                aria-hidden="true"
+                            >
+                                {{ getInitial(plan.partner_two.name) }}
+                            </div>
+                            <span class="text-xs text-white/80">{{
+                                plan.partner_two.name
+                            }}</span>
                         </div>
-                        <span class="text-xs text-white/80">{{
-                            plan.partner_two.name
-                        }}</span>
                     </div>
-                </div>
-            </div>
+                </template>
+            </section>
 
             <!-- Summary -->
-            <div class="mb-4 card-premium p-5">
-                <p class="text-sm leading-relaxed text-foreground/80">
-                    {{ plan.summary }}
-                </p>
-            </div>
+            <p
+                class="px-2 text-center font-display text-lg leading-relaxed text-foreground"
+            >
+                {{ plan.summary }}
+            </p>
 
-            <!-- Detail Cards -->
-            <div class="mb-4 space-y-3">
+            <!-- The plan -->
+            <section class="space-y-3">
                 <div
-                    v-if="plan.meal_suggestion"
-                    class="flex card-hover items-start gap-4 card-premium p-5"
+                    v-for="section in planSections"
+                    :key="section.label"
+                    class="flex items-start gap-4 card-premium p-5"
                 >
-                    <span class="text-2xl" aria-hidden="true">🍽️</span>
-                    <div>
+                    <span
+                        class="icon-tile h-11 w-11 text-xl"
+                        aria-hidden="true"
+                        >{{ section.emoji }}</span
+                    >
+                    <div class="min-w-0 flex-1 space-y-1.5">
+                        <p class="eyebrow">{{ section.label }}</p>
                         <p
-                            class="mb-1 text-xs font-semibold tracking-widest text-muted-foreground uppercase"
+                            v-if="section.quoted"
+                            class="text-[15px] leading-relaxed text-foreground italic"
                         >
-                            Meal Suggestion
+                            "{{ section.text }}"
                         </p>
-                        <p class="text-sm font-medium text-foreground">
-                            {{ plan.meal_suggestion }}
+                        <p
+                            v-else
+                            class="text-[15px] leading-relaxed text-foreground"
+                        >
+                            {{ section.text }}
                         </p>
                     </div>
                 </div>
 
-                <div
-                    v-if="plan.atmosphere"
-                    class="flex card-hover items-start gap-4 card-premium p-5"
-                >
-                    <span class="text-2xl" aria-hidden="true">🕯️</span>
-                    <div>
-                        <p
-                            class="mb-1 text-xs font-semibold tracking-widest text-muted-foreground uppercase"
-                        >
-                            Atmosphere
-                        </p>
-                        <p class="text-sm font-medium text-foreground">
-                            {{ plan.atmosphere }}
-                        </p>
-                    </div>
-                </div>
-
-                <div
-                    v-if="plan.activity"
-                    class="flex card-hover items-start gap-4 card-premium p-5"
-                >
-                    <span class="text-2xl" aria-hidden="true">✨</span>
-                    <div>
-                        <p
-                            class="mb-1 text-xs font-semibold tracking-widest text-muted-foreground uppercase"
-                        >
-                            Activity
-                        </p>
-                        <p class="text-sm font-medium text-foreground">
-                            {{ plan.activity }}
-                        </p>
-                    </div>
-                </div>
-
-                <div
-                    v-if="plan.conversation_prompt"
-                    class="flex card-hover items-start gap-4 card-premium p-5"
-                >
-                    <span class="text-2xl" aria-hidden="true">💬</span>
-                    <div>
-                        <p
-                            class="mb-1 text-xs font-semibold tracking-widest text-muted-foreground uppercase"
-                        >
-                            Conversation Prompt
-                        </p>
-                        <p class="text-sm font-medium text-foreground italic">
-                            "{{ plan.conversation_prompt }}"
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Romantic Challenge — highlighted -->
+                <!-- Romantic challenge, highlighted -->
                 <div
                     v-if="plan.romantic_challenge"
-                    class="card-premium bg-white p-5"
+                    class="card-premium p-6 text-center"
                 >
-                    <p
-                        class="mb-2 text-xs font-semibold tracking-widest text-primary uppercase"
+                    <span
+                        class="mx-auto icon-tile h-12 w-12 text-2xl"
+                        aria-hidden="true"
+                        >🌹</span
                     >
-                        🌹 Tonight's Romantic Challenge
-                    </p>
-                    <p class="text-sm font-semibold text-secondary">
+                    <p class="mt-4 eyebrow">Tonight's romantic challenge</p>
+                    <div class="mx-auto my-4 hairline-gold w-24" />
+                    <p
+                        class="font-display text-xl leading-snug font-medium text-foreground"
+                    >
                         {{ plan.romantic_challenge }}
                     </p>
                 </div>
 
                 <!-- Local ideas (solo plans only) -->
                 <div
-                    v-if="plan.is_solo && plan.local_suggestions.length > 0"
-                    class="card-premium p-5"
+                    v-if="plan.local_suggestions.length > 0"
+                    class="space-y-4 card-premium p-5"
                 >
-                    <div class="mb-3 flex items-start gap-3">
-                        <span class="text-2xl" aria-hidden="true">📍</span>
-                        <div>
-                            <p
-                                class="text-xs font-semibold tracking-widest text-muted-foreground uppercase"
-                            >
+                    <div class="flex items-start gap-4">
+                        <span
+                            class="icon-tile h-11 w-11 text-xl"
+                            aria-hidden="true"
+                            >📍</span
+                        >
+                        <div class="min-w-0 flex-1 space-y-1.5">
+                            <p class="eyebrow">
                                 Local ideas<span v-if="plan.location_label">
                                     near {{ plan.location_label }}</span
                                 >
@@ -314,25 +307,23 @@ function submitCalendar(): void {
                             </p>
                         </div>
                     </div>
-                    <ul class="space-y-3">
+                    <ul class="space-y-2">
                         <li
                             v-for="(
                                 suggestion, index
                             ) in plan.local_suggestions"
                             :key="index"
-                            class="rounded-2xl bg-primary/5 p-4"
+                            class="rounded-2xl bg-muted p-4"
                         >
                             <div
                                 class="flex items-baseline justify-between gap-2"
                             >
-                                <p
-                                    class="text-sm font-semibold text-foreground"
-                                >
+                                <p class="text-sm font-medium text-foreground">
                                     {{ suggestion.name }}
                                 </p>
                                 <span
                                     v-if="suggestion.category"
-                                    class="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary uppercase"
+                                    class="badge-soft shrink-0"
                                 >
                                     {{ suggestion.category }}
                                 </span>
@@ -343,91 +334,96 @@ function submitCalendar(): void {
                         </li>
                     </ul>
                 </div>
-            </div>
-
-            <!-- Like -->
-            <div class="mb-4 flex justify-center">
-                <button
-                    type="button"
-                    class="inline-flex min-h-14 items-center gap-2 rounded-3xl bg-white px-6 py-3 text-sm font-semibold text-primary shadow-xl transition-transform duration-150 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    :aria-pressed="isLiked"
-                    :aria-label="
-                        isLiked
-                            ? 'Unlike this date night'
-                            : 'Like this date night'
-                    "
-                    @click="toggleLike"
-                >
-                    <span class="text-lg" aria-hidden="true">{{
-                        isLiked ? '❤️' : '🤍'
-                    }}</span>
-                    <span>{{
-                        isLiked ? 'You love this' : 'Love this date night'
-                    }}</span>
-                    <span
-                        v-if="likesCount > 0"
-                        class="rounded-full bg-primary/10 px-2 py-0.5 text-xs"
-                        >{{ likesCount }}</span
-                    >
-                </button>
-            </div>
-
-            <!-- Add to calendar -->
-            <div class="mb-4 flex justify-center">
-                <PrimaryButton size="md" @click="openCalendarModal">
-                    📅 Add to Calendar
-                </PrimaryButton>
-            </div>
-
-            <p
-                v-if="calendarSaved"
-                class="mb-4 text-center text-xs font-semibold text-success"
-            >
-                💕 Saved to your calendar!
-            </p>
-
-            <!-- Generated time -->
-            <p class="mb-6 text-center text-xs text-muted-foreground">
-                Generated {{ generatedDate }}
-            </p>
+            </section>
 
             <!-- Actions -->
-            <!--            <div class="space-y-3">
-                <PrimaryButton full-width @click="exportPlan">
-                    🖨️ Export Plan
+            <section class="space-y-4">
+                <PrimaryButton full-width @click="openCalendarModal">
+                    <CalendarPlus class="size-4" aria-hidden="true" />
+                    Add to calendar
                 </PrimaryButton>
 
-                <SecondaryButton full-width @click="toggleFavourite">
-                    {{ isFavourite ? '💛 Saved to Favourites' : '🤍 Save to Favourites' }}
-                </SecondaryButton>
+                <p
+                    v-if="calendarSaved"
+                    class="flex items-center justify-center gap-1.5 text-xs font-medium text-success"
+                    role="status"
+                >
+                    <Check class="size-3.5" aria-hidden="true" />
+                    Saved to your calendar
+                </p>
 
-                <SecondaryButton full-width @click="router.visit('/date-night/history')">
-                    📖 View History
-                </SecondaryButton>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button
+                        type="button"
+                        :class="actionChipClass"
+                        :aria-pressed="isLiked"
+                        :aria-label="
+                            isLiked
+                                ? 'Unlike this date night'
+                                : 'Like this date night'
+                        "
+                        @click="toggleLike"
+                    >
+                        <Heart
+                            :class="['size-4', isLiked && 'fill-current']"
+                            aria-hidden="true"
+                        />
+                        <span>{{
+                            isLiked ? 'You love this' : 'Love this date night'
+                        }}</span>
+                        <span v-if="likesCount > 0" class="tabular-nums">{{
+                            likesCount
+                        }}</span>
+                    </button>
 
-                <SecondaryButton full-width @click="router.visit('/dashboard')">
-                    Return Home
-                </SecondaryButton>
-            </div>-->
+                    <button
+                        type="button"
+                        :class="actionChipClass"
+                        :aria-pressed="isFavourite"
+                        @click="toggleFavourite"
+                    >
+                        <Star
+                            :class="['size-4', isFavourite && 'fill-current']"
+                            aria-hidden="true"
+                        />
+                        {{
+                            isFavourite
+                                ? 'Saved to favourites'
+                                : 'Save to favourites'
+                        }}
+                    </button>
+
+                    <button
+                        type="button"
+                        :class="actionChipClass"
+                        @click="exportPlan"
+                    >
+                        <Printer class="size-4" aria-hidden="true" />
+                        Export plan
+                    </button>
+                </div>
+            </section>
         </div>
 
-        <!-- Add to Calendar Modal -->
+        <!-- Add to calendar modal -->
         <div
             v-if="showCalendarModal"
-            class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 py-6 sm:items-center"
+            class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-to-calendar-title"
             @click.self="closeCalendarModal"
         >
-            <div class="w-full max-w-md card-premium p-6">
+            <div
+                class="w-full max-w-md card-premium rounded-b-none p-6 sm:rounded-3xl"
+            >
                 <div class="mb-5 flex items-start justify-between gap-4">
                     <div>
                         <h2
                             id="add-to-calendar-title"
                             class="text-xl font-semibold text-foreground"
                         >
-                            📅 Add to Calendar
+                            Add to calendar
                         </h2>
                         <p class="mt-1 text-sm text-muted-foreground">
                             When are you and your partner planning this evening?
@@ -435,11 +431,11 @@ function submitCalendar(): void {
                     </div>
                     <button
                         type="button"
-                        class="rounded-full p-2 text-muted-foreground hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        class="-mt-1 -mr-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                         aria-label="Close"
                         @click="closeCalendarModal"
                     >
-                        ✕
+                        <X class="size-5" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -447,7 +443,7 @@ function submitCalendar(): void {
                     <div>
                         <label
                             for="calendar-date"
-                            class="mb-1 block text-xs font-semibold tracking-widest text-muted-foreground uppercase"
+                            class="mb-1.5 block text-sm font-medium text-foreground"
                         >
                             Date
                         </label>
@@ -457,7 +453,7 @@ function submitCalendar(): void {
                             type="date"
                             :min="today"
                             required
-                            class="min-h-14 w-full rounded-3xl border-2 border-border bg-background px-4 text-base text-foreground shadow-sm transition-colors duration-200 placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                            class="input-premium"
                         />
                         <InputError
                             :message="calendarForm.errors.date"
@@ -468,7 +464,7 @@ function submitCalendar(): void {
                     <div>
                         <label
                             for="calendar-time"
-                            class="mb-1 block text-xs font-semibold tracking-widest text-muted-foreground uppercase"
+                            class="mb-1.5 block text-sm font-medium text-foreground"
                         >
                             Time (optional)
                         </label>
@@ -476,7 +472,7 @@ function submitCalendar(): void {
                             id="calendar-time"
                             v-model="calendarForm.time"
                             type="time"
-                            class="min-h-14 w-full rounded-3xl border-2 border-border bg-background px-4 text-base text-foreground shadow-sm transition-colors duration-200 placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                            class="input-premium"
                         />
                         <InputError
                             :message="calendarForm.errors.time"
@@ -487,7 +483,7 @@ function submitCalendar(): void {
                     <div>
                         <label
                             for="calendar-location"
-                            class="mb-1 block text-xs font-semibold tracking-widest text-muted-foreground uppercase"
+                            class="mb-1.5 block text-sm font-medium text-foreground"
                         >
                             Location (optional)
                         </label>
@@ -497,7 +493,7 @@ function submitCalendar(): void {
                             type="text"
                             maxlength="255"
                             placeholder="e.g. Home, our favourite bistro…"
-                            class="min-h-14 w-full rounded-3xl border-2 border-border bg-background px-4 text-base text-foreground shadow-sm transition-colors duration-200 placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                            class="input-premium"
                         />
                         <InputError
                             :message="calendarForm.errors.location"
@@ -511,9 +507,13 @@ function submitCalendar(): void {
                             full-width
                             :loading="calendarForm.processing"
                         >
-                            💕 Save to Calendar
+                            Save to calendar
                         </PrimaryButton>
-                        <SecondaryButton full-width @click="closeCalendarModal">
+                        <SecondaryButton
+                            variant="ghost"
+                            full-width
+                            @click="closeCalendarModal"
+                        >
                             Cancel
                         </SecondaryButton>
                     </div>

@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     Bell,
     BookHeart,
     LayoutGrid,
-    LogOut,
     Sparkles,
     Trophy,
     User,
@@ -17,7 +16,6 @@ import QuestionnaireController from '@/actions/App/Http/Controllers/Questionnair
 import RelationshipHubController from '@/actions/App/Http/Controllers/RelationshipHubController';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Toaster } from '@/components/ui/sonner';
-import { logout } from '@/routes';
 
 interface NavItem {
     label: string;
@@ -48,10 +46,6 @@ const unreadCount = computed(
         ((page.props as Record<string, unknown>)
             .unreadNotificationsCount as number) ?? 0,
 );
-
-function handleLogout(): void {
-    router.post(logout().url);
-}
 
 function isActive(href: string): boolean {
     return page.url === href || page.url.startsWith(href + '/');
@@ -97,14 +91,6 @@ function isActive(href: string): boolean {
                                 }}</span
                             >
                         </Link>
-                        <button
-                            type="button"
-                            class="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-primary active:scale-95"
-                            aria-label="Log out"
-                            @click="handleLogout"
-                        >
-                            <LogOut class="size-5" aria-hidden="true" />
-                        </button>
                     </div>
                 </slot>
             </div>

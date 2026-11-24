@@ -31,7 +31,8 @@ defineProps<{
 
     <div
         v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        role="status"
+        class="mb-6 rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-center text-sm font-medium text-success"
     >
         {{ status }}
     </div>
@@ -44,7 +45,7 @@ defineProps<{
         v-slot="{ errors, processing }"
         class="flex flex-col gap-6"
     >
-        <div class="grid gap-6">
+        <div class="grid gap-5">
             <div class="grid gap-2">
                 <Label for="email">Email address</Label>
                 <Input
@@ -61,12 +62,12 @@ defineProps<{
             </div>
 
             <div class="grid gap-2">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-3">
                     <Label for="password">Password</Label>
                     <TextLink
                         v-if="canResetPassword"
                         :href="request()"
-                        class="text-sm"
+                        class="text-[13px]"
                         :tabindex="5"
                     >
                         Forgot your password?
@@ -83,16 +84,18 @@ defineProps<{
                 <InputError :message="errors.password" />
             </div>
 
-            <div class="flex items-center justify-between">
-                <Label for="remember" class="flex items-center space-x-3">
-                    <Checkbox id="remember" name="remember" :tabindex="3" />
-                    <span>Remember me</span>
-                </Label>
-            </div>
+            <Label
+                for="remember"
+                class="flex items-center gap-3 font-normal text-muted-foreground"
+            >
+                <Checkbox id="remember" name="remember" :tabindex="3" />
+                <span>Remember me</span>
+            </Label>
 
             <Button
                 type="submit"
-                class="mt-4 w-full"
+                size="lg"
+                class="mt-1 w-full"
                 :tabindex="4"
                 :disabled="processing"
                 data-test="login-button"
@@ -102,14 +105,19 @@ defineProps<{
             </Button>
         </div>
 
-        <div class="text-center text-sm text-muted-foreground">
-            Don't have an account?
-            <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
-        </div>
+        <div class="h-px bg-border" />
 
-        <div class="text-center text-sm text-muted-foreground">
-            Curious what's inside?
-            <TextLink href="/about" :tabindex="6">About Date Night</TextLink>
+        <div class="space-y-2 text-center text-sm text-muted-foreground">
+            <p>
+                Don't have an account?
+                <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
+            </p>
+            <p>
+                Curious what's inside?
+                <TextLink href="/about" :tabindex="6"
+                    >About Date Night</TextLink
+                >
+            </p>
         </div>
     </Form>
 </template>

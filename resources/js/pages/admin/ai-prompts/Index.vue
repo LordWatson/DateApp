@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
+import { Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import { route } from 'ziggy-js';
+import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 
 defineOptions({ layout: AdminLayout });
@@ -103,71 +105,72 @@ const doDelete = (tpl: PromptTemplate) => {
     <div>
         <div class="mb-6 flex items-start justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">
+                <h1 class="text-2xl font-semibold text-foreground">
                     AI Prompt Templates
                 </h1>
-                <p class="mt-1 text-sm text-gray-500">
+                <p class="mt-1 text-sm text-muted-foreground">
                     Manage reusable AI prompt templates (system prompt + user
                     prompt template).
                 </p>
             </div>
-            <button
-                v-if="!creating"
-                @click="startCreate"
-                class="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-600"
-            >
-                + New template
-            </button>
+            <Button size="sm" v-if="!creating" @click="startCreate">
+                <Plus class="size-4" aria-hidden="true" />New template
+            </Button>
         </div>
 
         <div
             v-if="creating"
-            class="mb-6 space-y-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
+            class="mb-6 space-y-3 card-premium rounded-2xl p-5"
         >
-            <h2 class="text-sm font-semibold text-gray-700">New template</h2>
-            <input
-                v-model="createForm.name"
-                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
-                placeholder="Name (e.g. date_night_plan)"
-            />
-            <p v-if="createForm.errors.name" class="text-xs text-red-500">
+            <h2 class="text-lg font-semibold text-foreground">New template</h2>
+            <label class="block"
+                ><span
+                    class="mb-1 block text-xs font-medium text-muted-foreground"
+                    >Name</span
+                ><input
+                    v-model="createForm.name"
+                    class="input-premium px-3 py-2 text-sm"
+                    placeholder="Name (e.g. date_night_plan)"
+            /></label>
+            <p v-if="createForm.errors.name" class="text-xs text-destructive">
                 {{ createForm.errors.name }}
             </p>
 
-            <input
-                v-model="createForm.description"
-                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
-                placeholder="Description (optional)"
-            />
+            <label class="block"
+                ><span
+                    class="mb-1 block text-xs font-medium text-muted-foreground"
+                    >Description (optional)</span
+                ><input
+                    v-model="createForm.description"
+                    class="input-premium px-3 py-2 text-sm"
+            /></label>
 
-            <label
-                class="text-xs font-semibold tracking-wide text-gray-500 uppercase"
+            <label class="text-xs font-medium text-muted-foreground"
                 >System prompt</label
             >
             <textarea
                 v-model="createForm.system_prompt"
                 rows="6"
-                class="w-full rounded-xl border border-gray-200 px-3 py-2 font-mono text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                class="input-premium px-3 py-2 font-mono text-sm"
             />
             <p
                 v-if="createForm.errors.system_prompt"
-                class="text-xs text-red-500"
+                class="text-xs text-destructive"
             >
                 {{ createForm.errors.system_prompt }}
             </p>
 
-            <label
-                class="text-xs font-semibold tracking-wide text-gray-500 uppercase"
+            <label class="text-xs font-medium text-muted-foreground"
                 >User prompt template</label
             >
             <textarea
                 v-model="createForm.user_prompt_template"
                 rows="6"
-                class="w-full rounded-xl border border-gray-200 px-3 py-2 font-mono text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                class="input-premium px-3 py-2 font-mono text-sm"
             />
             <p
                 v-if="createForm.errors.user_prompt_template"
-                class="text-xs text-red-500"
+                class="text-xs text-destructive"
             >
                 {{ createForm.errors.user_prompt_template }}
             </p>
@@ -178,41 +181,44 @@ const doDelete = (tpl: PromptTemplate) => {
                         id="create-active"
                         v-model="createForm.active"
                         type="checkbox"
-                        class="rounded"
+                        class="size-4 rounded accent-primary"
                     />
-                    <label for="create-active" class="text-xs text-gray-700"
+                    <label for="create-active" class="text-xs text-foreground"
                         >Active</label
                     >
                 </div>
                 <div class="flex items-center gap-2">
-                    <label for="create-max-tokens" class="text-xs text-gray-700"
+                    <label
+                        for="create-max-tokens"
+                        class="text-xs text-foreground"
                         >Max tokens</label
                     >
-                    <input
-                        id="create-max-tokens"
-                        v-model.number="createForm.max_tokens"
-                        type="number"
-                        min="1"
-                        class="w-28 rounded-xl border border-gray-200 px-2 py-1 text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
-                        placeholder="default"
-                    />
+                    <label class="block"
+                        ><span
+                            class="mb-1 block text-xs font-medium text-muted-foreground"
+                            >Max tokens</span
+                        ><input
+                            id="create-max-tokens"
+                            v-model.number="createForm.max_tokens"
+                            type="number"
+                            min="1"
+                            class="input-premium w-28 px-2 py-1.5 text-sm"
+                            placeholder="default"
+                    /></label>
                 </div>
             </div>
 
             <div class="flex gap-2">
-                <button
+                <Button
+                    size="sm"
                     @click="saveCreate"
                     :disabled="createForm.processing"
-                    class="rounded-xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
                 >
                     Create
-                </button>
-                <button
-                    @click="cancelCreate"
-                    class="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200"
-                >
+                </Button>
+                <Button variant="outline" size="sm" @click="cancelCreate">
                     Cancel
-                </button>
+                </Button>
             </div>
         </div>
 
@@ -220,43 +226,44 @@ const doDelete = (tpl: PromptTemplate) => {
             <div
                 v-for="tpl in templates"
                 :key="tpl.id"
-                class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm"
+                class="card-premium rounded-2xl p-5"
             >
                 <div v-if="editingId !== tpl.id">
                     <div class="mb-2 flex items-center justify-between">
                         <div class="flex flex-wrap items-center gap-2">
-                            <p class="text-sm font-semibold text-gray-900">
+                            <p class="text-sm font-semibold text-foreground">
                                 {{ tpl.name }}
                             </p>
-                            <span class="font-mono text-xs text-gray-400"
+                            <span
+                                class="font-mono text-xs text-muted-foreground"
                                 >v{{ tpl.version }}</span
                             >
                             <span
                                 :class="[
-                                    'rounded-full px-2 py-0.5 text-xs',
+                                    'badge-soft',
                                     tpl.active
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-gray-100 text-gray-500',
+                                        ? 'bg-success/10 text-success'
+                                        : 'bg-muted text-muted-foreground',
                                 ]"
                             >
                                 {{ tpl.active ? 'Active' : 'Inactive' }}
                             </span>
                             <span
                                 v-if="tpl.max_tokens"
-                                class="text-xs text-gray-400"
+                                class="text-xs text-muted-foreground"
                                 >max_tokens: {{ tpl.max_tokens }}</span
                             >
                         </div>
                         <div class="flex gap-2">
                             <button
                                 @click="startEdit(tpl)"
-                                class="text-xs text-gray-600 hover:underline"
+                                class="text-xs font-medium text-foreground hover:underline"
                             >
                                 Edit
                             </button>
                             <button
                                 @click="doDelete(tpl)"
-                                class="text-xs text-red-400 hover:underline"
+                                class="text-xs text-destructive hover:underline"
                             >
                                 Delete
                             </button>
@@ -264,29 +271,29 @@ const doDelete = (tpl: PromptTemplate) => {
                     </div>
                     <p
                         v-if="tpl.description"
-                        class="mb-2 text-xs text-gray-500"
+                        class="mb-2 text-xs text-muted-foreground"
                     >
                         {{ tpl.description }}
                     </p>
                     <div class="grid gap-2">
                         <div>
                             <p
-                                class="mb-1 text-[10px] font-semibold tracking-wide text-gray-400 uppercase"
+                                class="mb-1 text-xs font-medium text-muted-foreground"
                             >
                                 System prompt
                             </p>
                             <pre
-                                class="max-h-32 overflow-auto rounded-xl bg-gray-50 p-3 text-xs whitespace-pre-wrap text-gray-600"
+                                class="max-h-32 overflow-auto rounded-xl bg-muted p-3 text-xs whitespace-pre-wrap text-muted-foreground"
                                 >{{ tpl.system_prompt }}</pre>
                         </div>
                         <div>
                             <p
-                                class="mb-1 text-[10px] font-semibold tracking-wide text-gray-400 uppercase"
+                                class="mb-1 text-xs font-medium text-muted-foreground"
                             >
                                 User prompt template
                             </p>
                             <pre
-                                class="max-h-32 overflow-auto rounded-xl bg-gray-50 p-3 text-xs whitespace-pre-wrap text-gray-600"
+                                class="max-h-32 overflow-auto rounded-xl bg-muted p-3 text-xs whitespace-pre-wrap text-muted-foreground"
                                 >{{ tpl.user_prompt_template }}</pre>
                         </div>
                     </div>
@@ -294,48 +301,49 @@ const doDelete = (tpl: PromptTemplate) => {
 
                 <div v-else class="space-y-3">
                     <div class="flex items-center gap-2">
-                        <p class="text-sm font-semibold text-gray-900">
+                        <p class="text-sm font-semibold text-foreground">
                             {{ tpl.name }}
                         </p>
-                        <span class="font-mono text-xs text-gray-400"
+                        <span class="font-mono text-xs text-muted-foreground"
                             >v{{ tpl.version }} → v{{ tpl.version + 1 }}</span
                         >
                     </div>
 
-                    <input
-                        v-model="editForm.description"
-                        class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
-                        placeholder="Description (optional)"
-                    />
+                    <label class="block"
+                        ><span
+                            class="mb-1 block text-xs font-medium text-muted-foreground"
+                            >Description (optional)</span
+                        ><input
+                            v-model="editForm.description"
+                            class="input-premium px-3 py-2 text-sm"
+                    /></label>
 
-                    <label
-                        class="text-xs font-semibold tracking-wide text-gray-500 uppercase"
+                    <label class="text-xs font-medium text-muted-foreground"
                         >System prompt</label
                     >
                     <textarea
                         v-model="editForm.system_prompt"
                         rows="8"
-                        class="w-full rounded-xl border border-gray-200 px-3 py-2 font-mono text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                        class="input-premium px-3 py-2 font-mono text-sm"
                     />
                     <p
                         v-if="editForm.errors.system_prompt"
-                        class="text-xs text-red-500"
+                        class="text-xs text-destructive"
                     >
                         {{ editForm.errors.system_prompt }}
                     </p>
 
-                    <label
-                        class="text-xs font-semibold tracking-wide text-gray-500 uppercase"
+                    <label class="text-xs font-medium text-muted-foreground"
                         >User prompt template</label
                     >
                     <textarea
                         v-model="editForm.user_prompt_template"
                         rows="8"
-                        class="w-full rounded-xl border border-gray-200 px-3 py-2 font-mono text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
+                        class="input-premium px-3 py-2 font-mono text-sm"
                     />
                     <p
                         v-if="editForm.errors.user_prompt_template"
-                        class="text-xs text-red-500"
+                        class="text-xs text-destructive"
                     >
                         {{ editForm.errors.user_prompt_template }}
                     </p>
@@ -346,45 +354,46 @@ const doDelete = (tpl: PromptTemplate) => {
                                 :id="`active-${tpl.id}`"
                                 v-model="editForm.active"
                                 type="checkbox"
-                                class="rounded"
+                                class="size-4 rounded accent-primary"
                             />
                             <label
                                 :for="`active-${tpl.id}`"
-                                class="text-xs text-gray-700"
+                                class="text-xs text-foreground"
                                 >Active</label
                             >
                         </div>
                         <div class="flex items-center gap-2">
                             <label
                                 :for="`max-tokens-${tpl.id}`"
-                                class="text-xs text-gray-700"
+                                class="text-xs text-foreground"
                                 >Max tokens</label
                             >
-                            <input
-                                :id="`max-tokens-${tpl.id}`"
-                                v-model.number="editForm.max_tokens"
-                                type="number"
-                                min="1"
-                                class="w-28 rounded-xl border border-gray-200 px-2 py-1 text-sm text-gray-600 focus:ring-2 focus:ring-pink-300 focus:outline-none"
-                                placeholder="default"
-                            />
+                            <label class="block"
+                                ><span
+                                    class="mb-1 block text-xs font-medium text-muted-foreground"
+                                    >Max tokens</span
+                                ><input
+                                    :id="`max-tokens-${tpl.id}`"
+                                    v-model.number="editForm.max_tokens"
+                                    type="number"
+                                    min="1"
+                                    class="input-premium w-28 px-2 py-1.5 text-sm"
+                                    placeholder="default"
+                            /></label>
                         </div>
                     </div>
 
                     <div class="flex gap-2">
-                        <button
+                        <Button
+                            size="sm"
                             @click="saveEdit"
                             :disabled="editForm.processing"
-                            class="rounded-xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
                         >
                             Save
-                        </button>
-                        <button
-                            @click="cancelEdit"
-                            class="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200"
-                        >
+                        </Button>
+                        <Button variant="outline" size="sm" @click="cancelEdit">
                             Cancel
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -392,7 +401,7 @@ const doDelete = (tpl: PromptTemplate) => {
 
         <p
             v-if="!templates.length && !creating"
-            class="rounded-3xl border border-gray-100 bg-white py-12 text-center text-sm text-gray-400"
+            class="card-premium rounded-2xl py-12 text-center text-sm text-muted-foreground"
         >
             No AI prompt templates configured yet.
         </p>

@@ -1,9 +1,21 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import FloatingHearts from '@/components/FloatingHearts.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import {
+    Check,
+    ChevronRight,
+    Clock,
+    RotateCcw,
+    UserPlus,
+    X,
+} from '@lucide/vue';
+import { computed, ref } from 'vue';
+import OptionCard from '@/components/OptionCard.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
+import ProgressBar from '@/components/ProgressBar.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
+import SectionHeader from '@/components/SectionHeader.vue';
+import StatCard from '@/components/StatCard.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
 defineOptions({ layout: MobileLayout });
@@ -16,6 +28,14 @@ interface QuestionnaireData {
     emoji: string | null;
     estimated_minutes: number | null;
     question_count: number;
+    is_solo: boolean;
+}
+
+interface ModeData {
+    selectable: boolean;
+    current: 'solo' | 'couple' | null;
+    has_partner: boolean;
+    partner_name: string | null;
 }
 
 interface ResponseData {
@@ -40,6 +60,7 @@ interface Props {
     questionnaire: QuestionnaireData;
     response: ResponseData | null;
     partner_completed: boolean;
+    mode: ModeData;
     current_streak: number;
     saved_profiles: SavedProfile[];
     past_attempts: PastAttempt[];
@@ -52,11 +73,34 @@ const starting = ref(false);
 const restarting = ref(false);
 const showProfilePicker = ref(false);
 
+// A waiting partner comes first; otherwise keep the mode of the attempt already under way.
+const selectedMode = ref<'solo' | 'couple'>(
+    props.mode.has_partner && props.partner_completed
+        ? 'couple'
+        : (props.mode.current ?? 'solo'),
+);
+
+const startPayload = computed(() =>
+    props.mode.selectable ? { mode: selectedMode.value } : {},
+);
+
+const planningTogether = computed(() =>
+    props.mode.selectable
+        ? selectedMode.value === 'couple'
+        : !props.questionnaire.is_solo,
+);
+
+const coupleDescription = computed(() =>
+    props.partner_completed
+        ? `${props.mode.partner_name} has already answered and is waiting for you.`
+        : `You both answer, then we plan a date that works for you both.`,
+);
+
 function startFresh(): void {
     starting.value = true;
     router.post(
         `/questionnaires/${props.questionnaire.slug}/start`,
-        {},
+        startPayload.value,
         {
             onFinish: () => {
                 starting.value = false;
@@ -69,7 +113,7 @@ function restart(): void {
     restarting.value = true;
     router.post(
         `/questionnaires/${props.questionnaire.slug}/restart`,
-        {},
+        startPayload.value,
         {
             onFinish: () => {
                 restarting.value = false;
@@ -97,6 +141,13 @@ function formatDate(iso: string | null): string {
 }
 
 function resumeQuestionnaire(): void {
+    // Starting again keeps the answers, saves a changed mode and returns to the first open question.
+    if (props.mode.selectable) {
+        startFresh();
+
+        return;
+    }
+
     if (props.response) {
         router.visit(
             `/questionnaires/${props.questionnaire.slug}/question/${props.response.resume_order}`,
@@ -119,238 +170,324 @@ function applyProfile(profileId: number): void {
 
 const isInProgress = props.response?.status === 'in_progress';
 const isCompleted = props.response?.status === 'completed';
+const showStatus = computed(
+    () => planningTogether.value || isInProgress || isCompleted,
+);
 </script>
 
 <template>
     <Head :title="questionnaire.title" />
 
-    <div class="relative min-h-screen overflow-hidden">
-        <FloatingHearts />
+    <div class="space-y-8 px-4 pt-6 pb-28">
+        <PageHeader
+            eyebrow="Questionnaire"
+            :title="questionnaire.title"
+            :description="questionnaire.description ?? undefined"
+            back-href="/questionnaires"
+            back-label="Plan"
+        >
+            <div class="icon-tile h-14 w-14 text-3xl" aria-hidden="true">
+                {{ questionnaire.emoji ?? '💕' }}
+            </div>
+        </PageHeader>
 
-        <div class="relative z-10 flex min-h-screen flex-col px-4 py-8 pb-24">
-            <!-- Header emoji -->
+        <!-- Meta info -->
+        <section
+            :class="[
+                'grid gap-3',
+                questionnaire.estimated_minutes ? 'grid-cols-3' : 'grid-cols-2',
+            ]"
+            aria-label="About this questionnaire"
+        >
+            <StatCard
+                label="Questions"
+                :value="String(questionnaire.question_count)"
+                description="to answer"
+            />
+            <StatCard
+                v-if="questionnaire.estimated_minutes"
+                label="Time"
+                :value="`~${questionnaire.estimated_minutes}`"
+                description="min"
+            />
+            <StatCard
+                label="Streak"
+                :value="String(current_streak)"
+                description="days"
+            />
+        </section>
+
+        <!-- Who is planning -->
+        <section v-if="mode.selectable" class="space-y-3">
+            <SectionHeader title="Who's planning?" />
+
             <div
-                class="flex flex-1 flex-col items-center justify-center space-y-8 text-center"
+                class="space-y-2.5"
+                role="radiogroup"
+                aria-label="Who's planning?"
             >
-                <div class="animate-success-pop text-8xl">
-                    {{ questionnaire.emoji ?? '💕' }}
-                </div>
-
-                <div class="space-y-3">
-                    <h1 class="text-3xl font-semibold text-foreground">
-                        {{ questionnaire.title }}
-                    </h1>
-                    <p
-                        v-if="questionnaire.description"
-                        class="text-base leading-relaxed text-muted-foreground"
+                <OptionCard
+                    label="Just me"
+                    description="Get your date idea as soon as you finish."
+                    emoji="🙋"
+                    value="solo"
+                    :selected="selectedMode === 'solo'"
+                    @select="selectedMode = 'solo'"
+                />
+                <OptionCard
+                    v-if="mode.has_partner"
+                    :label="`With ${mode.partner_name}`"
+                    :description="coupleDescription"
+                    emoji="💞"
+                    value="couple"
+                    :selected="selectedMode === 'couple'"
+                    @select="selectedMode = 'couple'"
+                />
+                <Link
+                    v-else
+                    href="/partner"
+                    class="flex items-center gap-3.5 rounded-2xl border border-dashed border-input p-4 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                >
+                    <UserPlus class="size-5 shrink-0" aria-hidden="true" />
+                    <span class="min-w-0 flex-1"
+                        >Connect your partner to plan a date together</span
                     >
-                        {{ questionnaire.description }}
-                    </p>
-                </div>
-
-                <!-- Meta info -->
-                <div
-                    class="flex items-center gap-6 text-sm text-muted-foreground"
-                >
-                    <div class="flex items-center gap-1.5">
-                        <span>📝</span>
-                        <span
-                            >{{ questionnaire.question_count }} questions</span
-                        >
-                    </div>
-                    <div
-                        v-if="questionnaire.estimated_minutes"
-                        class="flex items-center gap-1.5"
-                    >
-                        <span>⏱️</span>
-                        <span>~{{ questionnaire.estimated_minutes }} min</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span>🔥</span>
-                        <span>{{ current_streak }} day streak</span>
-                    </div>
-                </div>
-
-                <!-- Partner status -->
-                <div
-                    :class="[
-                        'flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium',
-                        partner_completed
-                            ? 'bg-success/10 text-success'
-                            : 'bg-muted text-muted-foreground',
-                    ]"
-                >
-                    <span>{{ partner_completed ? '✅' : '⏳' }}</span>
-                    <span>{{
-                        partner_completed
-                            ? 'Partner has completed this'
-                            : 'Waiting for your partner'
-                    }}</span>
-                </div>
-
-                <!-- Resume banner -->
-                <div
-                    v-if="isInProgress"
-                    class="w-full rounded-3xl border-2 border-warning/30 bg-warning/10 p-4 text-center"
-                >
-                    <p class="text-sm font-semibold text-warning">
-                        Continue Tonight's Questionnaire ❤️
-                    </p>
-                    <p class="mt-0.5 text-xs text-muted-foreground">
-                        {{ response!.answered_count }} of
-                        {{ questionnaire.question_count }} answered
-                    </p>
-                </div>
-
-                <!-- Completed banner -->
-                <div
-                    v-if="isCompleted"
-                    class="w-full rounded-3xl border-2 border-success/30 bg-success/10 p-4 text-center"
-                >
-                    <p class="text-sm font-semibold text-success">
-                        You've completed this questionnaire ✓
-                    </p>
-                </div>
+                    <ChevronRight class="size-4 shrink-0" aria-hidden="true" />
+                </Link>
             </div>
+        </section>
 
-            <!-- Actions -->
-            <div class="mt-8 space-y-3">
-                <!-- Resume -->
-                <PrimaryButton
-                    v-if="isInProgress"
-                    full-width
-                    @click="resumeQuestionnaire"
-                >
-                    Continue Questionnaire ❤️
-                </PrimaryButton>
-
-                <!-- Start fresh -->
-                <PrimaryButton
-                    v-else-if="!isCompleted"
-                    full-width
-                    :loading="starting"
-                    @click="startFresh"
-                >
-                    Start Questionnaire ❤️
-                </PrimaryButton>
-
-                <!-- View summary if completed -->
-                <SecondaryButton
-                    v-if="isCompleted"
-                    full-width
-                    @click="
-                        router.visit(
-                            `/questionnaires/${questionnaire.slug}/summary`,
-                        )
-                    "
-                >
-                    View Summary
-                </SecondaryButton>
-
-                <!-- Restart Questionnaire -->
-                <PrimaryButton
-                    v-if="isCompleted"
-                    full-width
-                    :loading="restarting"
-                    @click="restart"
-                >
-                    Restart Questionnaire 🔄
-                </PrimaryButton>
-                <SecondaryButton
-                    v-else-if="isInProgress"
-                    full-width
-                    :loading="restarting"
-                    @click="restart"
-                >
-                    Restart Questionnaire 🔄
-                </SecondaryButton>
-
-                <!-- Saved profiles -->
-                <SecondaryButton
-                    v-if="saved_profiles.length > 0"
-                    full-width
-                    @click="showProfilePicker = true"
-                >
-                    Use Saved Profile
-                </SecondaryButton>
-            </div>
-
-            <!-- Past Questionnaires -->
-            <div v-if="past_attempts.length > 0" class="mt-8 space-y-3">
-                <h3 class="text-lg font-semibold text-foreground">
-                    Past Results 💕
-                </h3>
-                <p class="text-xs text-muted-foreground">
-                    Only questionnaires where you and your partner both
-                    completed the answers.
+        <!-- Status -->
+        <section v-if="showStatus" class="space-y-4 card-premium p-5">
+            <!-- Partner status -->
+            <div v-if="planningTogether" class="flex items-center gap-3.5">
+                <span class="icon-tile h-11 w-11" aria-hidden="true">
+                    <Check
+                        v-if="partner_completed"
+                        class="size-5 text-success"
+                    />
+                    <Clock v-else class="size-5 text-muted-foreground" />
+                </span>
+                <p class="min-w-0 flex-1 font-medium text-foreground">
+                    {{
+                        partner_completed
+                            ? 'Your partner has answered'
+                            : 'Your partner has not answered yet'
+                    }}
                 </p>
-                <div class="space-y-2">
-                    <button
-                        v-for="(attempt, index) in past_attempts"
-                        :key="attempt.id"
-                        class="flex w-full items-center justify-between rounded-3xl bg-card p-4 text-left shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
-                        @click="viewPastAttempt(attempt.id)"
-                    >
-                        <div class="space-y-0.5">
-                            <p class="text-sm font-semibold text-foreground">
-                                {{ questionnaire.emoji
-                                }} {{ questionnaire.title }} #{{
-                                    past_attempts.length - index
-                                }}
-                            </p>
-                            <p class="text-xs text-muted-foreground">
-                                {{
-                                    formatDate(attempt.completed_at) ||
-                                    'Completed'
-                                }}
-                            </p>
-                        </div>
-                        <span class="text-primary">→</span>
-                    </button>
-                </div>
             </div>
+
+            <!-- Resume banner -->
+            <div
+                v-if="isInProgress"
+                :class="[
+                    'space-y-2.5',
+                    planningTogether && 'border-t border-border pt-4',
+                ]"
+            >
+                <p class="text-sm font-medium text-foreground">
+                    Continue tonight's questionnaire
+                </p>
+                <ProgressBar
+                    :value="response!.answered_count"
+                    :max="questionnaire.question_count"
+                />
+                <p class="text-xs text-muted-foreground tabular-nums">
+                    {{ response!.answered_count }} of
+                    {{ questionnaire.question_count }} answered
+                </p>
+            </div>
+
+            <!-- Completed banner -->
+            <div
+                v-if="isCompleted"
+                :class="[
+                    'flex items-center gap-3.5',
+                    planningTogether && 'border-t border-border pt-4',
+                ]"
+            >
+                <span class="icon-tile h-11 w-11" aria-hidden="true">
+                    <Check class="size-5 text-success" />
+                </span>
+                <p class="min-w-0 flex-1 font-medium text-foreground">
+                    You've completed this questionnaire
+                </p>
+            </div>
+        </section>
+
+        <!-- Actions -->
+        <div class="space-y-3">
+            <!-- Resume -->
+            <PrimaryButton
+                v-if="isInProgress"
+                full-width
+                @click="resumeQuestionnaire"
+            >
+                Continue questionnaire
+            </PrimaryButton>
+
+            <!-- Start fresh -->
+            <PrimaryButton
+                v-else-if="!isCompleted"
+                full-width
+                :loading="starting"
+                @click="startFresh"
+            >
+                Start questionnaire
+            </PrimaryButton>
+
+            <!-- Restart Questionnaire -->
+            <PrimaryButton
+                v-if="isCompleted"
+                full-width
+                :loading="restarting"
+                @click="restart"
+            >
+                <RotateCcw class="size-4" aria-hidden="true" />
+                Restart questionnaire
+            </PrimaryButton>
+
+            <!-- View summary if completed -->
+            <SecondaryButton
+                v-if="isCompleted"
+                variant="outline"
+                full-width
+                @click="
+                    router.visit(
+                        `/questionnaires/${questionnaire.slug}/summary`,
+                    )
+                "
+            >
+                View summary
+            </SecondaryButton>
+
+            <SecondaryButton
+                v-else-if="isInProgress"
+                variant="outline"
+                full-width
+                :loading="restarting"
+                @click="restart"
+            >
+                <RotateCcw class="size-4" aria-hidden="true" />
+                Restart questionnaire
+            </SecondaryButton>
+
+            <!-- Saved profiles -->
+            <SecondaryButton
+                v-if="saved_profiles.length > 0"
+                variant="ghost"
+                full-width
+                @click="showProfilePicker = true"
+            >
+                Use saved profile
+            </SecondaryButton>
         </div>
 
-        <!-- Profile picker modal -->
-        <Transition name="fade">
-            <div
-                v-if="showProfilePicker"
-                class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
-                @click.self="showProfilePicker = false"
-            >
-                <div
-                    class="w-full max-w-md space-y-4 rounded-3xl bg-card p-6 shadow-xl"
+        <!-- Past Questionnaires -->
+        <section v-if="past_attempts.length > 0" class="space-y-3">
+            <SectionHeader title="Past results" />
+            <p class="text-xs leading-relaxed text-muted-foreground">
+                Only questionnaires where you and your partner both completed
+                the answers.
+            </p>
+            <div class="card-premium p-2">
+                <button
+                    v-for="(attempt, index) in past_attempts"
+                    :key="attempt.id"
+                    type="button"
+                    class="list-row w-full text-left focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    @click="viewPastAttempt(attempt.id)"
                 >
-                    <h3 class="text-lg font-semibold text-foreground">
-                        Choose a Saved Profile
-                    </h3>
-                    <div class="space-y-2">
-                        <button
-                            v-for="profile in saved_profiles"
-                            :key="profile.id"
-                            class="flex w-full items-center gap-3 rounded-2xl p-4 text-left transition-all hover:bg-muted active:scale-[0.98]"
-                            :style="{
-                                borderLeft: `4px solid ${profile.colour ?? '#EC4899'}`,
-                            }"
-                            @click="applyProfile(profile.id)"
-                        >
-                            <span class="text-2xl">{{
-                                profile.emoji ?? '💕'
-                            }}</span>
-                            <span class="font-medium text-foreground">{{
-                                profile.name
-                            }}</span>
-                        </button>
-                    </div>
-                    <SecondaryButton
-                        full-width
-                        @click="showProfilePicker = false"
-                        >Cancel</SecondaryButton
+                    <span
+                        class="icon-tile h-11 w-11 text-xl"
+                        aria-hidden="true"
+                        >{{ questionnaire.emoji ?? '💕' }}</span
                     >
-                </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate font-medium text-foreground">
+                            {{ questionnaire.title }} #{{
+                                past_attempts.length - index
+                            }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            {{
+                                formatDate(attempt.completed_at) || 'Completed'
+                            }}
+                        </p>
+                    </div>
+                    <ChevronRight
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </button>
             </div>
-        </Transition>
+        </section>
     </div>
+
+    <!-- Profile picker modal -->
+    <Transition name="fade">
+        <div
+            v-if="showProfilePicker"
+            class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
+            @click.self="showProfilePicker = false"
+        >
+            <div
+                class="w-full max-w-md space-y-4 card-premium rounded-b-none p-6 sm:rounded-3xl"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="profile-picker-title"
+            >
+                <div class="flex items-center justify-between gap-4">
+                    <h2
+                        id="profile-picker-title"
+                        class="text-xl font-semibold text-foreground"
+                    >
+                        Choose a saved profile
+                    </h2>
+                    <button
+                        type="button"
+                        class="-mr-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                        aria-label="Close"
+                        @click="showProfilePicker = false"
+                    >
+                        <X class="size-5" aria-hidden="true" />
+                    </button>
+                </div>
+                <div class="-mx-2">
+                    <button
+                        v-for="profile in saved_profiles"
+                        :key="profile.id"
+                        type="button"
+                        class="list-row w-full text-left focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none active:scale-[0.98]"
+                        @click="applyProfile(profile.id)"
+                    >
+                        <span
+                            class="icon-tile h-11 w-11 text-xl"
+                            :style="{
+                                boxShadow: `inset 0 0 0 1.5px ${profile.colour ?? 'var(--primary)'}`,
+                            }"
+                            aria-hidden="true"
+                            >{{ profile.emoji ?? '💕' }}</span
+                        >
+                        <span
+                            class="min-w-0 flex-1 truncate font-medium text-foreground"
+                            >{{ profile.name }}</span
+                        >
+                        <ChevronRight
+                            class="size-4 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    </button>
+                </div>
+                <SecondaryButton
+                    variant="ghost"
+                    full-width
+                    @click="showProfilePicker = false"
+                    >Cancel</SecondaryButton
+                >
+            </div>
+        </div>
+    </Transition>
 </template>
 
 <style scoped>
