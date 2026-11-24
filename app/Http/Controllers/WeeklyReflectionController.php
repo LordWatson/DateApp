@@ -48,8 +48,9 @@ class WeeklyReflectionController extends Controller
     {
         return [
             'id' => $reflection->id,
-            'week_start' => $reflection->week_start?->toDateString(),
-            'week_end' => $reflection->week_end?->toDateString(),
+            // The seven days the reflection actually covers; older rows only have the calendar week.
+            'week_start' => $reflection->metrics['period_start'] ?? $reflection->week_start?->toDateString(),
+            'week_end' => $reflection->metrics['period_end'] ?? $reflection->week_end?->toDateString(),
             'headline' => $reflection->headline,
             'summary' => $reflection->summary,
             'highlights' => $reflection->highlights ?? [],

@@ -15,59 +15,57 @@ use App\Models\User;
 use App\Models\WeeklyReflection;
 use App\Services\AI\AIService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Generates and retrieves the "Weekly Reflection" — a warm, supportive
- * summary of the couple's past week across Date Nights, Love Notes,
- * Moments, Calendar and Questionnaire history.
+ * Generates and retrieves the "Weekly Reflection": insights drawn from what
+ * the couple actually did over the past seven days. One reflection is shared
+ * by both partners, so they always read the same thing.
  */
 final readonly class WeeklyReflectionService
 {
+    /** Days of activity a reflection looks back over, today included. */
+    private const PERIOD_DAYS = 7;
+
+    private const MAX_ITEMS = 10;
+
     public function __construct(
         private AIService $ai,
         private LoggerInterface $logger,
     ) {}
 
     /**
-     * Return the latest reflection for the user, generating a new one for
-     * the current week when none exists yet.
+     * Return this week's reflection for the couple, generating it when
+     * neither partner has one yet.
      */
     public function currentOrGenerate(User $user, ?CarbonImmutable $now = null): WeeklyReflection
     {
         $now ??= CarbonImmutable::now();
-        $weekStart = $now->startOfWeek()->startOfDay();
 
-        $existing = WeeklyReflection::query()
-            ->where('user_id', $user->id)
-            ->where('week_start', $weekStart->toDateString())
+        $existing = $this->sharedQuery($user)
+            ->whereDate('week_start', $this->weekKey($now))
+            ->orderBy('id')
             ->first();
 
-        if ($existing !== null) {
-            return $existing;
-        }
-
-        return $this->generateForWeek($user, $weekStart);
+        return $existing ?? $this->generate($user, $now);
     }
 
     /**
-     * Force a fresh reflection for the current week, replacing an
-     * existing one if present.
+     * Replace this week's reflection for both partners with a fresh one.
      */
     public function regenerateCurrent(User $user, ?CarbonImmutable $now = null): WeeklyReflection
     {
         $now ??= CarbonImmutable::now();
-        $weekStart = $now->startOfWeek()->startOfDay();
 
-        WeeklyReflection::query()
-            ->where('user_id', $user->id)
-            ->where('week_start', $weekStart->toDateString())
-            ->delete();
+        $this->sharedQuery($user)->whereDate('week_start', $this->weekKey($now))->delete();
 
-        return $this->generateForWeek($user, $weekStart);
+        return $this->generate($user, $now);
     }
 
     /**
@@ -75,123 +73,216 @@ final readonly class WeeklyReflectionService
      */
     public function history(User $user, int $limit = 8): Collection
     {
-        return WeeklyReflection::query()
-            ->where('user_id', $user->id)
+        return $this->sharedQuery($user)
             ->orderByDesc('week_start')
+            ->orderBy('id')
             ->limit($limit)
-            ->get();
+            ->get()
+            ->unique(fn (WeeklyReflection $reflection): string => $reflection->week_start->toDateString())
+            ->values();
     }
 
-    private function generateForWeek(User $user, CarbonImmutable $weekStart): WeeklyReflection
+    /**
+     * Reflections the user wrote, plus the ones their current partner generated while paired with them.
+     *
+     * @return Builder<WeeklyReflection>
+     */
+    private function sharedQuery(User $user): Builder
     {
-        $weekEnd = $weekStart->endOfWeek()->endOfDay();
+        return WeeklyReflection::query()->where(function (Builder $query) use ($user): void {
+            $query->where('user_id', $user->id);
 
-        $metrics = $this->collectMetrics($user, $weekStart, $weekEnd);
+            if ($user->partner_id !== null) {
+                $query->orWhere(function (Builder $query) use ($user): void {
+                    $query->where('user_id', $user->partner_id)->where('partner_id', $user->id);
+                });
+            }
+        });
+    }
 
-        [$content, $fallbackUsed] = $this->generateContent($user, $metrics);
+    /**
+     * One reflection per calendar week; this is the key it is stored under.
+     */
+    private function weekKey(CarbonImmutable $now): string
+    {
+        return $now->startOfWeek()->toDateString();
+    }
+
+    private function generate(User $user, CarbonImmutable $now): WeeklyReflection
+    {
+        $end = $now->endOfDay();
+        $start = $now->subDays(self::PERIOD_DAYS - 1)->startOfDay();
+
+        $activity = $this->collectActivity($user, $start, $end);
+
+        [$content, $fallbackUsed] = $this->generateContent($user, $activity);
 
         return WeeklyReflection::create([
             'user_id' => $user->id,
             'partner_id' => $user->partner_id,
-            'week_start' => $weekStart->toDateString(),
-            'week_end' => $weekEnd->toDateString(),
+            'week_start' => $this->weekKey($now),
+            'week_end' => $end->toDateString(),
             'headline' => $content['headline'],
             'summary' => $content['summary'],
             'highlights' => $content['highlights'],
             'gentle_suggestion' => $content['gentle_suggestion'],
             'encouragement' => $content['encouragement'],
-            'metrics' => $metrics,
+            // Counts only: the detail sent to the AI includes note text and is not kept.
+            'metrics' => ['period_start' => $start->toDateString(), 'period_end' => $end->toDateString()] + $activity['totals'],
             'fallback_used' => $fallbackUsed,
             'generated_at' => Carbon::now(),
         ]);
     }
 
     /**
+     * Everything the couple did in the period, written from the couple's point
+     * of view so the result is the same whichever partner asks for it.
+     *
      * @return array<string, mixed>
      */
-    private function collectMetrics(User $user, CarbonImmutable $start, CarbonImmutable $end): array
+    private function collectActivity(User $user, CarbonImmutable $start, CarbonImmutable $end): array
     {
-        $partner = $user->partner;
-        $partnerId = $partner?->id;
-        $userIds = array_values(array_filter([$user->id, $partnerId]));
+        /** @var Collection<int, User> $people */
+        $people = collect([$user, $user->partner])->filter()->sortBy('id')->values();
+        $ids = $people->pluck('id')->all();
+        $names = $people->mapWithKeys(fn (User $person): array => [
+            $person->id => Str::before($person->display_name ?? $person->name, ' '),
+        ]);
+        $name = static fn (?int $id): string => $names->get($id, 'One of you');
+        $days = [$start->toDateString(), $end->toDateString()];
+        // whereDate, not whereBetween: a date stored with a midnight time must still match the last day.
+        $inPeriod = static fn (Builder $query): Builder => $query
+            ->whereDate('date', '>=', $days[0])
+            ->whereDate('date', '<=', $days[1]);
 
         $dateNights = DateNightPlan::query()
+            ->with(['partnerOneResponse:id,user_id'])
             ->whereBetween('created_at', [$start, $end])
-            ->where(function ($q) use ($user): void {
-                $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
-                    ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
+            ->where(function (Builder $query) use ($ids): void {
+                $query->whereHas('partnerOneResponse', fn (Builder $r) => $r->whereIn('user_id', $ids))
+                    ->orWhereHas('partnerTwoResponse', fn (Builder $r) => $r->whereIn('user_id', $ids))
+                    ->orWhereIn('partner_user_id', $ids);
             })
-            ->get(['theme', 'atmosphere', 'compatibility_score']);
+            ->orderBy('created_at')
+            ->get();
 
-        $loveNotesSent = LoveNote::query()
-            ->where('sender_id', $user->id)
+        $notes = LoveNote::query()
+            ->whereIn('sender_id', $ids)
+            ->whereIn('recipient_id', $ids)
             ->whereBetween('created_at', [$start, $end])
-            ->count();
-
-        $loveNotesReceived = $partnerId
-            ? LoveNote::query()
-                ->where('sender_id', $partnerId)
-                ->where('recipient_id', $user->id)
-                ->whereBetween('created_at', [$start, $end])
-                ->count()
-            : 0;
+            ->orderBy('created_at')
+            ->get(['sender_id', 'message']);
 
         $moments = Moment::query()
-            ->whereIn('user_id', $userIds ?: [$user->id])
-            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
-            ->get(['title', 'mood']);
+            ->whereIn('user_id', $ids)
+            ->tap($inPeriod)
+            ->orderBy('date')
+            ->get(['user_id', 'title', 'description', 'mood', 'date', 'is_favourite']);
 
-        $calendarEvents = CalendarEvent::query()
-            ->whereIn('user_id', $userIds ?: [$user->id])
-            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
-            ->get(['title', 'type']);
+        $events = CalendarEvent::query()
+            ->whereIn('user_id', $ids)
+            ->tap($inPeriod)
+            ->orderBy('date')
+            ->get(['title', 'type', 'date']);
 
-        $questionnairesCompleted = Response::query()
-            ->whereIn('user_id', $userIds ?: [$user->id])
+        $comingUp = CalendarEvent::query()
+            ->whereIn('user_id', $ids)
+            ->whereDate('date', '>', $days[1])
+            ->whereDate('date', '<=', $end->addDays(self::PERIOD_DAYS)->toDateString())
+            ->orderBy('date')
+            ->limit(5)
+            ->get(['title', 'type', 'date']);
+
+        $questionnaires = Response::query()
+            ->with('questionnaire:id,title')
+            ->whereIn('user_id', $ids)
             ->where('status', CompletionStatus::Completed->value)
             ->whereBetween('completed_at', [$start, $end])
-            ->count();
+            ->orderBy('completed_at')
+            ->get(['id', 'user_id', 'questionnaire_id', 'completed_at']);
+
+        $achievements = DB::table('user_achievements')
+            ->join('achievements', 'achievements.id', '=', 'user_achievements.achievement_id')
+            ->whereIn('user_achievements.user_id', $ids)
+            ->whereBetween('user_achievements.unlocked_at', [$start, $end])
+            ->orderBy('user_achievements.unlocked_at')
+            ->get(['achievements.name', 'user_achievements.user_id']);
+
+        $event = static fn (CalendarEvent $item): array => [
+            'date' => $item->date->toDateString(),
+            'title' => $item->title,
+            'type' => $item->type,
+        ];
 
         return [
-            'week_start' => $start->toDateString(),
-            'week_end' => $end->toDateString(),
-            'partner_connected' => $partner !== null,
-            'date_nights' => [
-                'count' => $dateNights->count(),
-                'themes' => $dateNights->pluck('theme')->filter()->unique()->values()->all(),
-                'atmospheres' => $dateNights->pluck('atmosphere')->filter()->unique()->values()->all(),
-                'average_compatibility' => $dateNights->isEmpty()
-                    ? null
-                    : (int) round((float) $dateNights->avg('compatibility_score')),
-            ],
+            'period' => ['from' => $days[0], 'to' => $days[1]],
+            'partners' => $names->values()->all(),
+            'partner_connected' => $people->count() === 2,
+            'date_nights' => $dateNights->take(self::MAX_ITEMS)->map(fn (DateNightPlan $plan): array => array_filter([
+                'date' => $plan->created_at?->toDateString(),
+                'theme' => $plan->theme,
+                'planned' => $plan->is_solo ? 'by '.$name($plan->partnerOneResponse?->user_id) : 'together',
+                'compatibility' => $plan->is_solo ? null : $plan->compatibility_score,
+                'activity' => $plan->activity,
+                'meal' => $plan->meal_suggestion,
+                'where' => $plan->location_label,
+            ], static fn (mixed $value): bool => $value !== null))->values()->all(),
             'love_notes' => [
-                'sent' => $loveNotesSent,
-                'received' => $loveNotesReceived,
+                'total' => $notes->count(),
+                'sent_by' => $notes->countBy(fn (LoveNote $note): string => $name($note->sender_id))->all(),
+                'messages' => $notes->take(-8)->map(fn (LoveNote $note): array => [
+                    'from' => $name($note->sender_id),
+                    'message' => Str::limit($note->message, 140),
+                ])->values()->all(),
             ],
-            'moments' => [
-                'count' => $moments->count(),
-                'moods' => $moments->pluck('mood')->filter()->unique()->values()->all(),
+            'moments' => $moments->take(self::MAX_ITEMS)->map(fn (Moment $moment): array => array_filter([
+                'date' => $moment->date->toDateString(),
+                'title' => $moment->title,
+                'mood' => $moment->mood,
+                'description' => $moment->description !== null ? Str::limit($moment->description, 200) : null,
+                'favourite' => $moment->is_favourite ?: null,
+                'added_by' => $name($moment->user_id),
+            ], static fn (mixed $value): bool => $value !== null))->values()->all(),
+            'calendar' => [
+                'this_week' => $events->take(self::MAX_ITEMS)->map($event)->values()->all(),
+                'coming_up' => $comingUp->map($event)->values()->all(),
             ],
-            'calendar_events' => [
-                'count' => $calendarEvents->count(),
-                'types' => $calendarEvents->pluck('type')->filter()->unique()->values()->all(),
+            'questionnaires_completed' => $questionnaires->take(self::MAX_ITEMS)->map(fn (Response $response): array => [
+                'date' => $response->completed_at?->toDateString(),
+                'title' => $response->questionnaire?->title,
+                'completed_by' => $name($response->user_id),
+            ])->values()->all(),
+            'achievements_unlocked' => $achievements->map(fn (object $row): array => [
+                'name' => $row->name,
+                'unlocked_by' => $name((int) $row->user_id),
+            ])->all(),
+            'streaks_in_days' => $people->mapWithKeys(fn (User $person): array => [
+                $name($person->id) => (int) $person->current_streak,
+            ])->all(),
+            'totals' => [
+                'date_nights' => $dateNights->count(),
+                'love_notes' => $notes->count(),
+                'moments' => $moments->count(),
+                'calendar_events' => $events->count(),
+                'questionnaires_completed' => $questionnaires->count(),
+                'achievements_unlocked' => $achievements->count(),
             ],
-            'questionnaires_completed' => $questionnairesCompleted,
         ];
     }
 
     /**
-     * @param  array<string, mixed>  $metrics
+     * @param  array<string, mixed>  $activity
      * @return array{0: array{headline: string, summary: string, highlights: array<int, string>, gentle_suggestion: string, encouragement: string}, 1: bool}
      */
-    private function generateContent(User $user, array $metrics): array
+    private function generateContent(User $user, array $activity): array
     {
-        $deterministic = $this->deterministicContent($metrics);
+        $deterministic = $this->deterministicContent($activity);
 
         try {
             $response = $this->ai->generate(
                 useCase: AIUseCase::WeeklyReflection,
-                context: ['metrics' => $metrics],
+                // The prompt template reads {{context}}; any other key never reaches the model.
+                context: ['context' => $activity],
                 userId: $user->id,
             );
         } catch (Throwable $e) {
@@ -213,47 +304,60 @@ final readonly class WeeklyReflectionService
     }
 
     /**
-     * @param  array<string, mixed>  $metrics
+     * Plain recap used when the AI is unavailable. It still names what happened.
+     *
+     * @param  array<string, mixed>  $activity
      * @return array{headline: string, summary: string, highlights: array<int, string>, gentle_suggestion: string, encouragement: string}
      */
-    private function deterministicContent(array $metrics): array
+    private function deterministicContent(array $activity): array
     {
-        $dateNights = (int) ($metrics['date_nights']['count'] ?? 0);
-        $notesSent = (int) ($metrics['love_notes']['sent'] ?? 0);
-        $notesReceived = (int) ($metrics['love_notes']['received'] ?? 0);
-        $moments = (int) ($metrics['moments']['count'] ?? 0);
-        $events = (int) ($metrics['calendar_events']['count'] ?? 0);
-        $questionnaires = (int) ($metrics['questionnaires_completed'] ?? 0);
+        $totals = $activity['totals'];
+        $listed = static fn (array $items, string $key): string => collect($items)
+            ->pluck($key)
+            ->filter()
+            ->unique()
+            ->take(3)
+            ->map(fn (string $value): string => "\u{201C}{$value}\u{201D}")
+            ->join(', ', ' and ');
 
         $highlights = [];
-        if ($dateNights > 0) {
-            $highlights[] = $dateNights === 1
-                ? 'You planned a date night together.'
-                : "You planned {$dateNights} date nights together.";
-        }
-        if ($notesSent + $notesReceived > 0) {
-            $highlights[] = 'You exchanged '.($notesSent + $notesReceived).' love notes.';
-        }
-        if ($moments > 0) {
-            $highlights[] = "You captured {$moments} shared moment".($moments === 1 ? '' : 's').'.';
-        }
-        if ($events > 0) {
-            $highlights[] = "You had {$events} calendar event".($events === 1 ? '' : 's').' on the horizon.';
-        }
-        if ($questionnaires > 0) {
-            $highlights[] = 'You checked in through your questionnaires.';
+
+        if ($totals['date_nights'] > 0) {
+            $highlights[] = 'You planned '.($totals['date_nights'] === 1 ? 'a date night' : "{$totals['date_nights']} date nights")
+                .': '.$listed($activity['date_nights'], 'theme').'.';
         }
 
-        $summary = $highlights === []
-            ? 'A quiet week together. Little moments still count — sometimes rest is the connection.'
-            : 'This week you made space for each other in small, meaningful ways. '
-                .'Every note, plan and shared moment adds up to something warm.';
+        if ($totals['moments'] > 0) {
+            $highlights[] = 'You captured '.($totals['moments'] === 1 ? 'a moment' : "{$totals['moments']} moments")
+                .': '.$listed($activity['moments'], 'title').'.';
+        }
+
+        if ($totals['love_notes'] > 0) {
+            $highlights[] = $totals['love_notes'] === 1
+                ? 'A love note was sent this week.'
+                : "You exchanged {$totals['love_notes']} love notes.";
+        }
+
+        if ($totals['calendar_events'] > 0) {
+            $highlights[] = 'On the calendar: '.$listed($activity['calendar']['this_week'], 'title').'.';
+        }
+
+        if ($totals['questionnaires_completed'] > 0) {
+            $highlights[] = 'You answered '.$listed($activity['questionnaires_completed'], 'title').'.';
+        }
+
+        $comingUp = $activity['calendar']['coming_up'][0]['title'] ?? null;
 
         return [
             'headline' => 'This Week Together',
-            'summary' => $summary,
-            'highlights' => $highlights === [] ? ['A gentle, quiet week together.'] : $highlights,
-            'gentle_suggestion' => 'Next week, maybe try one small new thing together — a walk, a coffee, or a shared playlist.',
+            'summary' => $highlights === []
+                ? 'A quiet week together. Little moments still count — sometimes rest is the connection.'
+                : 'This week you made space for each other in small, meaningful ways. '
+                    .'Every note, plan and shared moment adds up to something warm.',
+            'highlights' => $highlights === [] ? ['A gentle, quiet week together.'] : array_slice($highlights, 0, 5),
+            'gentle_suggestion' => $comingUp !== null
+                ? "You have \u{201C}{$comingUp}\u{201D} coming up — take a few minutes together to look forward to it."
+                : 'Next week, maybe try one small new thing together — a walk, a coffee, or a shared playlist.',
             'encouragement' => 'You are showing up for each other, and that is what matters most.',
         ];
     }

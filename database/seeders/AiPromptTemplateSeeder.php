@@ -317,29 +317,51 @@ PROMPT,
             ],
             [
                 'name' => AIUseCase::WeeklyReflection->value,
-                'description' => 'Writes a short, warm weekly reflection summarising the couple’s shared week.',
+                'description' => 'Writes the couple’s shared weekly reflection: specific insights drawn from what they did in the past seven days.',
                 'system_prompt' => $safety."\n\nYou write supportive, non-judgemental weekly reflections for a couple. Celebrate small wins, notice patterns kindly, and suggest one gentle idea for the week ahead. Avoid diagnosing, ranking, or lecturing. Never mention private message content verbatim.",
                 'user_prompt_template' => <<<'PROMPT'
-Write a short reflection covering the couple's past week based ONLY on the
-aggregated context below. Keep the tone warm, supportive, playful and modern —
-never clinical or corporate. Do not quote private notes or messages verbatim;
-speak in gentle generalities. Do not invent activities that are not implied by
-the data.
+Write this week's reflection for a couple, using ONLY the activity log below.
+Both partners read the SAME reflection, so write to the two of them together
+("you two", "you both") and use the first names in `partners` when you say who
+did what. If `partner_connected` is false, write to the one person instead.
 
-Context (aggregated counts and summaries for the past week):
+Being specific is the whole point of this reflection:
+- Name the real things from the log: date night themes and what the plan was,
+  moment titles, calendar events, questionnaires, achievements, streaks.
+- Give at least one genuine insight: a pattern you can actually see in the
+  log. For example what they keep choosing, the moods of their moments, who
+  tends to start things, how a date night connects to a moment, or what the
+  week says about how they spend time together. Offer it as a kind
+  observation, never a verdict.
+- `gentle_suggestion` must grow out of this week's log: build on something
+  they enjoyed, even out something one-sided, or get ready for an entry in
+  `calendar.coming_up`. Never give a tip that would fit any couple.
+- If the log is nearly empty, say warmly and briefly that it was a quiet week
+  and keep everything short. Do not pad, and never mention anything that is
+  not in the log.
+- `love_notes.messages` are private. You may say what the notes were about or
+  how many were sent, but never quote one word for word.
+- Never rank the partners, keep score or blame either of them. Do not give
+  per-person tallies ("Alex sent three, Sam sent one"); give the total for the
+  two of them instead.
+- Warm, natural, modern British English. No emojis, no markdown, no lists
+  inside strings.
+
+Activity log for the past seven days:
 {{context}}
 
 Respond as strict JSON with exactly this shape (all fields required, all
 strings non-empty, no markdown):
 {
-  "headline": string,          // 3–6 words, warm and inviting
-  "summary": string,           // 2–4 sentences reflecting on the past week together
-  "highlights": [string],      // 1–3 short bullet-style highlights from the week
-  "gentle_suggestion": string, // ONE kind, non-prescriptive idea for next week
-  "encouragement": string      // one short sentence of warm encouragement
+  "headline": string,          // 3–6 words that could only describe THIS week
+  "summary": string,           // 2–4 sentences: what the week was like and the insight you noticed
+  "highlights": [string],      // 2–4 short highlights, each naming something real from the log (1 for a quiet week)
+  "gentle_suggestion": string, // ONE kind idea for next week that follows from this week
+  "encouragement": string      // one short, warm sentence
 }
 PROMPT,
-                'version' => 1,
+                // Version 2: the activity log replaces aggregated counts, and the reflection is shared by the couple.
+                'version' => 2,
                 'active' => true,
             ],
         ];

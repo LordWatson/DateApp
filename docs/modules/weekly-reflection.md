@@ -2,7 +2,7 @@
 > Last verified against code: 2026-11-24
 
 ## Purpose
-A short, warm recap of the user's current week (date nights, love notes, moments, calendar events, questionnaires). It is generated the first time the user opens the page in a week, stored, and can be regenerated on demand. The text comes from the AI when available and from fixed sentences otherwise.
+Insights for a couple drawn from what they actually did in the past seven days (date nights, love notes, moments, calendar, questionnaires, achievements, streaks). One reflection per calendar week is shared by both partners, so they always read the same text. It is generated the first time either of them opens the page that week, stored, and can be regenerated on demand. The text comes from the AI when available and from a plain recap otherwise.
 
 ## Key files
 
@@ -18,12 +18,12 @@ A short, warm recap of the user's current week (date nights, love notes, moments
 | **Frontend** | |
 | `resources/js/pages/weekly-reflection/Index.vue` | Current reflection, regenerate button, history list |
 | `resources/js/pages/insights/Index.vue` | Entry point: links here and shows a loading state while the page generates |
-| **Tests** | None |
+| **Tests** | `tests/Feature/WeeklyReflectionTest.php` |
 
 ## Data model
 **`weekly_reflections`**: `user_id` (cascade delete), `partner_id` (nullable, null on delete), `week_start` and `week_end` (dates), `headline`, `summary`, `highlights` (json array), `gentle_suggestion`, `encouragement`, `metrics` (json), `fallback_used`, `generated_at`. Unique on (`user_id`, `week_start`). Relations: `user`, `partner`.
 
-Reflections are per user, not per couple: each partner gets their own row.
+One row serves the couple. It belongs to whoever triggered generation (`user_id`) and records their partner (`partner_id`); the other partner reads the same row through `WeeklyReflectionService::sharedQuery()` (own rows, plus rows the current partner generated while paired with them). `week_start` is the calendar-week key; `week_end` is the day it was generated. `metrics` holds `period_start`, `period_end` and counts only.
 
 ## Routes
 Under `auth`, `verified`, `onboarding` middleware.
@@ -36,26 +36,29 @@ Under `auth`, `verified`, `onboarding` middleware.
 ## Flows
 
 ### View
-1. `index` calls the action without `force`. The service returns the row for this user and the current week start (`CarbonImmutable::now()->startOfWeek()`), or generates one.
-2. Generation: `collectMetrics()` counts this week's date night plans, love notes sent and received, moments, calendar events and completed questionnaires (moments, events and questionnaires include the partner's).
-3. `generateContent()` builds the deterministic text, then calls `AIService::generate(AIUseCase::WeeklyReflection, ['metrics' => $metrics], userId: ...)`.
-4. On success, non-empty AI strings replace `headline`, `summary`, `gentle_suggestion`, `encouragement`; `highlights` is replaced by up to 5 non-empty strings. On exception or failure the deterministic text is kept and `fallback_used` is true.
-5. The row is saved with the metrics snapshot. The page also receives up to 8 past reflections, minus the current one.
+1. `index` calls the action without `force`. The service returns the couple's row for the current calendar week (`whereDate('week_start', startOfWeek)`), or generates one.
+2. Generation looks back seven days including today (`PERIOD_DAYS`), not the calendar week, so a Monday visit still has a full week behind it.
+3. `collectActivity()` builds one log for the couple, identical whichever partner asks (people sorted by id, first names only): date nights (theme, activity, meal, place, planned together or by whom, compatibility), love notes (total and up to 8 messages, each cut to 140 characters), moments (title, mood, description cut to 200 characters, favourite), calendar events this week and the next seven days, completed questionnaires, achievements unlocked, current streaks, and totals. At most 10 items per list.
+4. `generateContent()` builds the plain recap, then calls `AIService::generate(AIUseCase::WeeklyReflection, ['context' => $activity], userId: ...)`.
+5. On success, non-empty AI strings replace `headline`, `summary`, `gentle_suggestion`, `encouragement`; `highlights` is replaced by up to 5 non-empty strings. On exception or failure the recap is kept and `fallback_used` is true.
+6. The row is saved with the period and totals. The page also receives up to 8 past reflections (one per week), minus the current one. `present()` shows the seven-day period as `week_start` / `week_end`.
 
 ### Regenerate
-POST deletes this week's row and runs generation again. The Vue page disables the button while the request runs.
+POST deletes the couple's row for this week and runs generation again, so the new text replaces it for both partners. The Vue page disables the button while the request runs.
 
 ## Rules and gotchas
-- No events, jobs or mail. The AI call runs synchronously inside the web request, so a slow provider delays the page (see worst-case duration in `ai.md`).
+- **The context key must be `context`.** The prompt template interpolates `{{context}}`; any other key is silently dropped and the model writes generic text. This was the original bug.
+- **Prompt:** `weekly_reflection` version 2 in `AiPromptTemplateSeeder` (specific, shared, no per-person tallies, no verbatim notes). Environments must reseed to get it; an older active version still receives the full log but with the older instructions.
+- **Privacy:** love note text and moment descriptions are sent to the AI provider. Moment `private_notes`, calendar `notes` and surnames are never sent, and the log itself is not stored (only counts are).
+- Date filters use `whereDate`, not `whereBetween`: SQLite stores dates with a midnight time and `whereBetween` on strings drops the last day.
+- No events, jobs or mail. The AI call runs synchronously inside the web request (about 5 seconds with Claude), so a slow provider delays the page (see worst-case duration in `ai.md`).
 - A GET request has side effects (creates a row and may call the AI).
-- No authorisation beyond the route middleware is needed: everything is scoped to `$request->user()`.
-- No rate limit on regenerate; each call is one AI request.
-- Metrics are frozen at generation time; they only change on regenerate.
-- Suspected issue: the prompt template uses `{{context}}` but the service passes the key `metrics` (`WeeklyReflectionService.php` line 194), so the metrics never reach the model. See `ai.md`.
-- Suspected issue: date night plans are matched only through the user's own responses (lines 118-124), so a solo plan filled by the partner (linked by `partner_user_id`) is not counted.
-- Suspected issue: two concurrent first visits in a week can both try to insert and hit the unique index.
+- No authorisation beyond the route middleware is needed: everything is scoped to `$request->user()` and their current partner.
+- No rate limit on regenerate; each call is one AI request, and either partner can replace the text the other is reading.
+- Rows generated before a couple connected stay private to their owner. If a couple disconnects, each keeps only the rows they generated themselves.
+- Suspected issue: two partners opening the page at the same moment in a new week can each create a row; both then see the older one (lowest id) and the newer one is unused.
 - Suspected issue: the migration adds a plain index on (`user_id`, `week_start`) that duplicates the unique index (lines 29-30).
-- With `AI_PROVIDER=null` the null provider throws for this use case and the fallback text is always used.
+- With `AI_PROVIDER=null` the null provider throws for this use case and the recap is always used.
 
 ## Related modules
 - `ai.md`: `AIService`, prompt templates, failure handling.
@@ -63,7 +66,8 @@ POST deletes this week's row and runs generation again. The Vue page disables th
 - `date-night.md`, `love-notes.md`, `moments-timeline.md`, `calendar.md`, `questionnaires.md`: data sources for the metrics.
 
 ## Tests
-None exist for this module. `php artisan test --filter=WeeklyReflection` currently matches nothing.
+`php artisan test --filter=WeeklyReflectionTest`: both partners' activity reaches the prompt (and old or private data does not), both partners see the same reflection from one AI call, regenerating replaces it for both, and the recap names real activity when the AI is unavailable.
 
 ## Change log
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Reflections are now built from the couple's real activity over the past seven days and shared by both partners; fixed the context key that kept the data from the model; prompt version 2; first tests.

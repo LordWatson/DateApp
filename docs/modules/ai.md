@@ -118,7 +118,7 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 - **Analytics attribution**: `user_id` and `subject` are only stored when the caller uses `AIService::generate()` with those arguments. Date night generation uses the semantic methods, so its rows have neither.
 - **Worst-case duration** of one call is roughly `timeout` x `retry_attempts` (180s with defaults) because timeouts are retried. Keep this in mind for job timeouts and web requests.
 - **Tests** set `ai.provider` to `deepseek` (or call the `useAnthropic()` helper in `AIInfrastructureTest`) with a fake key and `Http::fake()`, or swap the contract with an anonymous class via `$this->app->instance(AIProvider::class, ...)`. `phpunit.xml` does not set `AI_PROVIDER`.
-- Suspected issue: placeholder mismatch. Every seeded template uses `{{context}}`, but `WeeklyReflectionService` (line 194, key `metrics`), `GenerateCompatibilitySummaryJob` (line 65), `GenerateConversationPromptJob` (line 54) and `GenerateRelationshipInsightJob` (line 55) do not pass a `context` key. The literal text `{{context}}` is sent to the model and the real data is not.
+- Suspected issue: placeholder mismatch. Every seeded template uses `{{context}}`, but `GenerateCompatibilitySummaryJob` (line 65), `GenerateConversationPromptJob` (line 54) and `GenerateRelationshipInsightJob` (line 55) do not pass a `context` key. The literal text `{{context}}` is sent to the model and the real data is not.
 - Suspected issue: `NullAIProvider::stubData()` (lines 41-68) has no `match` arm for `DateNightPlanSolo`, `IntimacyGame` or `WeeklyReflection` and throws `UnhandledMatchError` for them. Callers that catch `Throwable` fall back; an uncaught caller would crash.
 - Suspected issue: the null provider's `date_night_plan` stub returns `title`, `summary`, `activities`. Only `summary` is a field the generator accepts, so with `AI_PROVIDER=null` every couple plan gets the canned summary and `ai_enhanced = true`.
 - Suspected issue: `config('ai.logging.*')` (`AI_LOG_CHANNEL`, `AI_LOG_PROMPTS`) is not read anywhere.
@@ -142,3 +142,4 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Added `AnthropicProvider` and made it the default; DeepSeek kept as a selectable provider. Admin model setting now follows the selected provider.
 - 2026-11-24 — New use case `date_night_plan_out_couple` (compromise date-out plan for two sets of answers). Its template must be seeded: `php artisan db:seed --class=AiPromptTemplateSeeder`.
+- 2026-11-24 — `weekly_reflection` template is now version 2 and `WeeklyReflectionService` passes its data under `context`.
