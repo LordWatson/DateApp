@@ -65,7 +65,14 @@ const profileColour = ref('#EC4899');
 const saving = ref(false);
 const finishing = ref(false);
 
-type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable' | 'manual' | 'searching';
+type LocationStatus =
+    | 'idle'
+    | 'requesting'
+    | 'granted'
+    | 'denied'
+    | 'unavailable'
+    | 'manual'
+    | 'searching';
 
 const locationStatus = ref<LocationStatus>('idle');
 const locationSource = ref<'geolocation' | 'manual' | 'fallback' | null>(null);
@@ -115,7 +122,10 @@ interface ReverseGeocodeResult {
     country: string | null;
 }
 
-async function reverseGeocode(latitude: number, longitude: number): Promise<ReverseGeocodeResult> {
+async function reverseGeocode(
+    latitude: number,
+    longitude: number,
+): Promise<ReverseGeocodeResult> {
     try {
         const url = new URL('https://nominatim.openstreetmap.org/reverse');
         url.searchParams.set('format', 'jsonv2');
@@ -149,16 +159,23 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Reve
         };
 
         const address = data.address ?? {};
-        const city = address.city
-            ?? address.town
-            ?? address.village
-            ?? address.municipality
-            ?? address.suburb
-            ?? address.hamlet
-            ?? null;
-        const region = address.state ?? address.region ?? address.county ?? null;
+        const city =
+            address.city ??
+            address.town ??
+            address.village ??
+            address.municipality ??
+            address.suburb ??
+            address.hamlet ??
+            null;
+        const region =
+            address.state ?? address.region ?? address.county ?? null;
         const country = address.country ?? null;
-        const label = [city, region, country].filter((v): v is string => !!v).join(', ') || data.display_name || null;
+        const label =
+            [city, region, country]
+                .filter((v): v is string => !!v)
+                .join(', ') ||
+            data.display_name ||
+            null;
 
         return { label, city, region, country };
     } catch {
@@ -168,7 +185,9 @@ async function reverseGeocode(latitude: number, longitude: number): Promise<Reve
 
 function requestGeolocation(): void {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-        applyFallbackLocation('Your browser doesn\'t support geolocation, so we\'ve defaulted to Bristol. You can enter a location manually below.');
+        applyFallbackLocation(
+            "Your browser doesn't support geolocation, so we've defaulted to Bristol. You can enter a location manually below.",
+        );
 
         return;
     }
@@ -181,7 +200,10 @@ function requestGeolocation(): void {
             locationLatitude.value = position.coords.latitude;
             locationLongitude.value = position.coords.longitude;
 
-            const result = await reverseGeocode(position.coords.latitude, position.coords.longitude);
+            const result = await reverseGeocode(
+                position.coords.latitude,
+                position.coords.longitude,
+            );
             locationLabel.value = result.label;
             locationCity.value = result.city;
             locationRegion.value = result.region;
@@ -192,9 +214,10 @@ function requestGeolocation(): void {
             locationError.value = null;
         },
         (error) => {
-            const reason = error.code === error.PERMISSION_DENIED
-                ? 'Location permission was declined, so we\'ve defaulted to Bristol. You can enter a location manually below.'
-                : 'We couldn\'t read your location, so we\'ve defaulted to Bristol. You can enter a location manually below.';
+            const reason =
+                error.code === error.PERMISSION_DENIED
+                    ? "Location permission was declined, so we've defaulted to Bristol. You can enter a location manually below."
+                    : "We couldn't read your location, so we've defaulted to Bristol. You can enter a location manually below.";
 
             applyFallbackLocation(reason);
         },
@@ -215,7 +238,9 @@ interface ForwardGeocodeResult {
     country: string | null;
 }
 
-async function forwardGeocode(query: string): Promise<ForwardGeocodeResult | null> {
+async function forwardGeocode(
+    query: string,
+): Promise<ForwardGeocodeResult | null> {
     try {
         const url = new URL('https://nominatim.openstreetmap.org/search');
         url.searchParams.set('format', 'jsonv2');
@@ -254,10 +279,21 @@ async function forwardGeocode(query: string): Promise<ForwardGeocodeResult | nul
         }
 
         const address = first.address ?? {};
-        const city = address.city ?? address.town ?? address.village ?? address.municipality ?? null;
-        const region = address.state ?? address.region ?? address.county ?? null;
+        const city =
+            address.city ??
+            address.town ??
+            address.village ??
+            address.municipality ??
+            null;
+        const region =
+            address.state ?? address.region ?? address.county ?? null;
         const country = address.country ?? null;
-        const label = [city, region, country].filter((v): v is string => !!v).join(', ') || first.display_name || query;
+        const label =
+            [city, region, country]
+                .filter((v): v is string => !!v)
+                .join(', ') ||
+            first.display_name ||
+            query;
 
         return {
             latitude: Number(first.lat),
@@ -288,7 +324,8 @@ async function submitManualLocation(): Promise<void> {
 
     if (!result) {
         locationStatus.value = locationSource.value ? 'granted' : 'manual';
-        manualLocationError.value = 'We couldn\'t find that place. Try a nearby town or city.';
+        manualLocationError.value =
+            "We couldn't find that place. Try a nearby town or city.";
 
         return;
     }
@@ -329,7 +366,14 @@ onMounted(() => {
 });
 
 const emojiOptions = ['❤️', '🎬', '🏨', '🌧️', '🎉', '💕', '✨', '🌹'];
-const colourOptions = ['#EC4899', '#9333EA', '#10B981', '#F59E0B', '#3B82F6', '#F43F5E'];
+const colourOptions = [
+    '#d6336c',
+    '#6d2452',
+    '#10B981',
+    '#F59E0B',
+    '#3B82F6',
+    '#F43F5E',
+];
 
 function formatMinutes(minutes: number): string {
     if (minutes <= 0) {
@@ -396,7 +440,9 @@ function formatAnswer(group: GroupedAnswer): string {
 }
 
 function editAnswer(order: number): void {
-    router.visit(`/questionnaires/${props.questionnaire.slug}/question/${order}`);
+    router.visit(
+        `/questionnaires/${props.questionnaire.slug}/question/${order}`,
+    );
 }
 
 async function saveProfile(): Promise<void> {
@@ -434,7 +480,10 @@ function completeQuestionnaire(): void {
     const payload: Record<string, string | number> = {};
 
     if (props.questionnaire.is_solo) {
-        if (locationLatitude.value !== null && locationLongitude.value !== null) {
+        if (
+            locationLatitude.value !== null &&
+            locationLongitude.value !== null
+        ) {
             payload.location_latitude = locationLatitude.value;
             payload.location_longitude = locationLongitude.value;
         }
@@ -471,8 +520,12 @@ function completeQuestionnaire(): void {
 
     <div class="space-y-4 px-4 py-6 pb-32">
         <div class="space-y-1">
-            <h1 class="text-2xl font-semibold text-foreground">Your Answers 📋</h1>
-            <p class="text-sm text-muted-foreground">Review and edit before completing.</p>
+            <h1 class="text-2xl font-semibold text-foreground">
+                Your Answers 📋
+            </h1>
+            <p class="text-sm text-muted-foreground">
+                Review and edit before completing.
+            </p>
         </div>
 
         <!-- Answer cards -->
@@ -482,20 +535,30 @@ function completeQuestionnaire(): void {
             class="card-premium p-5"
         >
             <div class="flex items-start justify-between gap-3">
-                <div class="flex items-start gap-3 min-w-0 flex-1">
-                    <span v-if="group.question.emoji" class="shrink-0 text-2xl" aria-hidden="true">
+                <div class="flex min-w-0 flex-1 items-start gap-3">
+                    <span
+                        v-if="group.question.emoji"
+                        class="shrink-0 text-2xl"
+                        aria-hidden="true"
+                    >
                         {{ group.question.emoji }}
                     </span>
                     <div class="min-w-0">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             Q{{ group.question.display_order }}
                         </p>
-                        <p class="text-sm font-semibold text-foreground">{{ group.question.title }}</p>
-                        <p class="mt-1 text-sm text-primary font-medium">{{ formatAnswer(group) }}</p>
+                        <p class="text-sm font-semibold text-foreground">
+                            {{ group.question.title }}
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-primary">
+                            {{ formatAnswer(group) }}
+                        </p>
                     </div>
                 </div>
                 <button
-                    class="shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                    class="shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus:ring-2 focus:ring-primary focus:outline-none"
                     @click="editAnswer(group.question.display_order)"
                 >
                     Edit
@@ -504,24 +567,42 @@ function completeQuestionnaire(): void {
         </div>
 
         <!-- Combined location + travel radius (solo questionnaires only) -->
-        <div v-if="questionnaire.is_solo" class="card-premium space-y-4 p-5">
+        <div v-if="questionnaire.is_solo" class="space-y-4 card-premium p-5">
             <div class="space-y-1">
-                <h2 class="text-lg font-semibold text-foreground">{{ locationCardHeadline }}</h2>
+                <h2 class="text-lg font-semibold text-foreground">
+                    {{ locationCardHeadline }}
+                </h2>
                 <p class="text-sm text-muted-foreground">
-                    We'll plan around this location and stay within your travel radius.
-                    Use your current location, or type in somewhere you'll be visiting.
+                    We'll plan around this location and stay within your travel
+                    radius. Use your current location, or type in somewhere
+                    you'll be visiting.
                 </p>
             </div>
 
             <!-- Current location summary -->
-            <div v-if="locationStatus === 'granted'" class="space-y-2 rounded-2xl bg-primary/5 p-4 text-sm">
+            <div
+                v-if="locationStatus === 'granted'"
+                class="space-y-2 rounded-2xl bg-primary/5 p-4 text-sm"
+            >
                 <p class="font-semibold text-foreground">
-                    ✅ Planning around <span class="text-primary">{{ locationLabel ?? 'your current spot' }}</span>
+                    ✅ Planning around
+                    <span class="text-primary">{{
+                        locationLabel ?? 'your current spot'
+                    }}</span>
                 </p>
-                <p v-if="locationSource === 'fallback'" class="text-xs text-muted-foreground">
-                    {{ locationError ?? "We couldn't detect your location, so we've defaulted to Bristol. You can enter one manually below." }}
+                <p
+                    v-if="locationSource === 'fallback'"
+                    class="text-xs text-muted-foreground"
+                >
+                    {{
+                        locationError ??
+                        "We couldn't detect your location, so we've defaulted to Bristol. You can enter one manually below."
+                    }}
                 </p>
-                <p v-else-if="locationSource === 'manual'" class="text-xs text-muted-foreground">
+                <p
+                    v-else-if="locationSource === 'manual'"
+                    class="text-xs text-muted-foreground"
+                >
                     Using the location you entered.
                 </p>
                 <div class="flex flex-wrap gap-3 pt-1">
@@ -542,11 +623,17 @@ function completeQuestionnaire(): void {
                 </div>
             </div>
 
-            <div v-else-if="locationStatus === 'requesting'" class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">
+            <div
+                v-else-if="locationStatus === 'requesting'"
+                class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground"
+            >
                 Finding you…
             </div>
 
-            <div v-else-if="locationStatus === 'searching'" class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">
+            <div
+                v-else-if="locationStatus === 'searching'"
+                class="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground"
+            >
                 Looking up that location…
             </div>
 
@@ -563,8 +650,13 @@ function completeQuestionnaire(): void {
             </div>
 
             <!-- Manual entry form -->
-            <div v-if="locationStatus === 'manual'" class="space-y-2 rounded-2xl bg-muted/40 p-4">
-                <label class="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div
+                v-if="locationStatus === 'manual'"
+                class="space-y-2 rounded-2xl bg-muted/40 p-4"
+            >
+                <label
+                    class="block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
                     Enter a town, city or postcode
                 </label>
                 <input
@@ -585,7 +677,10 @@ function completeQuestionnaire(): void {
             <!-- Travel radius slider -->
             <div class="space-y-2 rounded-2xl bg-background/60 p-4">
                 <div class="flex items-center justify-between">
-                    <label for="travel-radius" class="text-sm font-semibold text-foreground">
+                    <label
+                        for="travel-radius"
+                        class="text-sm font-semibold text-foreground"
+                    >
                         🚗 How far are you happy to drive?
                     </label>
                     <span class="text-sm font-semibold text-primary">
@@ -602,7 +697,8 @@ function completeQuestionnaire(): void {
                     class="w-full accent-primary"
                 />
                 <p class="text-xs text-muted-foreground">
-                    We'll suggest ideas reachable within this driving time (by car) from your location.
+                    We'll suggest ideas reachable within this driving time (by
+                    car) from your location.
                 </p>
             </div>
         </div>
@@ -630,8 +726,12 @@ function completeQuestionnaire(): void {
             class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
             @click.self="showSaveModal = false"
         >
-            <div class="w-full max-w-md rounded-3xl bg-card p-6 shadow-xl space-y-5">
-                <h3 class="text-lg font-semibold text-foreground">Save as Profile</h3>
+            <div
+                class="w-full max-w-md space-y-5 rounded-3xl bg-card p-6 shadow-xl"
+            >
+                <h3 class="text-lg font-semibold text-foreground">
+                    Save as Profile
+                </h3>
 
                 <div class="space-y-3">
                     <input
@@ -642,14 +742,20 @@ function completeQuestionnaire(): void {
                     />
 
                     <div>
-                        <p class="mb-2 text-xs font-medium text-muted-foreground">Choose an emoji</p>
+                        <p
+                            class="mb-2 text-xs font-medium text-muted-foreground"
+                        >
+                            Choose an emoji
+                        </p>
                         <div class="flex flex-wrap gap-2">
                             <button
                                 v-for="e in emojiOptions"
                                 :key="e"
                                 :class="[
                                     'rounded-xl p-2 text-xl transition-all',
-                                    profileEmoji === e ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-muted',
+                                    profileEmoji === e
+                                        ? 'bg-primary/20 ring-2 ring-primary'
+                                        : 'hover:bg-muted',
                                 ]"
                                 @click="profileEmoji = e"
                             >
@@ -659,14 +765,20 @@ function completeQuestionnaire(): void {
                     </div>
 
                     <div>
-                        <p class="mb-2 text-xs font-medium text-muted-foreground">Choose a colour</p>
+                        <p
+                            class="mb-2 text-xs font-medium text-muted-foreground"
+                        >
+                            Choose a colour
+                        </p>
                         <div class="flex gap-2">
                             <button
                                 v-for="c in colourOptions"
                                 :key="c"
                                 :class="[
                                     'h-8 w-8 rounded-full transition-all',
-                                    profileColour === c ? 'ring-2 ring-offset-2 ring-foreground scale-110' : '',
+                                    profileColour === c
+                                        ? 'scale-110 ring-2 ring-foreground ring-offset-2'
+                                        : '',
                                 ]"
                                 :style="{ backgroundColor: c }"
                                 @click="profileColour = c"
@@ -676,10 +788,16 @@ function completeQuestionnaire(): void {
                 </div>
 
                 <div class="space-y-2">
-                    <PrimaryButton full-width :loading="saving" @click="saveProfile">
+                    <PrimaryButton
+                        full-width
+                        :loading="saving"
+                        @click="saveProfile"
+                    >
                         Save Profile
                     </PrimaryButton>
-                    <SecondaryButton full-width @click="showSaveModal = false">Cancel</SecondaryButton>
+                    <SecondaryButton full-width @click="showSaveModal = false"
+                        >Cancel</SecondaryButton
+                    >
                 </div>
             </div>
         </div>

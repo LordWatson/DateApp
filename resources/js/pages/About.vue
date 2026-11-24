@@ -21,7 +21,7 @@ type ModuleSection = {
 };
 
 const sections: ModuleSection[] = [
-/*    {
+    /*    {
         emoji: '💫',
         title: 'A Gentle Start',
         tagline: 'Onboarding made for two',
@@ -45,7 +45,7 @@ const sections: ModuleSection[] = [
         tagline: 'See where you sparkle together',
         body: 'When you both finish the latest questionnaire, we crunch the numbers and show you a compatibility percentage, the preferences you both share, and the fun little differences that keep things interesting.',
     },
-/*    {
+    /*    {
         emoji: '💾',
         title: 'Saved profiles',
         tagline: 'Bottle your favourite moods',
@@ -57,7 +57,7 @@ const sections: ModuleSection[] = [
         tagline: 'Tonight, sorted',
         body: 'We turn your answers into a personalised date night plan you can actually follow. Favourite the best ones, add them to your calendar, or export a pretty PDF to keep.',
     },
-/*    {
+    /*    {
         emoji: '💌',
         title: 'Love notes',
         tagline: 'Little messages, big feelings',
@@ -111,7 +111,7 @@ const sections: ModuleSection[] = [
         tagline: 'A kind recap of your week',
         body: 'A supportive, AI-crafted weekly recap that celebrates what went well and gently suggests where to lean in next. Like a therapist, but nicer, and only takes a minute.',
     },
-/*    {
+    /*    {
         emoji: '🔔',
         title: 'Notifications',
         tagline: 'Only the important nudges',
@@ -123,7 +123,7 @@ const sections: ModuleSection[] = [
         tagline: 'Find that one thing, fast',
         body: 'Search across your notes, moments, plans and answers in one place. Because the perfect memory shouldn’t take ten taps to find.',
     },*/
-/*    {
+    /*    {
         emoji: '🏠',
         title: 'Your dashboard',
         tagline: 'Everything at a glance',
@@ -139,9 +139,11 @@ const sections: ModuleSection[] = [
 </script>
 
 <template>
-    <Head title="About Date Night — the app that helps you love more, plan less" />
+    <Head
+        title="About Date Night — the app that helps you love more, plan less"
+    />
 
-    <div class="relative flex min-h-svh flex-col bg-background">
+    <div class="relative flex min-h-svh flex-col">
         <AnimatedBackground variant="hearts" />
         <FloatingHearts />
 
@@ -188,8 +190,8 @@ const sections: ModuleSection[] = [
                     <p class="leading-relaxed text-muted-foreground">
                         Date Night is a private, playful space for couples to
                         share what they want, dream up perfect evenings, and
-                        keep the spark alive — one tiny, delightful moment at
-                        a time.
+                        keep the spark alive — one tiny, delightful moment at a
+                        time.
                     </p>
                 </div>
 

@@ -4,12 +4,13 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 
 <template>
     <div
-        class="flex h-9 w-9 items-center justify-center rounded-2xl shadow-md gradient-primary"
+        class="flex h-9 w-9 items-center justify-center rounded-xl shadow-glow gradient-primary"
     >
         <AppLogoIcon class="size-5 text-white" />
     </div>
     <div class="ml-2 grid flex-1 text-left text-sm">
-        <span class="truncate gradient-text leading-tight font-semibold"
+        <span
+            class="truncate font-display text-base leading-tight font-semibold text-foreground"
             >Date Night</span
         >
     </div>

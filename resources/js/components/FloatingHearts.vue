@@ -20,19 +20,19 @@ function createHeart(): Heart {
         size: Math.random() * 16 + 10,
         duration: Math.random() * 10 + 8,
         delay: Math.random() * 5,
-        opacity: Math.random() * 0.3 + 0.1,
+        opacity: Math.random() * 0.15 + 0.06,
     };
 }
 
 let interval: ReturnType<typeof setInterval>;
 
 onMounted(() => {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 6; i++) {
         hearts.value.push(createHeart());
     }
 
     interval = setInterval(() => {
-        if (hearts.value.length < 18) {
+        if (hearts.value.length < 9) {
             hearts.value.push(createHeart());
         }
     }, 2000);

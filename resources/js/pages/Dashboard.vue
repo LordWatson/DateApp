@@ -5,7 +5,6 @@ import PartnerController from '@/actions/App/Http/Controllers/PartnerController'
 import ChallengeCard from '@/components/ChallengeCard.vue';
 import CompatibilityCard from '@/components/CompatibilityCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import PrimaryButton from '@/components/PrimaryButton.vue';
 import StatCard from '@/components/StatCard.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import type { Auth } from '@/types';
@@ -119,49 +118,69 @@ function invitePartner(): void {
     <div class="space-y-4 px-4 py-6 pb-24">
         <!-- Hero Card -->
         <div
-            class="overflow-hidden card-premium p-6 text-white gradient-primary"
+            class="relative overflow-hidden card-premium border-0 p-6 text-white shadow-glow gradient-primary"
         >
-            <div class="flex items-start justify-between">
+            <div
+                class="pointer-events-none absolute -top-16 -right-10 size-48 rounded-full bg-white/15 blur-2xl"
+                aria-hidden="true"
+            />
+            <div class="relative flex items-start justify-between">
                 <div class="space-y-1">
                     <p class="text-sm font-medium text-white/80">
                         {{ greeting }},
                     </p>
-                    <h1 class="text-2xl font-semibold">{{ firstName }} ❤️</h1>
+                    <h1 class="text-3xl font-semibold">{{ firstName }} ❤️</h1>
                     <button
                         type="button"
                         class="mt-2 flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-left text-xs font-medium text-white/90 backdrop-blur-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
                         @click="invitePartner"
                     >
                         <template v-if="partnerStatus === 'connected'">
-                            <span class="text-base leading-none" aria-hidden="true">{{ partner?.avatar || '💕' }}</span>
-                            <span class="truncate">with {{ partner?.display_name ?? partner?.name }}</span>
-                            <span class="text-success" aria-hidden="true">●</span>
+                            <span
+                                class="text-base leading-none"
+                                aria-hidden="true"
+                                >{{ partner?.avatar || '💕' }}</span
+                            >
+                            <span class="truncate"
+                                >with
+                                {{
+                                    partner?.display_name ?? partner?.name
+                                }}</span
+                            >
+                            <span class="text-success" aria-hidden="true"
+                                >●</span
+                            >
                         </template>
                         <template v-else-if="partnerStatus === 'pending'">
-                            <span class="text-base leading-none" aria-hidden="true">⏳</span>
+                            <span
+                                class="text-base leading-none"
+                                aria-hidden="true"
+                                >⏳</span
+                            >
                             <span class="truncate">Invitation pending</span>
                         </template>
                         <template v-else>
-                            <span class="text-base leading-none" aria-hidden="true">💌</span>
+                            <span
+                                class="text-base leading-none"
+                                aria-hidden="true"
+                                >💌</span
+                            >
                             <span>Invite your partner</span>
                         </template>
                     </button>
                 </div>
                 <div
-                    class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-3xl"
+                    class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-3xl ring-1 ring-white/25"
                 >
                     {{ user.avatar || '💕' }}
                 </div>
             </div>
-            <div class="mt-5">
-                <PrimaryButton
-                    full-width
-                    class="!bg-white text-white/80 hover:!bg-white/90"
-                    @click="router.visit('/questionnaires')"
-                >
-                    Plan A Date Night ✨
-                </PrimaryButton>
-            </div>
+            <Link
+                href="/questionnaires"
+                class="relative mt-5 flex min-h-12 w-full items-center justify-center rounded-full bg-white px-7 text-[15px] font-semibold tracking-tight text-pink-600 shadow-lg transition-all duration-200 hover:-translate-y-px active:scale-[0.97]"
+            >
+                Plan a date night ✨
+            </Link>
         </div>
 
         <!-- Stats Row -->
@@ -265,11 +284,7 @@ function invitePartner(): void {
                             v-if="plan.created_at"
                             class="text-xs text-muted-foreground"
                         >
-                            {{
-                                new Date(
-                                    plan.created_at,
-                                ).toLocaleDateString()
-                            }}
+                            {{ new Date(plan.created_at).toLocaleDateString() }}
                             <span
                                 v-if="plan.compatibility_score !== null"
                                 class="ml-1"
@@ -293,7 +308,7 @@ function invitePartner(): void {
         </div>
 
         <!-- Recent Questionnaire -->
-<!--        <div class="card-premium p-6">
+        <!--        <div class="card-premium p-6">
             <div class="mb-4 flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-foreground">
                     Recent Questionnaire
@@ -337,7 +352,7 @@ function invitePartner(): void {
         </div>-->
 
         <!-- Compatibility Card -->
-<!--
+        <!--
         <CompatibilityCard
             :score="null"
             :partner-name="

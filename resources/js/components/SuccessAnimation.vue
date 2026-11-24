@@ -20,8 +20,8 @@ const confetti = ref<
 >([]);
 
 const colors = [
-    '#ec4899',
-    '#9333ea',
+    '#d6336c',
+    '#6d2452',
     '#10b981',
     '#f59e0b',
     '#3b82f6',
