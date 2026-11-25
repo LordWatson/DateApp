@@ -1,5 +1,5 @@
 # Platform (bootstrap, config, console, tooling, tests)
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 Everything cross-cutting on the backend: how the app boots, providers, config, database/seeding, scheduled commands, health check, starter-kit tooling, quality tooling, CI, and test conventions.
@@ -116,6 +116,7 @@ One workflow, `tests.yml` (job `ci`), on push/PR to `develop`, `main`, `master`.
 - Run `npm run build` (or keep `npm run dev` running) before feature tests: Inertia responses resolve the page through the Vite manifest, and Wayfinder output in `resources/js/{actions,routes,wayfinder}` is generated, not committed.
 
 ## Rules and gotchas
+- **Mobile app:** `capacitor.config.ts` and `android/` are the Capacitor shell; `FIREBASE_CREDENTIALS` enables push. See [mobile-push.md](mobile-push.md).
 - **Feature flags and system settings** are read through `App\Services\RuntimeSettings` only (scoped, cached per request, safe defaults when a row or table is missing). `EnsureNotInMaintenance` is appended to the `web` group after `HandleInertiaRequests` so the maintenance page still gets the shared props. Details in `admin.md`.
 - **Rate limiters** are registered in `AppServiceProvider::registerRateLimiters()`: `invites` (10 per user per day) and `ai` (20 per user per hour, on questionnaire finish and the admin AI test and preview).
 - **Seeding**: `DatabaseSeeder` seeds reference data only and can be run again. `DemoCoupleSeeder` (two connected users with the password `password`, one a super admin) runs only in `local` and `testing`, and throws if run in production.
@@ -151,3 +152,4 @@ php artisan test tests/Feature/Health tests/Feature/Commands tests/Feature/Facto
 - 2026-11-25 — Roadmap Phase 3 (3.9): `vendor/bin/phpstan analyse` is clean at level 7 with no baseline; every model relation has a generic `@return` type.
 - 2026-11-25 — Roadmap 3.10: browser tests with Playwright (`npm run test:e2e`), run against a throwaway SQLite database.
 - 2026-11-26 — Roadmap Phase 4: removed `config/datenight.php`, the legacy AI provider binding and the `datenight:refresh-statistics` command with its 03:00 schedule entry; migration `drop_ai_prompts_and_timeline_entries_tables` drops two never-used tables.
+- 2026-11-25 — Capacitor Android project and `services.fcm` config added.

@@ -22,6 +22,7 @@ One doc per module. Read the relevant doc(s) before changing a module; update th
 | [dashboard-insights-search.md](dashboard-insights-search.md) | Dashboard, relationship hub, insights, global search |
 | [intimacy.md](intimacy.md) | Intimacy games and questionnaires |
 | [admin.md](admin.md) | Admin panel, feature flags, system settings, audit log, log viewer |
+| [mobile-push.md](mobile-push.md) | Capacitor Android app, device tokens, FCM push notifications |
 | [frontend.md](frontend.md) | Vue/Inertia structure, layouts, shared props, UI kit, Wayfinder, styling |
 | [platform.md](platform.md) | Bootstrap, providers, config, console commands and schedule, tooling, tests, CI, local setup |
 

@@ -13,6 +13,7 @@ use App\Events\PartnerDisconnected;
 use App\Events\PartnerInvitationAccepted;
 use App\Events\QuestionnaireCompleted;
 use App\Listeners\CreatePartnerConnectedNotificationOnPartnerConnected;
+use App\Listeners\DeleteDeviceTokensOnLogout;
 use App\Listeners\DispatchDateNightPlanOnQuestionnaireCompleted;
 use App\Listeners\EvaluateAchievementsOnActivity;
 use App\Listeners\EvaluateAchievementsOnMomentCreated;
@@ -32,11 +33,16 @@ use App\Listeners\SendMomentNotificationOnMomentCreated;
 use App\Listeners\SendPartnerConnectedEmailsOnPartnerConnected;
 use App\Listeners\SendPlanEmailsOnDateNightPlanGenerated;
 use App\Listeners\UpdateStreakOnQuestionnairCompleted;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
 {
     protected $listen = [
+        Logout::class => [
+            DeleteDeviceTokensOnLogout::class,
+        ],
+
         PartnerInvitationAccepted::class => [],
 
         PartnerConnected::class => [

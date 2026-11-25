@@ -28,6 +28,9 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    // Overrides public/hot; see AppServiceProvider::boot()
+    'vite_hot_file' => env('VITE_HOT_FILE'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

@@ -6,6 +6,7 @@ use App\Http\Controllers\DailyChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DateNightPlanController;
 use App\Http\Controllers\DateNightPlanPdfController;
+use App\Http\Controllers\DeviceTokenController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InsightsController;
 use App\Http\Controllers\IntimacyController;
@@ -31,6 +32,11 @@ Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 // Public invitation acceptance (redirects to register if not logged in)
 Route::get('invite/{token}', [OnboardingController::class, 'acceptInvite'])
     ->name('onboarding.accept-invite');
+
+// The mobile app registers its push token as soon as someone is signed in
+Route::post('device-tokens', [DeviceTokenController::class, 'store'])
+    ->middleware(['auth', 'throttle:30,1'])
+    ->name('device-tokens.store');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // An invitation is only accepted or declined by an explicit POST

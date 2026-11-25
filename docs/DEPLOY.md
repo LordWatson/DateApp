@@ -72,6 +72,8 @@ php artisan queue:work --queue=default,notifications,emails,analytics,ai,exports
 | `HEALTH_TOKEN` | When set, `GET /health` answers only to `Authorization: Bearer <token>`. `/up` stays open for load balancers. |
 | `LEGAL_OPERATOR`, `LEGAL_CONTACT_EMAIL` | Shown in the privacy policy and terms. The texts are drafts: have them reviewed before launch. |
 
+| `FIREBASE_CREDENTIALS` | Path (from the project root) to the Firebase service account JSON. Unset means no push notifications are sent, with no error. See `docs/modules/mobile-push.md`. |
+
 ## 6. Backups
 
 Nothing in the app takes backups; set these up on the host.

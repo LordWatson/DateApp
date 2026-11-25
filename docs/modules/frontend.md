@@ -70,6 +70,7 @@ Types: `types/auth.ts` (`User`, `Auth`, `Passkey`, `TwoFactorConfigContent`), `t
 - Banner channel: `back()->with('success', ...)` -> shared `flash.success`. Only `AdminLayout`, `pages/Partner.vue` and `pages/onboarding/Index.vue` render it.
 
 ## Composables, helpers, appearance
+- `lib/push.ts` (called from `app.ts`) registers the phone for push notifications inside the Capacitor app and does nothing in a browser; see [mobile-push.md](mobile-push.md).
 | File | Exports |
 |---|---|
 | `composables/useAppearance.ts` | `useAppearance()`, `updateTheme()`, `initializeTheme()`. Stores choice in `localStorage` + `appearance` cookie; toggles `.dark` on `<html>` |
@@ -234,3 +235,4 @@ No JS unit/e2e test runner is configured. Frontend checks are `npm run lint:chec
 - 2026-11-25 — Roadmap Phase 3 (3.3, 3.5, 3.6): pages `Error`, `legal/Privacy`, `legal/Terms`; components `LegalDocument`, `LegalLinks`, `AiConsentCard`; shared prop `auth.user.ai_consent`; terms checkbox on Register.
 - 2026-11-26 — Roadmap Phase 4 (4.5): removed the starter layouts (`layouts/app`, `layouts/auth`), the sidebar/header components, six unused components, the UI kits only they used, the `sidebarOpen` shared prop and the unused "Instrument Sans" font.
 - 2026-11-25 — Roadmap Phase 5.11: `ImpersonationBanner` in `MobileLayout`, shared prop `impersonating`.
+- 2026-11-25 — Added `lib/push.ts`; ESLint ignores `capacitor.config.ts` and `android/`.

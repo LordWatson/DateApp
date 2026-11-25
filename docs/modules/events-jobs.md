@@ -51,6 +51,7 @@ Queued listeners set the queue with `public string $queue = '...'`. Sync listene
 | `NotifyPlanReadyOnDateNightPlanGenerated` | `DateNightPlanGenerated` | queued (`notifications`) | Creates "plan ready" `AppNotification` for `userOne` and `userTwo` (if set) |
 | `SendLoveNoteNotificationOnLoveNoteSent` | `LoveNoteSent` | queued (`notifications`) | Dispatches `SendLoveNoteNotificationJob` |
 | `LogActivityOnLoveNoteSent` | `LoveNoteSent` | sync | Writes `activity_log` row |
+| `DeleteDeviceTokensOnLogout` | `Illuminate\Auth\Events\Logout` | sync | Deletes the user's push device tokens |
 | `SendMomentNotificationOnMomentCreated` | `MomentCreated` | queued (`notifications`) | If the creator has a partner, dispatches `SendMomentNotificationJob` |
 | `LogActivityOnMomentCreated` | `MomentCreated` | sync | Writes `activity_log` row |
 | `EvaluateAchievementsOnMomentCreated` | `MomentCreated` | queued (`analytics`) | Dispatches `AchievementEvaluationJob` |
@@ -72,6 +73,7 @@ All jobs set `$tries = 3`, set their queue with `onQueue()` in the constructor, 
 | `SendPartnerConnectedEmailJob` | `emails` | 30s | `SendPartnerConnectedEmailsOnPartnerConnected.php:15-16` | Sends `PartnerConnectedMail` if `email_notifications` |
 | `SendSummaryEmailJob` | `emails` | 30s | `SendPlanEmailsOnDateNightPlanGenerated.php:15`, `:18` | Sends `DateNightReadyMail` if `email_notifications` |
 | `SendLoveNoteNotificationJob` | `notifications` | 30s | `SendLoveNoteNotificationOnLoveNoteSent.php:15` | Creates `AppNotification`; queues `LoveNoteReceivedMail` only if the recipient has `email_notifications` on |
+| `SendPushNotificationJob` | `notifications` | 30s | `AppNotification` `created` hook | Sends the notification to the user's phones through FCM; see [mobile-push.md](mobile-push.md) |
 | `SendMomentNotificationJob` | `notifications` | 30s | `SendMomentNotificationOnMomentCreated.php:21` | Creates `AppNotification`; queues `MomentCreatedMail` only if the recipient has `email_notifications` on |
 | `SendQuestionnaireCompletedNotificationJob` | `notifications` | 30s | `NotifyPartnerOnQuestionnaireCompleted.php:40` | Queues `QuestionnaireCompletedMail` only if the recipient has `email_notifications` on |
 | `ExportUserDataJob` | `exports` | 300s | `Settings/DataExportController@store` (once an hour per user) | Writes the user's data to `exports/user-{id}.json` on the private `local` disk and creates a `data_export_ready` notification |
@@ -127,3 +129,4 @@ Run: `php artisan test tests/Feature/Events tests/Feature/Listeners tests/Featur
 - 2026-11-26 — Roadmap Phase 4: removed 10 events nothing dispatched or listened to, the unregistered invitation listener, the four cache-forgetting listeners with `RefreshRelationshipStatisticsJob` and `datenight:refresh-statistics`, and the five jobs nothing dispatched. Every event left is dispatched; every job left has a dispatcher.
 - 2026-11-25 — Roadmap Phase 5A: scheduled `datenight:nudge-partners` (hourly) and `datenight:connection-anniversaries` (09:00).
 - 2026-11-25 — Roadmap Phase 5.10: reminder frequency in `SendRemindersCommand`; the notification mail jobs check a category.
+- 2026-11-25 — Added `SendPushNotificationJob` and `DeleteDeviceTokensOnLogout`.

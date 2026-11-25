@@ -81,6 +81,8 @@ export default defineConfigWithVueTs(
             'tailwind.config.js',
             'vite.config.ts',
             'playwright.config.ts',
+            'capacitor.config.ts',
+            'android',
             'tests/e2e/**',
             'test-results',
             'playwright-report',

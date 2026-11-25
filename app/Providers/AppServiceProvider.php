@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -32,6 +33,12 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->registerGates();
         $this->registerRateLimiters();
+
+        // A phone or emulator cannot reach the Vite dev server on localhost. A second server started
+        // with VITE_HOT_FILE pointing at a missing file serves the built assets while `composer dev` runs.
+        if (is_string($hotFile = config('app.vite_hot_file'))) {
+            Vite::useHotFile($hotFile);
+        }
     }
 
     protected function registerRateLimiters(): void

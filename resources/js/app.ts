@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
+import { initializePushNotifications } from '@/lib/push';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -33,3 +34,6 @@ initializeTheme();
 
 // This will listen for flash toast data from the server...
 initializeFlashToast();
+
+// Inside the mobile app this registers the phone for push notifications...
+initializePushNotifications();

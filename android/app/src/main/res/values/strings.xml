@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DateNight</string>
+    <string name="title_activity_main">DateNight</string>
+    <string name="package_name">com.datenight.app</string>
+    <string name="custom_url_scheme">com.datenight.app</string>
+</resources>

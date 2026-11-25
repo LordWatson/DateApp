@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\NotificationType;
+use App\Jobs\SendPushNotificationJob;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -30,6 +31,12 @@ class AppNotification extends Model
         'data',
         'read_at',
     ];
+
+    protected static function booted(): void
+    {
+        // Every notification, however it is created, also goes out as a push.
+        static::created(fn (self $notification) => SendPushNotificationJob::dispatch($notification));
+    }
 
     protected function casts(): array
     {

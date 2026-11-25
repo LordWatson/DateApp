@@ -18,6 +18,11 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    'fcm' => [
+        // Path to the Firebase service account JSON. Push is skipped when unset.
+        'credentials' => env('FIREBASE_CREDENTIALS') ? base_path(env('FIREBASE_CREDENTIALS')) : null,
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],
