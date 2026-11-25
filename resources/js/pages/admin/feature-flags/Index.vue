@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { route } from 'ziggy-js';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -17,10 +17,11 @@ defineProps<{
             group: string;
         }>
     >;
+    inUse: string[];
 }>();
 
 const toggle = (id: number, enabled: boolean) => {
-    router.put(route('admin.feature-flags.update', id), { enabled: !enabled });
+    router.put(admin.featureFlags.update(id).url, { enabled: !enabled });
 };
 </script>
 
@@ -31,7 +32,9 @@ const toggle = (id: number, enabled: boolean) => {
                 Feature flags
             </h1>
             <p class="mt-1 text-sm text-muted-foreground">
-                Enable or disable application features without code changes.
+                Registration, maintenance mode and AI generation take effect as
+                soon as they are switched. A flag marked "Not in use" is saved
+                but nothing in the app reads it yet.
             </p>
         </div>
 
@@ -50,6 +53,11 @@ const toggle = (id: number, enabled: boolean) => {
                     <div class="mr-4 min-w-0 flex-1">
                         <p class="text-sm font-medium text-foreground">
                             {{ flag.label }}
+                            <span
+                                v-if="!inUse.includes(flag.key)"
+                                class="ml-2 badge-soft"
+                                >Not in use</span
+                            >
                         </p>
                         <p
                             v-if="flag.description"

@@ -123,7 +123,7 @@ return [
         AuthorizeLogViewer::class,
     ],
 
-    'api_stateful_domains' => env('LOG_VIEWER_API_STATEFUL_DOMAINS') ? explode(',', env('LOG_VIEWER_API_STATEFUL_DOMAINS')) : null,
+    'api_stateful_domains' => is_string($statefulDomains = env('LOG_VIEWER_API_STATEFUL_DOMAINS')) && $statefulDomains ? explode(',', $statefulDomains) : null,
 
     /*
     |--------------------------------------------------------------------------
@@ -137,7 +137,7 @@ return [
 
     'hosts' => [
         'local' => [
-            'name' => ucfirst(env('APP_ENV', 'local')),
+            'name' => ucfirst((string) env('APP_ENV', 'local')),
         ],
 
         // 'staging' => [

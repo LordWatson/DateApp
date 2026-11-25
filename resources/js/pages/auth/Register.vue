@@ -4,10 +4,11 @@ import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { login } from '@/routes';
+import { login, privacy, terms } from '@/routes';
 import { store } from '@/routes/register';
 
 defineProps<{
@@ -25,7 +26,20 @@ defineOptions({
 <template>
     <Head title="Register" />
 
+    <div
+        v-if="!$page.props.registrationOpen"
+        class="space-y-4 text-center"
+        role="status"
+    >
+        <p class="text-sm leading-relaxed text-muted-foreground">
+            Registration is closed at the moment. If you already have an account
+            you can still log in.
+        </p>
+        <TextLink :href="login()">Log in</TextLink>
+    </div>
+
     <Form
+        v-else
         v-bind="store.form()"
         :reset-on-success="['password', 'password_confirmation']"
         v-slot="{ errors, processing }"
@@ -89,11 +103,32 @@ defineOptions({
                 <InputError :message="errors.password_confirmation" />
             </div>
 
+            <div class="grid gap-2">
+                <Label
+                    for="terms"
+                    class="flex items-start gap-3 leading-snug font-normal text-muted-foreground"
+                >
+                    <Checkbox
+                        id="terms"
+                        name="terms"
+                        required
+                        :tabindex="5"
+                        class="mt-0.5"
+                    />
+                    <span>
+                        I agree to the
+                        <TextLink :href="terms()">Terms</TextLink> and
+                        <TextLink :href="privacy()">Privacy Policy</TextLink>
+                    </span>
+                </Label>
+                <InputError :message="errors.terms" />
+            </div>
+
             <Button
                 type="submit"
                 size="lg"
                 class="mt-1 w-full"
-                tabindex="5"
+                tabindex="6"
                 :disabled="processing"
                 data-test="register-user-button"
             >
@@ -106,7 +141,7 @@ defineOptions({
 
         <div class="text-center text-sm text-muted-foreground">
             Already have an account?
-            <TextLink :href="login()" :tabindex="6">Log in</TextLink>
+            <TextLink :href="login()" :tabindex="7">Log in</TextLink>
         </div>
     </Form>
 </template>

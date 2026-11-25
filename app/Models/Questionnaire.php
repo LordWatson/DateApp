@@ -77,11 +77,13 @@ class Questionnaire extends Model
         return $this->is_solo && ! $this->partner_optional;
     }
 
+    /** @return HasMany<Question, $this> */
     public function questions(): HasMany
     {
         return $this->hasMany(Question::class)->orderBy('display_order');
     }
 
+    /** @return HasMany<Response, $this> */
     public function responses(): HasMany
     {
         return $this->hasMany(Response::class);

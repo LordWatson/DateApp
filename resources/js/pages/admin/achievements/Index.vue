@@ -2,11 +2,11 @@
 import { router, useForm } from '@inertiajs/vue3';
 import { Plus, X } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -78,7 +78,7 @@ const startEdit = (a: {
 };
 
 const saveEdit = () => {
-    editForm.put(route('admin.achievements.update', editingId.value!), {
+    editForm.put(admin.achievements.update(editingId.value!).url, {
         onSuccess: () => {
             editingId.value = null;
         },
@@ -86,7 +86,7 @@ const saveEdit = () => {
 };
 
 const doCreate = () => {
-    createForm.post(route('admin.achievements.store'), {
+    createForm.post(admin.achievements.store().url, {
         onSuccess: () => {
             showCreate.value = false;
             createForm.reset();
@@ -95,7 +95,7 @@ const doCreate = () => {
 };
 
 const doDelete = (id: number) => {
-    router.delete(route('admin.achievements.destroy', id), {
+    router.delete(admin.achievements.destroy(id).url, {
         onSuccess: () => {
             confirmDelete.value = null;
         },

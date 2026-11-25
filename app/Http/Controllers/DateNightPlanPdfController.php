@@ -3,25 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\DateNightPlan;
-use App\Models\Response;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\View;
 
 class DateNightPlanPdfController extends Controller
 {
-    public function export(Request $request, DateNightPlan $dateNightPlan): \Illuminate\Http\Response
+    public function export(Request $request, DateNightPlan $dateNightPlan): Response
     {
-        $user = $request->user();
-
-        $responseIds = Response::where('user_id', $user->id)->pluck('id');
-
-        $isParticipant = $responseIds->contains($dateNightPlan->partner_one_response_id)
-            || $responseIds->contains($dateNightPlan->partner_two_response_id)
-            || $dateNightPlan->partner_user_id === $user->id;
-
-        if (! $isParticipant) {
-            abort(403);
-        }
+        $this->authorize('view', $dateNightPlan);
 
         $dateNightPlan->loadMissing([
             'partnerOneResponse.user',

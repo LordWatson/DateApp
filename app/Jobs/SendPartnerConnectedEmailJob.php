@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\NotificationCategory;
 use App\Mail\PartnerConnectedMail;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
@@ -29,7 +30,7 @@ final class SendPartnerConnectedEmailJob implements ShouldQueue
 
     public function handle(): void
     {
-        if (! $this->user->email_notifications) {
+        if (! $this->user->wantsEmail(NotificationCategory::PartnerActivity)) {
             return;
         }
 

@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
+import LegalLinks from '@/components/LegalLinks.vue';
 import { home } from '@/routes';
 
 defineProps<{
@@ -57,6 +58,8 @@ defineProps<{
             <div class="mt-8 card-premium p-6 sm:p-8">
                 <slot />
             </div>
+
+            <LegalLinks class="mt-6" />
         </div>
     </div>
 </template>

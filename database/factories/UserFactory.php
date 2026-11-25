@@ -40,7 +40,21 @@ class UserFactory extends Factory
             'push_notifications' => true,
             'dark_mode' => false,
             'onboarding_completed' => true,
+            'terms_accepted_at' => now(),
+            // Agreed by default so tests of AI features need no setup; real sign-ups start unasked.
+            'ai_consent_at' => now(),
+            'ai_consent_declined_at' => null,
         ];
+    }
+
+    /**
+     * A user who has not been asked about AI processing yet.
+     */
+    public function withoutAiConsent(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'ai_consent_at' => null,
+        ]);
     }
 
     public function unverified(): static

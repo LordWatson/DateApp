@@ -31,6 +31,24 @@ class DateNightGeneratorService
         'romantic_challenge',
     ];
 
+    /**
+     * Date-out plans by the first context flag that applies: title, emoji, meal, activity.
+     * `%s` becomes " near {location}" or nothing.
+     *
+     * @var array<string, array{0: string, 1: string, 2: string, 3: string}>
+     */
+    private const DATE_OUT_STYLES = [
+        'prefers_food' => ['Dinner Out', '🍽️', 'Book a table somewhere you have wanted to try%s and order a few plates to share', 'Walk off dinner with a wander%s and stop for dessert or a drink on the way'],
+        'prefers_music' => ['Live Music Night', '🎶', 'Grab a quick bite close to the venue before the doors open', 'Find some live music or a show%s and stay for the whole set'],
+        'prefers_outdoors' => ['Open Air Date', '🌿', 'Pick up street food or a takeaway picnic and eat it outside', 'Take a scenic walk%s and stop wherever catches your eye'],
+        'prefers_adventure' => ['Something New', '🎢', 'Keep food simple: something quick and local between stops', 'Try something you have not done before%s, such as mini golf, bowling or an escape room'],
+        'prefers_movies' => ['Cinema Date', '🎬', 'Dinner before the film, or snacks in the foyer if time is short', 'See a film at a cinema%s and talk it over afterwards'],
+        'prefers_games' => ['Playful Date Out', '🎲', 'Share small plates somewhere casual so the games can carry on', 'Find a board game café or an arcade%s and keep score'],
+        'prefers_relaxing' => ['Slow Date Out', '☕', 'A long, unhurried lunch or coffee and cake somewhere quiet', 'Settle into a quiet café or bar%s and let the time go'],
+    ];
+
+    private const DATE_OUT_DEFAULT = ['A Date Out', '🗺️', 'Find a relaxed local spot%s for a bite and a drink', 'Explore somewhere%s you do not usually go'];
+
     public function __construct(
         private readonly RuleEngineService $ruleEngine,
         private readonly AIService $ai,
@@ -54,8 +72,8 @@ class DateNightGeneratorService
         $usesLocation = $isSolo || $questionnaire->is_solo;
         $secondResponse = $partnerTwoResponse ?? $partnerOneResponse;
 
-        $userAnswers = $partnerOneResponse->answers()->with('questionOption')->get();
-        $partnerAnswers = $secondResponse->answers()->with('questionOption')->get();
+        $userAnswers = $partnerOneResponse->answers()->with(['question', 'questionOption'])->get();
+        $partnerAnswers = $secondResponse->answers()->with(['question', 'questionOption'])->get();
         $score = $compatibility['percentage'];
 
         $themes = DateNightTheme::active()->get();
@@ -65,8 +83,10 @@ class DateNightGeneratorService
 
         $context = $this->ruleEngine->deriveContext($userAnswers, $partnerAnswers, $score);
 
+        $locationLabel = $usesLocation ? ($partnerOneResponse->location_label ?? $secondResponse->location_label) : null;
+
         // 1. Deterministic plan (authoritative).
-        $deterministicPlan = $this->buildPlan($theme, $context, $score, $questionnaire);
+        $deterministicPlan = $this->buildPlan($theme, $context, $score, $questionnaire, $isSolo, $locationLabel);
 
         // 2. Optional AI enhancement (wording only + optional local suggestions).
         [$plan, $aiEnhanced, $fallbackUsed, $localSuggestions] = $this->enhanceWithAI(
@@ -86,11 +106,11 @@ class DateNightGeneratorService
             'questionnaire_id' => $questionnaire->id,
             'partner_one_response_id' => $partnerOneResponse->id,
             'partner_two_response_id' => $secondResponse->id,
-            'date_night_theme_id' => $theme instanceof DateNightTheme ? $theme->id : null,
+            'date_night_theme_id' => $theme->id,
             'partner_user_id' => $isSolo ? $soloPartner?->id : null,
             'compatibility_score' => $score,
             'is_solo' => $isSolo,
-            'location_label' => $usesLocation ? ($partnerOneResponse->location_label ?? $secondResponse->location_label) : null,
+            'location_label' => $locationLabel,
             'local_suggestions' => $localSuggestions,
             'theme' => $plan['theme'],
             'theme_emoji' => $plan['theme_emoji'],
@@ -103,6 +123,47 @@ class DateNightGeneratorService
             'ai_enhanced' => $aiEnhanced,
             'fallback_used' => $fallbackUsed,
         ]);
+    }
+
+    /**
+     * Run the AI enhancement again for a plan that fell back to the rule-based
+     * wording, and update it in place. The stored wording is the deterministic
+     * plan, so it is what the AI is asked to improve.
+     *
+     * With a steer ("cheaper", "stay in") the AI is asked to change the stored
+     * plan in that direction instead.
+     *
+     * @param  array<string, mixed>  $compatibility
+     * @return bool False when the AI failed again; the plan is then left untouched.
+     */
+    public function retryEnhancement(DateNightPlan $plan, array $compatibility, ?string $steer = null): bool
+    {
+        $plan->loadMissing(['questionnaire', 'partnerOneResponse', 'partnerTwoResponse']);
+
+        $deterministicPlan = $plan->only([...self::ENHANCEABLE_FIELDS, 'theme_emoji']);
+
+        [$enhanced, $aiEnhanced, $fallbackUsed, $localSuggestions] = $this->enhanceWithAI(
+            $deterministicPlan,
+            $compatibility,
+            $plan->questionnaire,
+            $plan->partnerOneResponse,
+            $plan->is_solo ? null : $plan->partnerTwoResponse,
+            $plan->is_solo || $plan->questionnaire->is_solo,
+            $steer,
+        );
+
+        if ($fallbackUsed) {
+            return false;
+        }
+
+        $plan->update([
+            ...$this->validateEnhancement($deterministicPlan, $enhanced),
+            'local_suggestions' => $localSuggestions ?? $plan->local_suggestions,
+            'ai_enhanced' => $aiEnhanced,
+            'fallback_used' => false,
+        ]);
+
+        return true;
     }
 
     /**
@@ -124,6 +185,7 @@ class DateNightGeneratorService
         Response $primaryResponse,
         ?Response $partnerResponse,
         bool $usesLocation,
+        ?string $steer = null,
     ): array {
         $isSolo = $partnerResponse === null;
         $location = $usesLocation ? $this->buildLocationContext($primaryResponse, $partnerResponse) : null;
@@ -137,6 +199,11 @@ class DateNightGeneratorService
             location: $location,
         );
 
+        if ($steer !== null) {
+            // The prompt reads everything from `context`, so the steer has to live inside it.
+            $context['requested_change'] = $steer;
+        }
+
         $aiPayload = [
             'context' => $context,
             'plan' => $plan,
@@ -147,11 +214,14 @@ class DateNightGeneratorService
             'enhanceable_fields' => self::ENHANCEABLE_FIELDS,
         ];
 
+        // Whoever's answers are in the prompt: both partners for a couple plan.
+        $people = array_values(array_filter([$primaryResponse->user, $partnerResponse?->user]));
+
         try {
             $response = match (true) {
-                $isSolo => $this->ai->generateDateNightPlanSolo($aiPayload),
-                $usesLocation => $this->ai->generate(AIUseCase::DateNightPlanOutCouple, $aiPayload),
-                default => $this->ai->generateDateNightPlan($aiPayload),
+                $isSolo => $this->ai->generateDateNightPlanSolo($aiPayload, $people),
+                $usesLocation => $this->ai->generate(AIUseCase::DateNightPlanOutCouple, $aiPayload, $people),
+                default => $this->ai->generateDateNightPlan($aiPayload, $people),
             };
         } catch (Throwable $e) {
             $this->logger->warning('AI enhancement threw; falling back to deterministic plan.', [
@@ -273,10 +343,10 @@ class DateNightGeneratorService
             $formatted[] = [
                 'question' => $question->title,
                 'question_description' => $question->description,
-                'type' => $question->type?->value,
-                'answer' => $option?->title ?? $answer->value,
+                'type' => $question->type->value,
+                'answer' => $option->title ?? $answer->value,
                 'answer_description' => $option?->description,
-                'answer_value' => $option?->value ?? $answer->value,
+                'answer_value' => $option->value ?? $answer->value,
             ];
         }
 
@@ -388,6 +458,9 @@ class DateNightGeneratorService
     }
 
     /**
+     * A date-out questionnaire (`is_solo`) gets an out-of-the-house plan;
+     * everything else gets the evening-in plan.
+     *
      * @param  array<string, mixed>  $context
      * @return array<string, string|null>
      */
@@ -396,11 +469,17 @@ class DateNightGeneratorService
         array $context,
         int $score,
         Questionnaire $questionnaire,
+        bool $isSolo = false,
+        ?string $locationLabel = null,
     ): array {
+        if ($questionnaire->is_solo) {
+            return $this->buildDateOutPlan($context, $score, $isSolo, $locationLabel);
+        }
+
         return [
             'theme' => $theme->name,
             'theme_emoji' => $theme->emoji,
-            'summary' => $this->buildSummary($theme, $score),
+            'summary' => $this->buildSummary($theme, $score, $isSolo),
             'meal_suggestion' => $this->selectMeal($context),
             'atmosphere' => $this->selectAtmosphere($context),
             'activity' => $this->selectActivity($context),
@@ -409,17 +488,62 @@ class DateNightGeneratorService
         ];
     }
 
-    private function buildSummary(DateNightTheme $theme, int $score): string
+    /**
+     * The home themes ("Cozy Night In") make no sense for a date out, so the
+     * title and emoji come from the date-out style instead of the theme.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array<string, string|null>
+     */
+    private function buildDateOutPlan(array $context, int $score, bool $isSolo, ?string $locationLabel): array
     {
-        $scoreLabel = match (true) {
+        $flag = array_find(array_keys(self::DATE_OUT_STYLES), fn (string $flag): bool => (bool) ($context[$flag] ?? false));
+        [$title, $emoji, $meal, $activity] = $flag === null ? self::DATE_OUT_DEFAULT : self::DATE_OUT_STYLES[$flag];
+
+        $near = $locationLabel !== null && trim($locationLabel) !== '' ? " near {$locationLabel}" : '';
+        $kind = $isSolo ? 'a' : $this->scoreLabel($score);
+        $who = $isSolo ? 'you' : 'you both';
+
+        return [
+            'theme' => $title,
+            'theme_emoji' => $emoji,
+            'summary' => "Based on your answers, we've planned {$kind} date out for {$who}{$near}. "
+                .'Treat everything below as a starting point and swap in places you already love.',
+            'meal_suggestion' => sprintf($meal, $near),
+            'atmosphere' => match (true) {
+                $context['romance_high'] => 'Dress up a little and pick places with low lighting and room to talk',
+                $context['prefers_relaxing'] => 'Unhurried: one or two stops, with time to linger',
+                $context['prefers_adventure'] => 'Lively and spontaneous: say yes to whatever looks fun',
+                default => 'Easy-going, with phones away and no fixed schedule',
+            },
+            'activity' => sprintf($activity, $near),
+            'conversation_prompt' => $this->selectConversationPrompt($score),
+            'romantic_challenge' => match (true) {
+                $context['romance_high'] => 'Raise a toast and say one thing you love about the day',
+                $isSolo => 'Take one photo to remember the date by',
+                default => 'Each choose one stop the other does not know about',
+            },
+        ];
+    }
+
+    private function scoreLabel(int $score): string
+    {
+        return match (true) {
             $score >= 85 => 'an incredibly well-matched',
             $score >= 70 => 'a beautifully compatible',
             $score >= 55 => 'a wonderfully balanced',
             $score >= 40 => 'a thoughtfully curated',
             default => 'a uniquely personal',
         };
+    }
 
-        return "Based on your answers, we've crafted {$scoreLabel} evening for you both. "
+    private function buildSummary(DateNightTheme $theme, int $score, bool $isSolo = false): string
+    {
+        // One person answered, so there is no match to describe.
+        $kind = $isSolo ? 'a thoughtfully curated' : $this->scoreLabel($score);
+        $who = $isSolo ? 'you' : 'you both';
+
+        return "Based on your answers, we've crafted {$kind} evening for {$who}. "
             ."Tonight's theme is {$theme->emoji} {$theme->name} — {$theme->description}";
     }
 

@@ -12,6 +12,7 @@ class SendInvitationRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
@@ -24,6 +25,10 @@ class SendInvitationRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             if ($this->input('email') === $this->user()->email) {
                 $validator->errors()->add('email', 'You cannot invite yourself.');
+            }
+
+            if ($this->user()->partner_id !== null) {
+                $validator->errors()->add('email', 'You are already connected to a partner. Disconnect first to invite someone else.');
             }
         });
     }

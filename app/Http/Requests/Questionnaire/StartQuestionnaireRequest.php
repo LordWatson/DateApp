@@ -23,7 +23,7 @@ class StartQuestionnaireRequest extends FormRequest
                 'nullable',
                 'in:solo,couple',
                 function (string $attribute, mixed $value, Closure $fail): void {
-                    if ($value === 'couple' && $this->user()->partner_id === null) {
+                    if ($value === 'couple' && $this->user()->activePartner() === null) {
                         $fail('Connect with your partner before planning together.');
                     }
                 },

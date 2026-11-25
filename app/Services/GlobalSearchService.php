@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\QuestionnaireStatus;
 use App\Models\Achievement;
+use App\Models\CalendarEvent;
 use App\Models\DateNightPlan;
 use App\Models\LoveNote;
+use App\Models\Moment;
 use App\Models\Questionnaire;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -23,7 +26,7 @@ final class GlobalSearchService
     private const MIN_QUERY_LENGTH = 2;
 
     /**
-     * @return array<string, Collection<int, array<string, mixed>>>
+     * @return array<string, Collection<int, array{id: int, title: string, description: string, emoji: string, url: string}>|Collection<int, array{id: int, title: string, description: string|null, emoji: string, url: string}>|Collection<int, array{id: int, title: string, description: null, emoji: string, url: string}>>
      */
     public function search(User $user, string $query): array
     {
@@ -45,7 +48,7 @@ final class GlobalSearchService
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>|null
+     * @return Collection<int, array{id: int, title: string, description: string, emoji: string, url: string}>|null
      */
     private function plans(User $user, string $query): ?Collection
     {
@@ -53,6 +56,7 @@ final class GlobalSearchService
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
         })
+            ->notHiddenFor($user)
             ->where(fn ($q) => $q->where('theme', 'like', "%{$query}%")->orWhere('summary', 'like', "%{$query}%"))
             ->limit(self::PER_TYPE_LIMIT)
             ->get();
@@ -71,11 +75,11 @@ final class GlobalSearchService
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>|null
+     * @return Collection<int, array{id: int, title: string, description: string|null, emoji: string, url: string}>|null
      */
     private function moments(User $user, string $query): ?Collection
     {
-        $moments = $user->moments()
+        $moments = Moment::whereIn('user_id', $this->coupleIds($user))
             ->where(fn ($q) => $q->where('title', 'like', "%{$query}%")->orWhere('description', 'like', "%{$query}%"))
             ->limit(self::PER_TYPE_LIMIT)
             ->get();
@@ -89,16 +93,16 @@ final class GlobalSearchService
             'title' => $m->title,
             'description' => $m->description,
             'emoji' => '📖',
-            'url' => route('moments.index'),
+            'url' => route('moments.show', $m),
         ]);
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>|null
+     * @return Collection<int, array{id: int, title: string, description: string, emoji: string, url: string}>|null
      */
     private function loveNotes(User $user, string $query): ?Collection
     {
-        $notes = LoveNote::where(fn ($q) => $q->where('sender_id', $user->id)->orWhere('recipient_id', $user->id))
+        $notes = LoveNote::visibleTo($user)
             ->where('message', 'like', "%{$query}%")
             ->limit(self::PER_TYPE_LIMIT)
             ->get();
@@ -112,16 +116,16 @@ final class GlobalSearchService
             'title' => 'Love Note',
             'description' => $n->message,
             'emoji' => '💌',
-            'url' => route('love-notes.index'),
+            'url' => route('love-notes.show', $n),
         ]);
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>|null
+     * @return Collection<int, array{id: int, title: string, description: string|null, emoji: string, url: string}>|null
      */
     private function questionnaires(string $query): ?Collection
     {
-        $questionnaires = Questionnaire::where('status', 'published')
+        $questionnaires = Questionnaire::where('status', QuestionnaireStatus::Active)
             ->where(fn ($q) => $q->where('title', 'like', "%{$query}%")->orWhere('description', 'like', "%{$query}%"))
             ->limit(self::PER_TYPE_LIMIT)
             ->get();
@@ -140,7 +144,7 @@ final class GlobalSearchService
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>|null
+     * @return Collection<int, array{id: int, title: string, description: null, emoji: string, url: string}>|null
      */
     private function savedProfiles(User $user, string $query): ?Collection
     {
@@ -163,11 +167,11 @@ final class GlobalSearchService
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>|null
+     * @return Collection<int, array{id: int, title: string, description: string|null, emoji: string, url: string}>|null
      */
     private function calendarEvents(User $user, string $query): ?Collection
     {
-        $events = $user->calendarEvents()
+        $events = CalendarEvent::whereIn('user_id', $this->coupleIds($user))
             ->where(fn ($q) => $q->where('title', 'like', "%{$query}%")->orWhere('description', 'like', "%{$query}%"))
             ->limit(self::PER_TYPE_LIMIT)
             ->get();
@@ -181,12 +185,12 @@ final class GlobalSearchService
             'title' => $e->title,
             'description' => $e->description,
             'emoji' => $e->emoji ?? '📅',
-            'url' => route('calendar.index'),
+            'url' => route('calendar.show', $e),
         ]);
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>|null
+     * @return Collection<int, array{id: int, title: string, description: string, emoji: string, url: string}>|null
      */
     private function achievements(string $query): ?Collection
     {
@@ -206,5 +210,15 @@ final class GlobalSearchService
             'emoji' => $a->emoji,
             'url' => route('achievements.index'),
         ]);
+    }
+
+    /**
+     * The user and their partner: moments and calendar events are shared between the two.
+     *
+     * @return list<int>
+     */
+    private function coupleIds(User $user): array
+    {
+        return array_values(array_filter([$user->id, $user->partner_id]));
     }
 }

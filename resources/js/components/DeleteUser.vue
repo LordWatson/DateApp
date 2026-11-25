@@ -34,15 +34,20 @@ const passwordInput = useTemplateRef('passwordInput');
             <Heading
                 variant="small"
                 title="Delete account"
-                description="Delete your account and all of its resources"
+                description="Permanently delete your account and everything in it"
             />
         </div>
 
         <p
             class="rounded-2xl bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive"
         >
-            <span class="font-medium">Warning.</span>
-            Please proceed with caution, this cannot be undone.
+            <span class="font-medium">This cannot be undone.</span>
+            Your answers, moments, calendar events and love notes are deleted.
+            If you only want to stop sharing, you can pause or end your
+            connection on the Partner page and keep your account. If you have a
+            partner, they are disconnected and told, they keep the date nights
+            you planned together, and the love notes between you are removed for
+            both of you.
         </p>
 
         <Dialog>
@@ -68,10 +73,10 @@ const passwordInput = useTemplateRef('passwordInput');
                             account?</DialogTitle
                         >
                         <DialogDescription>
-                            Once your account is deleted, all of its resources
-                            and data will also be permanently deleted. Please
-                            enter your password to confirm you would like to
-                            permanently delete your account.
+                            Everything in your account is permanently deleted,
+                            including the love notes between you and your
+                            partner. Your partner keeps the date nights you
+                            planned together. Enter your password to confirm.
                         </DialogDescription>
                     </DialogHeader>
 

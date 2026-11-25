@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -31,7 +31,7 @@ const action = ref('');
 
 const applyFilters = () => {
     router.get(
-        route('admin.audit-logs.index'),
+        admin.auditLogs.index().url,
         { search: search.value, action: action.value },
         { preserveState: true },
     );

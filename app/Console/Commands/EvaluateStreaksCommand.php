@@ -15,10 +15,13 @@ final class EvaluateStreaksCommand extends Command
 
     public function handle(UpdateStreakAction $action): int
     {
+        // A streak is broken once a whole day has passed, in the user's own timezone,
+        // without a completion. Anything done in the last 24 hours cannot be broken yet.
         $broken = User::whereNotNull('last_completed_questionnaire_at')
             ->where('current_streak', '>', 0)
-            ->where('last_completed_questionnaire_at', '<', now()->subDays(1)->startOfDay())
-            ->get();
+            ->where('last_completed_questionnaire_at', '<', now()->subDay())
+            ->get()
+            ->filter(fn (User $user): bool => $user->last_completed_questionnaire_at->lt($user->today()->subDay()));
 
         foreach ($broken as $user) {
             $user->update(['current_streak' => 0]);

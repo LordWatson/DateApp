@@ -15,8 +15,8 @@ final class NotifyOnAchievementUnlocked implements ShouldQueue
     {
         AppNotification::create([
             'user_id' => $event->user->id,
-            'type' => NotificationType::PartnerCompleted,
-            'title' => "🏆 Achievement unlocked: {$event->achievement->title}!",
+            'type' => NotificationType::AchievementUnlocked,
+            'title' => "Achievement unlocked: {$event->achievement->name}",
             'body' => $event->achievement->description,
             'data' => ['achievement_id' => $event->achievement->id],
         ]);

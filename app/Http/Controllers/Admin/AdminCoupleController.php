@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
 use App\Services\AdminAuditService;
+use App\Services\PartnerInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,10 @@ use Inertia\Response;
 
 class AdminCoupleController extends AdminController
 {
-    public function __construct(private readonly AdminAuditService $audit) {}
+    public function __construct(
+        private readonly AdminAuditService $audit,
+        private readonly PartnerInvitationService $partners,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -40,10 +44,7 @@ class AdminCoupleController extends AdminController
 
     public function disconnect(User $user): RedirectResponse
     {
-        $partner = $user->partner;
-
-        $user->update(['partner_id' => null]);
-        $partner?->update(['partner_id' => null]);
+        $this->partners->disconnectPartner($user);
 
         $this->audit->logModel('couple.disconnected', $user);
 
@@ -57,11 +58,11 @@ class AdminCoupleController extends AdminController
             'partner_id' => ['required', 'exists:users,id', 'different:user_id'],
         ]);
 
-        $user = User::findOrFail($validated['user_id']);
-        $partner = User::findOrFail($validated['partner_id']);
+        $user = User::whereKey($validated['user_id'])->firstOrFail();
+        $partner = User::whereKey($validated['partner_id'])->firstOrFail();
 
-        $user->update(['partner_id' => $partner->id]);
-        $partner->update(['partner_id' => $user->id]);
+        $user->update(['partner_id' => $partner->id, 'connected_at' => now()]);
+        $partner->update(['partner_id' => $user->id, 'connected_at' => now()]);
 
         $this->audit->log('couple.reconnected', User::class, $user->id, null, [
             'user_id' => $user->id,

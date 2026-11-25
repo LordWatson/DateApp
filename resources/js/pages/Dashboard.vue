@@ -3,8 +3,11 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ArrowRight, ChevronRight, Clock, UserPlus } from '@lucide/vue';
 import { computed } from 'vue';
 import PartnerController from '@/actions/App/Http/Controllers/PartnerController';
+import AiConsentCard from '@/components/AiConsentCard.vue';
 import ChallengeCard from '@/components/ChallengeCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import OnThisDayCard from '@/components/OnThisDayCard.vue';
+import type { OnThisDayItem } from '@/components/OnThisDayCard.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import StatCard from '@/components/StatCard.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
@@ -20,7 +23,8 @@ interface Partner {
 }
 
 interface PendingInvitation {
-    email: string;
+    /** Null for an invitation shared as a link. */
+    email: string | null;
     expires_at: string;
 }
 
@@ -36,6 +40,10 @@ interface TodayChallenge {
     description?: string;
     emoji: string;
     difficulty: string;
+    completed_by_me: boolean;
+    completed_by_partner: boolean | null;
+    couple_streak: number | null;
+    longest_couple_streak: number | null;
 }
 
 interface SavedProfile {
@@ -64,10 +72,12 @@ interface RecentDateNight {
 
 interface Props {
     partner: Partner | null;
+    connectionPaused: boolean;
     pendingInvitation: PendingInvitation | null;
     stats: Stats;
     todayChallenge: TodayChallenge | null;
     savedProfiles: SavedProfile[];
+    onThisDay: OnThisDayItem[];
     recentQuestionnaires: RecentQuestionnaire[];
     recentDateNights: RecentDateNight[];
 }
@@ -144,9 +154,11 @@ function invitePartner(): void {
                         partner?.avatar || '💕'
                     }}</span>
                     <span class="truncate"
-                        >With {{ partner?.display_name ?? partner?.name }}</span
+                        >{{ connectionPaused ? 'Paused with' : 'With' }}
+                        {{ partner?.display_name ?? partner?.name }}</span
                     >
                     <span
+                        v-if="!connectionPaused"
                         class="size-1.5 shrink-0 rounded-full bg-success"
                         aria-hidden="true"
                     />
@@ -176,6 +188,9 @@ function invitePartner(): void {
             </Link>
         </section>
 
+        <!-- Asked once; afterwards the answer lives in Settings -->
+        <AiConsentCard v-if="user.ai_consent == null" />
+
         <!-- Stats -->
         <section class="grid grid-cols-3 gap-3" aria-label="Your streaks">
             <StatCard
@@ -203,7 +218,11 @@ function invitePartner(): void {
             :title="todayChallenge.title"
             :description="todayChallenge.description ?? ''"
             :emoji="todayChallenge.emoji"
-            :category="todayChallenge.difficulty"
+            :difficulty="todayChallenge.difficulty"
+            :completed-by-me="todayChallenge.completed_by_me"
+            :completed-by-partner="todayChallenge.completed_by_partner"
+            :couple-streak="todayChallenge.couple_streak"
+            :partner-name="partner?.display_name ?? partner?.name"
         />
         <div v-else class="card-premium">
             <EmptyState
@@ -212,6 +231,8 @@ function invitePartner(): void {
                 description="Check back soon for your daily romantic challenge."
             />
         </div>
+
+        <OnThisDayCard :items="onThisDay" />
 
         <!-- Love notes -->
         <Link
@@ -298,13 +319,18 @@ function invitePartner(): void {
 
         <!-- Saved profiles -->
         <section v-if="savedProfiles.length > 0" class="space-y-3">
-            <SectionHeader title="Saved profiles" />
+            <SectionHeader
+                title="Saved profiles"
+                action-label="Manage"
+                action-href="/saved-profiles"
+            />
 
             <div class="card-premium p-2">
-                <div
+                <Link
                     v-for="profile in savedProfiles"
                     :key="profile.id"
-                    class="flex items-center gap-3.5 p-3"
+                    href="/saved-profiles"
+                    class="list-row"
                 >
                     <span
                         class="icon-tile h-11 w-11 text-xl"
@@ -314,10 +340,15 @@ function invitePartner(): void {
                         aria-hidden="true"
                         >{{ profile.emoji }}</span
                     >
-                    <span class="font-medium text-foreground">{{
-                        profile.name
-                    }}</span>
-                </div>
+                    <span
+                        class="min-w-0 flex-1 truncate font-medium text-foreground"
+                        >{{ profile.name }}</span
+                    >
+                    <ChevronRight
+                        class="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </Link>
             </div>
         </section>
     </div>

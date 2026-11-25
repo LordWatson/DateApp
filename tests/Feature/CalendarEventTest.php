@@ -92,4 +92,21 @@ class CalendarEventTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_event_type_must_be_a_known_type(): void
+    {
+        $this->actingAs($this->user)
+            ->post(route('calendar.store'), ['title' => 'Trip', 'type' => 'road_trip', 'date' => '2026-08-01'])
+            ->assertSessionHasErrors('type');
+
+        $this->assertDatabaseCount('calendar_events', 0);
+    }
+
+    public function test_calendar_page_lists_every_event_type(): void
+    {
+        $this->actingAs($this->user)->get(route('calendar.index'))->assertInertia(fn ($page) => $page
+            ->has('eventTypes', 8)
+            ->where('eventTypes.0', ['value' => 'date_night', 'label' => 'Date Night', 'emoji' => '💕'])
+        );
+    }
 }

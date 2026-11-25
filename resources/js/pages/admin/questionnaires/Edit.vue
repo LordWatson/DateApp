@@ -1,38 +1,35 @@
 <script setup lang="ts">
 import { Link, router, useForm } from '@inertiajs/vue3';
-import { Plus, X, ChevronLeft } from '@lucide/vue';
+import {
+    ArrowDown,
+    ArrowUp,
+    ChevronLeft,
+    Copy,
+    Pencil,
+    Plus,
+    Trash2,
+} from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
+import OptionForm from '@/components/admin/OptionForm.vue';
+import type { EditableOption } from '@/components/admin/OptionForm.vue';
+import QuestionForm from '@/components/admin/QuestionForm.vue';
+import type { EditableQuestion } from '@/components/admin/QuestionForm.vue';
+import QuestionnaireModeFields from '@/components/admin/QuestionnaireModeFields.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
-interface QuestionOption {
-    id: number;
-    title: string;
-    description: string | null;
-    emoji: string | null;
-    value: string;
-    display_order: number;
-}
-
-interface Question {
-    id: number;
-    title: string;
-    description: string | null;
-    emoji: string | null;
-    type: string;
-    display_order: number;
-    required: boolean;
-    min_value: number | null;
-    max_value: number | null;
-    options: QuestionOption[];
+interface Question extends EditableQuestion {
+    options: EditableOption[];
 }
 
 interface Questionnaire {
     id: number;
     title: string;
+    slug: string;
     description: string | null;
     emoji: string | null;
     status: string;
@@ -40,12 +37,18 @@ interface Questionnaire {
     estimated_minutes: number | null;
     display_order: number;
     is_seasonal: boolean;
+    is_solo: boolean;
+    is_intimacy: boolean;
+    partner_optional: boolean;
     active_from: string | null;
     active_until: string | null;
     questions: Question[];
 }
 
-const props = defineProps<{ questionnaire: Questionnaire }>();
+const props = defineProps<{
+    questionnaire: Questionnaire;
+    signalOptions: string[];
+}>();
 
 const form = useForm({
     title: props.questionnaire.title,
@@ -55,74 +58,84 @@ const form = useForm({
     visibility: props.questionnaire.visibility,
     estimated_minutes: props.questionnaire.estimated_minutes,
     display_order: props.questionnaire.display_order,
+    is_solo: props.questionnaire.is_solo,
+    partner_optional: props.questionnaire.partner_optional,
+    is_intimacy: props.questionnaire.is_intimacy,
     is_seasonal: props.questionnaire.is_seasonal,
-    active_from: props.questionnaire.active_from ?? '',
-    active_until: props.questionnaire.active_until ?? '',
+    // The server sends a full timestamp; a date input wants YYYY-MM-DD.
+    active_from: props.questionnaire.active_from?.slice(0, 10) ?? '',
+    active_until: props.questionnaire.active_until?.slice(0, 10) ?? '',
 });
 
 const save = () => {
-    form.put(route('admin.questionnaires.update', props.questionnaire.id));
-};
-
-// New question form
-const showNewQuestion = ref(false);
-const newQuestion = useForm({
-    title: '',
-    description: '',
-    emoji: '',
-    type: 'single_choice',
-    display_order: props.questionnaire.questions.length,
-    required: true,
-    min_value: null as number | null,
-    max_value: null as number | null,
-});
-
-const addQuestion = () => {
-    newQuestion.post(route('admin.questions.store', props.questionnaire.id), {
-        onSuccess: () => {
-            showNewQuestion.value = false;
-            newQuestion.reset();
-        },
+    form.put(admin.questionnaires.update(props.questionnaire.id).url, {
+        preserveScroll: true,
     });
 };
 
-const deleteQuestion = (questionId: number) => {
-    router.delete(route('admin.questions.destroy', questionId));
-};
+// One inline form open at a time: 'new', or the id being edited.
+const questionForm = ref<number | 'new' | null>(null);
+const optionForm = ref<{ question: number; option: number | 'new' } | null>(
+    null,
+);
 
-// New option form
-const showNewOption = ref<number | null>(null);
-const newOption = useForm({
-    title: '',
-    description: '',
-    emoji: '',
-    value: '',
-    display_order: 0,
-});
+const hasOptions = (question: Question) =>
+    ['single_choice', 'multiple_choice'].includes(question.type);
 
-const addOption = (questionId: number) => {
-    newOption.post(route('admin.options.store', questionId), {
-        onSuccess: () => {
-            showNewOption.value = null;
-            newOption.reset();
-        },
-    });
-};
+/** Swaps an item with its neighbour and saves the whole list's order. */
+const move = (
+    type: 'questions' | 'options',
+    items: Array<{ id: number }>,
+    index: number,
+    delta: -1 | 1,
+) => {
+    const target = index + delta;
 
-const deleteOption = (optionId: number) => {
-    router.delete(route('admin.options.destroy', optionId));
+    if (target < 0 || target >= items.length) {
+        return;
+    }
+
+    const ids = items.map((item) => item.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+
+    router.post(
+        admin.questionnaires.reorder().url,
+        { type, order: ids.map((id, i) => ({ id, display_order: i })) },
+        { preserveScroll: true },
+    );
 };
 
 const duplicateOption = (optionId: number) => {
-    router.post(route('admin.options.duplicate', optionId));
+    router.post(
+        admin.options.duplicate(optionId).url,
+        {},
+        { preserveScroll: true },
+    );
 };
+
+const pendingDelete = ref<{ label: string; url: string } | null>(null);
+const deleteOpen = ref(false);
+
+const askDelete = (label: string, url: string) => {
+    pendingDelete.value = { label, url };
+    deleteOpen.value = true;
+};
+
+const confirmDelete = () => {
+    if (pendingDelete.value) {
+        router.delete(pendingDelete.value.url, { preserveScroll: true });
+    }
+};
+
+const iconButton =
+    'flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-30';
 </script>
 
 <template>
     <div>
         <div class="mb-6 flex items-center gap-4">
             <Link
-                :href="route('admin.questionnaires.index')"
+                :href="admin.questionnaires.index().url"
                 class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                 ><ChevronLeft
                     class="size-4"
@@ -147,31 +160,43 @@ const duplicateOption = (optionId: number) => {
 
                     <div class="grid grid-cols-4 gap-3">
                         <div>
-                            <label class="text-xs text-muted-foreground"
+                            <label
+                                for="q-emoji"
+                                class="text-xs text-muted-foreground"
                                 >Emoji</label
                             >
                             <input
+                                id="q-emoji"
                                 v-model="form.emoji"
                                 class="mt-1 input-premium px-3 py-2 text-sm"
                             />
                         </div>
                         <div class="col-span-3">
-                            <label class="text-xs text-muted-foreground"
+                            <label
+                                for="q-title"
+                                class="text-xs text-muted-foreground"
                                 >Title</label
                             >
                             <input
+                                id="q-title"
                                 v-model="form.title"
                                 required
                                 class="mt-1 input-premium px-3 py-2 text-sm"
                             />
                         </div>
                     </div>
+                    <p class="font-mono text-xs text-muted-foreground">
+                        /questionnaires/{{ questionnaire.slug }}
+                    </p>
 
                     <div>
-                        <label class="text-xs text-muted-foreground"
+                        <label
+                            for="q-description"
+                            class="text-xs text-muted-foreground"
                             >Description</label
                         >
                         <textarea
+                            id="q-description"
                             v-model="form.description"
                             rows="2"
                             class="mt-1 input-premium px-3 py-2 text-sm"
@@ -180,10 +205,13 @@ const duplicateOption = (optionId: number) => {
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="text-xs text-muted-foreground"
+                            <label
+                                for="q-status"
+                                class="text-xs text-muted-foreground"
                                 >Status</label
                             >
                             <select
+                                id="q-status"
                                 v-model="form.status"
                                 class="mt-1 input-premium px-3 py-2 text-sm"
                             >
@@ -193,10 +221,13 @@ const duplicateOption = (optionId: number) => {
                             </select>
                         </div>
                         <div>
-                            <label class="text-xs text-muted-foreground"
+                            <label
+                                for="q-visibility"
+                                class="text-xs text-muted-foreground"
                                 >Visibility</label
                             >
                             <select
+                                id="q-visibility"
                                 v-model="form.visibility"
                                 class="mt-1 input-premium px-3 py-2 text-sm"
                             >
@@ -208,10 +239,13 @@ const duplicateOption = (optionId: number) => {
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="text-xs text-muted-foreground"
+                            <label
+                                for="q-minutes"
+                                class="text-xs text-muted-foreground"
                                 >Est. minutes</label
                             >
                             <input
+                                id="q-minutes"
                                 v-model.number="form.estimated_minutes"
                                 type="number"
                                 min="1"
@@ -219,10 +253,13 @@ const duplicateOption = (optionId: number) => {
                             />
                         </div>
                         <div>
-                            <label class="text-xs text-muted-foreground"
+                            <label
+                                for="q-order"
+                                class="text-xs text-muted-foreground"
                                 >Order</label
                             >
                             <input
+                                id="q-order"
                                 v-model.number="form.display_order"
                                 type="number"
                                 min="0"
@@ -231,6 +268,12 @@ const duplicateOption = (optionId: number) => {
                         </div>
                     </div>
 
+                    <QuestionnaireModeFields
+                        v-model:is-solo="form.is_solo"
+                        v-model:partner-optional="form.partner_optional"
+                        v-model:is-intimacy="form.is_intimacy"
+                    />
+
                     <div class="flex items-center gap-2">
                         <input
                             id="seasonal"
@@ -238,10 +281,47 @@ const duplicateOption = (optionId: number) => {
                             type="checkbox"
                             class="size-4 rounded accent-primary"
                         />
-                        <label for="seasonal" class="text-xs text-foreground"
+                        <label for="seasonal" class="text-sm text-foreground"
                             >Seasonal</label
                         >
                     </div>
+
+                    <div v-if="form.is_seasonal" class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label
+                                for="q-from"
+                                class="text-xs text-muted-foreground"
+                                >Active from</label
+                            >
+                            <input
+                                id="q-from"
+                                v-model="form.active_from"
+                                type="date"
+                                class="mt-1 input-premium px-3 py-2 text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                for="q-until"
+                                class="text-xs text-muted-foreground"
+                                >Active until</label
+                            >
+                            <input
+                                id="q-until"
+                                v-model="form.active_until"
+                                type="date"
+                                class="mt-1 input-premium px-3 py-2 text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    <p
+                        v-if="form.hasErrors"
+                        role="alert"
+                        class="text-xs text-destructive"
+                    >
+                        {{ Object.values(form.errors)[0] }}
+                    </p>
 
                     <Button
                         size="sm"
@@ -254,227 +334,278 @@ const duplicateOption = (optionId: number) => {
                 </form>
             </div>
 
-            <!-- Questions Builder -->
+            <!-- Questions builder -->
             <div class="space-y-4 lg:col-span-2">
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-foreground">
                         Questions ({{ questionnaire.questions.length }})
                     </h2>
-                    <Button
-                        size="sm"
-                        @click="showNewQuestion = !showNewQuestion"
-                    >
+                    <Button size="sm" @click="questionForm = 'new'">
                         <Plus class="size-4" aria-hidden="true" />Add question
                     </Button>
                 </div>
 
-                <!-- New Question Form -->
                 <div
-                    v-if="showNewQuestion"
+                    v-if="questionForm === 'new'"
                     class="space-y-3 card-premium rounded-2xl p-5"
                 >
                     <h3 class="text-lg font-semibold text-foreground">
                         New question
                     </h3>
-                    <div class="grid grid-cols-4 gap-3">
-                        <div>
-                            <label class="text-xs text-muted-foreground"
-                                >Emoji</label
-                            >
-                            <input
-                                v-model="newQuestion.emoji"
-                                class="mt-1 input-premium px-3 py-2 text-sm"
-                            />
-                        </div>
-                        <div class="col-span-3">
-                            <label class="text-xs text-muted-foreground"
-                                >Title</label
-                            >
-                            <input
-                                v-model="newQuestion.title"
-                                required
-                                class="mt-1 input-premium px-3 py-2 text-sm"
-                            />
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs text-muted-foreground"
-                                >Type</label
-                            >
-                            <select
-                                v-model="newQuestion.type"
-                                class="mt-1 input-premium px-3 py-2 text-sm"
-                            >
-                                <option value="single_choice">
-                                    Single choice
-                                </option>
-                                <option value="multiple_choice">
-                                    Multiple choice
-                                </option>
-                                <option value="slider">Slider</option>
-                                <option value="text">Text</option>
-                                <option value="textarea">Textarea</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs text-muted-foreground"
-                                >Order</label
-                            >
-                            <input
-                                v-model.number="newQuestion.display_order"
-                                type="number"
-                                min="0"
-                                class="mt-1 input-premium px-3 py-2 text-sm"
-                            />
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input
-                            id="required"
-                            v-model="newQuestion.required"
-                            type="checkbox"
-                            class="size-4 rounded accent-primary"
-                        />
-                        <label for="required" class="text-xs text-foreground"
-                            >Required</label
-                        >
-                    </div>
-                    <div class="flex gap-2">
-                        <Button
-                            size="sm"
-                            @click="addQuestion"
-                            :disabled="newQuestion.processing"
-                        >
-                            Add question
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            @click="showNewQuestion = false"
-                        >
-                            Cancel
-                        </Button>
-                    </div>
+                    <QuestionForm
+                        :questionnaire-id="questionnaire.id"
+                        :next-order="questionnaire.questions.length"
+                        @done="questionForm = null"
+                    />
                 </div>
 
-                <!-- Questions List -->
                 <div
-                    v-for="question in questionnaire.questions"
+                    v-for="(question, qIndex) in questionnaire.questions"
                     :key="question.id"
                     class="card-premium rounded-2xl p-5"
                 >
-                    <div class="mb-3 flex items-start justify-between">
-                        <div class="flex items-center gap-2">
-                            <span v-if="question.emoji" class="text-xl">{{
-                                question.emoji
-                            }}</span>
-                            <div>
+                    <QuestionForm
+                        v-if="questionForm === question.id"
+                        :questionnaire-id="questionnaire.id"
+                        :question="question"
+                        :next-order="question.display_order"
+                        @done="questionForm = null"
+                    />
+
+                    <div v-else class="flex items-start justify-between gap-3">
+                        <div class="flex min-w-0 items-center gap-2">
+                            <span
+                                v-if="question.emoji"
+                                class="text-xl"
+                                aria-hidden="true"
+                                >{{ question.emoji }}</span
+                            >
+                            <div class="min-w-0">
                                 <p class="text-sm font-medium text-foreground">
                                     {{ question.title }}
                                 </p>
-                                <span
-                                    class="text-xs text-muted-foreground capitalize"
-                                    >{{ question.type.replace('_', ' ') }} ·
-                                    Order {{ question.display_order }}</span
+                                <span class="text-xs text-muted-foreground"
+                                    >{{ question.type.replace('_', ' ') }}
+                                    ·
+                                    {{
+                                        question.required
+                                            ? 'required'
+                                            : 'optional'
+                                    }}</span
                                 >
                             </div>
                         </div>
-                        <button
-                            @click="deleteQuestion(question.id)"
-                            class="text-xs text-destructive hover:text-destructive"
-                        >
-                            Delete
-                        </button>
+                        <div class="flex shrink-0 items-center">
+                            <button
+                                type="button"
+                                :class="iconButton"
+                                :disabled="qIndex === 0"
+                                :aria-label="`Move ${question.title} up`"
+                                @click="
+                                    move(
+                                        'questions',
+                                        questionnaire.questions,
+                                        qIndex,
+                                        -1,
+                                    )
+                                "
+                            >
+                                <ArrowUp class="size-4" aria-hidden="true" />
+                            </button>
+                            <button
+                                type="button"
+                                :class="iconButton"
+                                :disabled="
+                                    qIndex ===
+                                    questionnaire.questions.length - 1
+                                "
+                                :aria-label="`Move ${question.title} down`"
+                                @click="
+                                    move(
+                                        'questions',
+                                        questionnaire.questions,
+                                        qIndex,
+                                        1,
+                                    )
+                                "
+                            >
+                                <ArrowDown class="size-4" aria-hidden="true" />
+                            </button>
+                            <button
+                                type="button"
+                                :class="iconButton"
+                                :aria-label="`Edit ${question.title}`"
+                                @click="questionForm = question.id"
+                            >
+                                <Pencil class="size-4" aria-hidden="true" />
+                            </button>
+                            <button
+                                type="button"
+                                :class="[iconButton, 'hover:text-destructive']"
+                                :aria-label="`Delete ${question.title}`"
+                                @click="
+                                    askDelete(
+                                        question.title,
+                                        admin.questions.destroy(question.id)
+                                            .url,
+                                    )
+                                "
+                            >
+                                <Trash2 class="size-4" aria-hidden="true" />
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Options -->
-                    <div
-                        v-if="
-                            ['single_choice', 'multiple_choice'].includes(
-                                question.type,
-                            )
-                        "
-                        class="mt-3 space-y-2"
-                    >
-                        <div
-                            v-for="option in question.options"
+                    <div v-if="hasOptions(question)" class="mt-3 space-y-2">
+                        <template
+                            v-for="(option, oIndex) in question.options"
                             :key="option.id"
-                            class="flex items-center gap-2 rounded-xl bg-muted px-3 py-2"
                         >
-                            <span v-if="option.emoji" class="text-sm">{{
-                                option.emoji
-                            }}</span>
-                            <span class="flex-1 text-sm text-foreground">{{
-                                option.title
-                            }}</span>
-                            <button
-                                @click="duplicateOption(option.id)"
-                                class="text-xs text-primary hover:text-primary"
+                            <OptionForm
+                                v-if="
+                                    optionForm?.question === question.id &&
+                                    optionForm.option === option.id
+                                "
+                                :question-id="question.id"
+                                :option="option"
+                                :next-order="option.display_order"
+                                :signal-options="signalOptions"
+                                @done="optionForm = null"
+                            />
+                            <div
+                                v-else
+                                class="flex items-center gap-2 rounded-xl bg-muted py-1 pr-1 pl-3"
                             >
-                                Copy
-                            </button>
-                            <button
-                                @click="deleteOption(option.id)"
-                                class="text-xs text-destructive hover:text-destructive"
-                                aria-label="Delete option"
-                            >
-                                <X class="size-4" aria-hidden="true" />
-                            </button>
-                        </div>
-
-                        <!-- Add Option -->
-                        <div
-                            v-if="showNewOption === question.id"
-                            class="space-y-2 rounded-xl bg-muted p-3"
-                        >
-                            <div class="grid grid-cols-4 gap-2">
-                                <label class="block"
-                                    ><span
-                                        class="mb-1 block text-xs font-medium text-muted-foreground"
-                                        >Emoji</span
-                                    ><input
-                                        v-model="newOption.emoji"
-                                        placeholder="😊"
-                                        class="input-premium px-2 py-1.5 text-sm"
-                                /></label>
-                                <label class="col-span-2 block"
-                                    ><span
-                                        class="mb-1 block text-xs font-medium text-muted-foreground"
-                                        >Option title</span
-                                    ><input
-                                        v-model="newOption.title"
-                                        class="input-premium px-2 py-1.5 text-sm"
-                                /></label>
-                                <label class="block"
-                                    ><span
-                                        class="mb-1 block text-xs font-medium text-muted-foreground"
-                                        >Value</span
-                                    ><input
-                                        v-model="newOption.value"
-                                        placeholder="value"
-                                        class="input-premium px-2 py-1.5 text-sm"
-                                /></label>
-                            </div>
-                            <div class="flex gap-2">
-                                <Button
-                                    size="sm"
-                                    @click="addOption(question.id)"
-                                    >Add</Button
+                                <span
+                                    v-if="option.emoji"
+                                    class="text-sm"
+                                    aria-hidden="true"
+                                    >{{ option.emoji }}</span
                                 >
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    @click="showNewOption = null"
-                                    >Cancel</Button
+                                <span
+                                    class="min-w-0 flex-1 truncate text-sm text-foreground"
+                                    >{{ option.title }}</span
                                 >
+                                <span
+                                    v-for="signal in option.signals ?? []"
+                                    :key="signal"
+                                    class="badge-soft"
+                                    >{{ signal }}</span
+                                >
+                                <div class="flex shrink-0 items-center">
+                                    <button
+                                        type="button"
+                                        :class="iconButton"
+                                        :disabled="oIndex === 0"
+                                        :aria-label="`Move ${option.title} up`"
+                                        @click="
+                                            move(
+                                                'options',
+                                                question.options,
+                                                oIndex,
+                                                -1,
+                                            )
+                                        "
+                                    >
+                                        <ArrowUp
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        :class="iconButton"
+                                        :disabled="
+                                            oIndex ===
+                                            question.options.length - 1
+                                        "
+                                        :aria-label="`Move ${option.title} down`"
+                                        @click="
+                                            move(
+                                                'options',
+                                                question.options,
+                                                oIndex,
+                                                1,
+                                            )
+                                        "
+                                    >
+                                        <ArrowDown
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        :class="iconButton"
+                                        :aria-label="`Edit ${option.title}`"
+                                        @click="
+                                            optionForm = {
+                                                question: question.id,
+                                                option: option.id,
+                                            }
+                                        "
+                                    >
+                                        <Pencil
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        :class="iconButton"
+                                        :aria-label="`Duplicate ${option.title}`"
+                                        @click="duplicateOption(option.id)"
+                                    >
+                                        <Copy
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        :class="[
+                                            iconButton,
+                                            'hover:text-destructive',
+                                        ]"
+                                        :aria-label="`Delete ${option.title}`"
+                                        @click="
+                                            askDelete(
+                                                option.title,
+                                                admin.options.destroy(option.id)
+                                                    .url,
+                                            )
+                                        "
+                                    >
+                                        <Trash2
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        </template>
 
+                        <OptionForm
+                            v-if="
+                                optionForm?.question === question.id &&
+                                optionForm.option === 'new'
+                            "
+                            :question-id="question.id"
+                            :next-order="question.options.length"
+                            :signal-options="signalOptions"
+                            @done="optionForm = null"
+                        />
                         <button
-                            v-if="showNewOption !== question.id"
-                            @click="showNewOption = question.id"
+                            v-else
+                            type="button"
                             class="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:underline"
+                            @click="
+                                optionForm = {
+                                    question: question.id,
+                                    option: 'new',
+                                }
+                            "
                         >
                             <Plus class="size-4" aria-hidden="true" />Add option
                         </button>
@@ -489,5 +620,12 @@ const duplicateOption = (optionId: number) => {
                 </p>
             </div>
         </div>
+
+        <ConfirmDialog
+            v-model:open="deleteOpen"
+            :title="`Delete '${pendingDelete?.label ?? ''}'?`"
+            description="This cannot be undone. A question that people have already answered is kept."
+            @confirm="confirmDelete"
+        />
     </div>
 </template>

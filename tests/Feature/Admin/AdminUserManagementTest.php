@@ -105,6 +105,22 @@ class AdminUserManagementTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('users', ['id' => $user->id, 'partner_id' => null]);
         $this->assertDatabaseHas('users', ['id' => $partner->id, 'partner_id' => null]);
+        $this->assertDatabaseHas('admin_audit_logs', ['action' => 'user.disconnected', 'auditable_id' => $user->id]);
+    }
+
+    public function test_admin_can_disconnect_a_couple_from_the_couples_page(): void
+    {
+        $admin = $this->adminUser();
+        $user = User::factory()->create();
+        $partner = User::factory()->create();
+        $user->update(['partner_id' => $partner->id]);
+        $partner->update(['partner_id' => $user->id]);
+
+        $this->actingAs($admin)->post("/admin/couples/{$user->id}/disconnect")->assertRedirect();
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'partner_id' => null]);
+        $this->assertDatabaseHas('users', ['id' => $partner->id, 'partner_id' => null]);
+        $this->assertDatabaseHas('admin_audit_logs', ['action' => 'couple.disconnected', 'auditable_id' => $user->id]);
     }
 
     public function test_regular_user_cannot_manage_users(): void

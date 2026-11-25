@@ -32,26 +32,77 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const currentIndex = ref(0);
-const revealed = ref(false);
+const total = props.game.prompts.length;
+const storageKey = `intimacy-deck:${props.game.slug}`;
 
-const currentPrompt = computed<string | null>(
-    () => props.game.prompts[currentIndex.value] ?? null,
+// Prompt indexes still to draw in this pass, in shuffled order (drawn from the end).
+const deck = ref<number[]>(loadDeck());
+const currentIndex = ref<number | null>(null);
+
+const revealed = computed(() => currentIndex.value !== null);
+const cardNumber = computed(() => total - deck.value.length);
+
+const currentPrompt = computed<string | null>(() =>
+    currentIndex.value === null
+        ? null
+        : (props.game.prompts[currentIndex.value] ?? null),
 );
 
-const hasPrompts = computed(() => props.game.prompts.length > 0);
+const hasPrompts = computed(() => total > 0);
 
-const nextPrompt = (): void => {
+/** The unfinished pass from an earlier visit, so a reload does not repeat cards. */
+function loadDeck(): number[] {
+    try {
+        const saved: unknown = JSON.parse(
+            localStorage.getItem(storageKey) ?? '[]',
+        );
+
+        if (
+            Array.isArray(saved) &&
+            new Set(saved).size === saved.length &&
+            saved.every((i) => Number.isInteger(i) && i >= 0 && i < total)
+        ) {
+            return saved;
+        }
+    } catch {
+        // No storage (private mode) or bad data: start a fresh deck.
+    }
+
+    return [];
+}
+
+function shuffledDeck(): number[] {
+    const indexes = Array.from({ length: total }, (_, i) => i);
+
+    for (let i = indexes.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indexes[i], indexes[j]] = [indexes[j], indexes[i]];
+    }
+
+    // A reshuffle must not open with the card that is on screen.
+    if (total > 1 && indexes[total - 1] === currentIndex.value) {
+        [indexes[0], indexes[total - 1]] = [indexes[total - 1], indexes[0]];
+    }
+
+    return indexes;
+}
+
+const drawCard = (): void => {
     if (!hasPrompts.value) {
         return;
     }
 
-    currentIndex.value = Math.floor(Math.random() * props.game.prompts.length);
-    revealed.value = true;
-};
+    if (deck.value.length === 0) {
+        deck.value = shuffledDeck();
+    }
 
-const reveal = (): void => {
-    revealed.value = true;
+    currentIndex.value = deck.value.pop() ?? null;
+
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(deck.value));
+    } catch {
+        // The deck still works for this visit.
+    }
 };
 
 const drawButtonClass =
@@ -119,11 +170,11 @@ const drawButtonClass =
                     <transition name="fade" mode="out-in">
                         <div
                             v-if="revealed"
-                            :key="currentIndex"
+                            :key="currentIndex ?? -1"
                             class="flex min-h-[180px] flex-col items-center justify-center gap-4"
                         >
                             <p class="eyebrow text-gold-soft tabular-nums">
-                                Card {{ currentIndex + 1 }} of
+                                Card {{ cardNumber }} of
                                 {{ game.prompts.length }}
                             </p>
                             <p
@@ -153,25 +204,11 @@ const drawButtonClass =
                 <div class="my-5 hairline-gold opacity-60" />
 
                 <button
-                    v-if="!revealed"
                     type="button"
                     :class="drawButtonClass"
-                    @click="reveal"
+                    @click="drawCard"
                 >
-                    Draw a card
-                    <span
-                        class="flex size-9 items-center justify-center rounded-full text-white transition-transform gradient-primary group-hover:translate-x-0.5"
-                    >
-                        <ArrowRight class="size-4" aria-hidden="true" />
-                    </span>
-                </button>
-                <button
-                    v-else
-                    type="button"
-                    :class="drawButtonClass"
-                    @click="nextPrompt"
-                >
-                    Draw another
+                    {{ revealed ? 'Draw another' : 'Draw a card' }}
                     <span
                         class="flex size-9 items-center justify-center rounded-full text-white transition-transform gradient-primary group-hover:translate-x-0.5"
                     >

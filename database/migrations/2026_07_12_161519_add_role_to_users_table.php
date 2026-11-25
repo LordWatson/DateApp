@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('role_id')->nullable()->constrained('roles')->nullOnDelete()->after('id');
+            $table->foreignId('role_id')->nullable()->constrained('roles')->nullOnDelete();
             $table->boolean('is_suspended')->default(false)->after('onboarding_completed');
             $table->timestamp('suspended_at')->nullable()->after('is_suspended');
             $table->text('suspension_reason')->nullable()->after('suspended_at');

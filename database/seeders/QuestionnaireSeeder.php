@@ -14,6 +14,14 @@ class QuestionnaireSeeder extends Seeder
 {
     public function run(): void
     {
+        // Already seeded: the slug is unique and admins may have edited the questions since,
+        // so only fill in signals that are still missing.
+        if ($existing = Questionnaire::where('slug', 'tonight')->first()) {
+            $this->backfillSignals($existing);
+
+            return;
+        }
+
         $questionnaire = Questionnaire::create([
             'title' => '❤️ Tonight',
             'slug' => 'tonight',
@@ -24,6 +32,7 @@ class QuestionnaireSeeder extends Seeder
             'visibility' => QuestionnaireVisibility::Public,
             'estimated_minutes' => 3,
             'display_order' => 1,
+            'is_intimacy' => true,
             'active_from' => null,
             'active_until' => null,
         ]);
@@ -31,9 +40,63 @@ class QuestionnaireSeeder extends Seeder
         $this->seedQuestions($questionnaire);
     }
 
+    /**
+     * Tag options seeded before `signals` existed. Matches by question title and
+     * option value, and never overwrites signals that are already set.
+     */
+    private function backfillSignals(Questionnaire $questionnaire): void
+    {
+        foreach ($this->questions() as $data) {
+            foreach ($data['options'] as $option) {
+                if (! isset($option['signals'])) {
+                    continue;
+                }
+
+                QuestionOption::query()
+                    ->whereIn('question_id', $questionnaire->questions()->where('title', $data['title'])->select('id'))
+                    ->where('value', $option['value'])
+                    ->whereNull('signals')
+                    ->get()
+                    ->each->update(['signals' => $option['signals']]);
+            }
+        }
+    }
+
     private function seedQuestions(Questionnaire $questionnaire): void
     {
-        $questions = [
+        foreach ($this->questions() as $order => $data) {
+            $question = Question::create([
+                'questionnaire_id' => $questionnaire->id,
+                'title' => $data['title'],
+                'description' => null,
+                'emoji' => $data['emoji'],
+                'type' => $data['type'],
+                'required' => true,
+                'minimum_value' => $data['minimum_value'] ?? null,
+                'maximum_value' => $data['maximum_value'] ?? null,
+                'display_order' => $order + 1,
+            ]);
+
+            foreach ($data['options'] as $optionOrder => $option) {
+                QuestionOption::create([
+                    'question_id' => $question->id,
+                    'title' => $option['title'],
+                    'description' => null,
+                    'emoji' => $option['emoji'],
+                    'value' => $option['value'],
+                    'signals' => $option['signals'] ?? null,
+                    'display_order' => $optionOrder + 1,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function questions(): array
+    {
+        return [
             [
                 'emoji' => '❤️',
                 'title' => 'How are you feeling tonight?',
@@ -77,7 +140,7 @@ class QuestionnaireSeeder extends Seeder
                 'title' => 'Would music make the evening better?',
                 'type' => QuestionType::SingleChoice,
                 'options' => [
-                    ['emoji' => null, 'title' => 'Absolutely', 'value' => 'absolutely'],
+                    ['emoji' => null, 'title' => 'Absolutely', 'value' => 'absolutely', 'signals' => ['music']],
                     ['emoji' => null, 'title' => 'Maybe', 'value' => 'maybe'],
                     ['emoji' => null, 'title' => 'No preference', 'value' => 'no_preference'],
                 ],
@@ -87,7 +150,7 @@ class QuestionnaireSeeder extends Seeder
                 'title' => 'Set the mood?',
                 'type' => QuestionType::SingleChoice,
                 'options' => [
-                    ['emoji' => null, 'title' => 'Candles', 'value' => 'candles'],
+                    ['emoji' => null, 'title' => 'Candles', 'value' => 'candles', 'signals' => ['romance']],
                     ['emoji' => null, 'title' => 'Dim lights', 'value' => 'dim_lights'],
                     ['emoji' => null, 'title' => 'Natural', 'value' => 'natural'],
                     ['emoji' => null, 'title' => 'No preference', 'value' => 'no_preference'],
@@ -108,7 +171,7 @@ class QuestionnaireSeeder extends Seeder
                 'title' => 'Would you enjoy a massage first?',
                 'type' => QuestionType::SingleChoice,
                 'options' => [
-                    ['emoji' => null, 'title' => 'Yes', 'value' => 'yes'],
+                    ['emoji' => null, 'title' => 'Yes', 'value' => 'yes', 'signals' => ['relaxing']],
                     ['emoji' => null, 'title' => 'Maybe', 'value' => 'maybe'],
                     ['emoji' => null, 'title' => 'Skip it', 'value' => 'skip'],
                 ],
@@ -148,30 +211,5 @@ class QuestionnaireSeeder extends Seeder
                 'options' => [],
             ],
         ];
-
-        foreach ($questions as $order => $data) {
-            $question = Question::create([
-                'questionnaire_id' => $questionnaire->id,
-                'title' => $data['title'],
-                'description' => null,
-                'emoji' => $data['emoji'],
-                'type' => $data['type'],
-                'required' => true,
-                'minimum_value' => $data['minimum_value'] ?? null,
-                'maximum_value' => $data['maximum_value'] ?? null,
-                'display_order' => $order + 1,
-            ]);
-
-            foreach ($data['options'] as $optionOrder => $option) {
-                QuestionOption::create([
-                    'question_id' => $question->id,
-                    'title' => $option['title'],
-                    'description' => null,
-                    'emoji' => $option['emoji'],
-                    'value' => $option['value'],
-                    'display_order' => $optionOrder + 1,
-                ]);
-            }
-        }
     }
 }

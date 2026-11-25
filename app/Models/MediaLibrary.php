@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -23,6 +24,8 @@ use Illuminate\Support\Carbon;
  */
 class MediaLibrary extends Model
 {
+    protected $table = 'media_library';
+
     protected $fillable = [
         'filename',
         'original_filename',
@@ -43,6 +46,17 @@ class MediaLibrary extends Model
         ];
     }
 
+    /**
+     * Files are private, so the address is always the admin route, whatever disk holds the file.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function url(): Attribute
+    {
+        return Attribute::get(fn (): string => route('admin.media.show', $this->id));
+    }
+
+    /** @return BelongsTo<User, $this> */
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');

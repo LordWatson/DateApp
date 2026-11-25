@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { Link, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import { ChevronLeft } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
 const props = defineProps<{
+    /** Super administrators only, and never for an administrator account. */
+    canViewAs: boolean;
     user: {
         id: number;
         name: string;
@@ -49,9 +52,14 @@ const editForm = useForm({
 });
 
 const editing = ref(false);
+const confirmingViewAs = ref(false);
+
+function viewAsUser(): void {
+    router.post(admin.users.viewAs(props.user.id).url);
+}
 
 const save = () => {
-    editForm.put(route('admin.users.update', props.user.id), {
+    editForm.put(admin.users.update(props.user.id).url, {
         onSuccess: () => {
             editing.value = false;
         },
@@ -63,7 +71,7 @@ const save = () => {
     <div>
         <div class="mb-6 flex items-center gap-4">
             <Link
-                :href="route('admin.users.index')"
+                :href="admin.users.index().url"
                 class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                 ><ChevronLeft class="size-4" aria-hidden="true" />Users</Link
             >
@@ -80,7 +88,24 @@ const save = () => {
             >
                 {{ user.is_suspended ? 'Suspended' : 'Active' }}
             </span>
+            <Button
+                v-if="canViewAs"
+                variant="outline"
+                size="sm"
+                class="ml-auto"
+                @click="confirmingViewAs = true"
+            >
+                View as user
+            </Button>
         </div>
+
+        <ConfirmDialog
+            v-model:open="confirmingViewAs"
+            :title="`View the app as ${user.name}?`"
+            description="You will see everything this person sees, including love notes, answers and private notes. Nothing can be changed, it ends after 30 minutes, and it is recorded in the audit log."
+            confirm-label="View as user"
+            @confirm="viewAsUser"
+        />
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <!-- Profile Card -->
@@ -130,9 +155,7 @@ const save = () => {
                         <div v-if="user.partner">
                             <p class="text-xs text-muted-foreground">Partner</p>
                             <Link
-                                :href="
-                                    route('admin.users.show', user.partner.id)
-                                "
+                                :href="admin.users.show(user.partner.id).url"
                                 class="font-medium text-foreground hover:underline"
                             >
                                 {{ user.partner.name }}

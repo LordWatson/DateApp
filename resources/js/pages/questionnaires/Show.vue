@@ -8,7 +8,9 @@ import {
     UserPlus,
     X,
 } from '@lucide/vue';
+import axios from 'axios';
 import { computed, ref } from 'vue';
+import { toast } from 'vue-sonner';
 import OptionCard from '@/components/OptionCard.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
@@ -155,21 +157,26 @@ function resumeQuestionnaire(): void {
     }
 }
 
-function applyProfile(profileId: number): void {
-    router.post(
-        `/saved-profiles/${profileId}/apply/${props.questionnaire.slug}`,
-        {},
-        {
-            onSuccess: () => {
-                showProfilePicker.value = false;
-                startFresh();
-            },
-        },
-    );
+// The endpoint answers with JSON, so it is called directly: Inertia's router
+// only understands page responses and would never reach its success handler.
+async function applyProfile(profileId: number): Promise<void> {
+    try {
+        await axios.post(
+            `/saved-profiles/${profileId}/apply/${props.questionnaire.slug}`,
+        );
+        showProfilePicker.value = false;
+        startFresh();
+    } catch {
+        toast.error('That profile could not be applied. Please try again.');
+    }
 }
 
 const isInProgress = props.response?.status === 'in_progress';
 const isCompleted = props.response?.status === 'completed';
+// A couple-only questionnaire cannot produce a plan for someone with no partner.
+const needsPartner = computed(
+    () => planningTogether.value && !props.mode.has_partner,
+);
 const showStatus = computed(
     () => planningTogether.value || isInProgress || isCompleted,
 );
@@ -315,8 +322,22 @@ const showStatus = computed(
             </div>
         </section>
 
+        <!-- Couple-only questionnaire, no partner yet -->
+        <section
+            v-if="needsPartner"
+            class="space-y-4 card-premium p-5 text-center"
+        >
+            <p class="text-sm leading-relaxed text-muted-foreground">
+                This one is answered by both of you. Connect your partner and we
+                will plan a date from both sets of answers.
+            </p>
+            <Link href="/partner" class="block">
+                <PrimaryButton full-width>Connect your partner</PrimaryButton>
+            </Link>
+        </section>
+
         <!-- Actions -->
-        <div class="space-y-3">
+        <div v-else class="space-y-3">
             <!-- Resume -->
             <PrimaryButton
                 v-if="isInProgress"

@@ -32,7 +32,11 @@ import { register } from '@/routes';
                         Ask your partner to send a new invitation.
                     </p>
                 </div>
-                <Link :href="register()" class="block">
+                <Link
+                    v-if="$page.props.registrationOpen"
+                    :href="register()"
+                    class="block"
+                >
                     <PrimaryButton full-width>Create an account</PrimaryButton>
                 </Link>
             </div>

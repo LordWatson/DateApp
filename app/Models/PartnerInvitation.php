@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $sender_id
- * @property string $email
+ * @property string|null $email Null for an invitation shared as a link.
  * @property string $token
  * @property Carbon|null $accepted_at
  * @property Carbon $expires_at
@@ -28,6 +28,7 @@ class PartnerInvitation extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');

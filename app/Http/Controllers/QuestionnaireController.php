@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\NudgePartnerAction;
 use App\Enums\CompletionStatus;
 use App\Enums\QuestionnaireStatus;
 use App\Http\Presenters\QuestionnairePresenter;
@@ -13,6 +14,7 @@ use App\Models\Questionnaire;
 use App\Models\Response as QuestionnaireResponse;
 use App\Models\User;
 use App\Services\CompatibilityService;
+use App\Services\ImpersonationService;
 use App\Services\QuestionnaireService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -83,9 +85,11 @@ class QuestionnaireController extends Controller
     public function show(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
     {
         $user = $request->user();
-        $partner = $user->partner;
+        $partner = $user->activePartner();
 
-        if ($partner && $this->questionnaireService->shouldAutoStartNewCycle($user, $partner, $questionnaire)) {
+        // Opening the page starts an attempt for a waiting partner; never on behalf of a user being viewed.
+        if ($partner && ! app(ImpersonationService::class)->isActive()
+            && $this->questionnaireService->shouldAutoStartNewCycle($user, $partner, $questionnaire)) {
             // The partner is waiting on a shared plan, so this attempt joins it.
             $this->questionnaireService->startNewResponse($user, $questionnaire, false);
 
@@ -110,10 +114,10 @@ class QuestionnaireController extends Controller
                 'selectable' => $questionnaire->partner_optional,
                 'current' => $response ? ($response->isSolo() ? 'solo' : 'couple') : null,
                 'has_partner' => $partner !== null,
-                'partner_name' => $partner?->display_name ?? $partner?->name,
+                'partner_name' => $partner->display_name ?? $partner?->name,
             ],
             'current_streak' => $user->current_streak,
-            'saved_profiles' => $this->presenter->savedProfiles($user),
+            'saved_profiles' => $this->presenter->savedProfiles($user, $questionnaire),
             'past_attempts' => $this->buildPastAttempts($user, $questionnaire),
         ]);
     }
@@ -143,7 +147,14 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
-        $response = $this->questionnaireService->findOrCreateResponse($user, $questionnaire);
+        // Viewing a question never creates an attempt: after finishing, that would
+        // silently replace the completed answers with an empty new attempt.
+        $response = $this->questionnaireService->getInProgressResponse($user, $questionnaire);
+
+        if (! $response) {
+            return redirect()->route('questionnaires.show', $questionnaire->slug);
+        }
+
         $answers = $this->questionnaireService->getAnswersForResponse($response);
 
         $questionAnswers = $answers->where('question_id', $question->id);
@@ -171,8 +182,12 @@ class QuestionnaireController extends Controller
     public function answer(SaveAnswerRequest $request, Questionnaire $questionnaire, int $order): JsonResponse
     {
         $user = $request->user();
-        $question = $questionnaire->questions()->with('options')->where('display_order', $order)->firstOrFail();
-        $response = $this->questionnaireService->findOrCreateResponse($user, $questionnaire);
+        $question = $request->question();
+        $response = $this->questionnaireService->getInProgressResponse($user, $questionnaire);
+
+        if (! $response) {
+            return response()->json(['saved' => false, 'message' => 'This questionnaire is not in progress.'], 409);
+        }
 
         $this->questionnaireService->saveAnswer($response, $question, $request->input('value'));
 
@@ -191,7 +206,20 @@ class QuestionnaireController extends Controller
         $response->setRelation('questionnaire', $questionnaire);
         $isSolo = $response->isSolo();
 
-        $partner = $user->partner;
+        $plan = DateNightPlan::query()
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where(function ($query) use ($response): void {
+                $query->where('partner_one_response_id', $response->id)
+                    ->orWhere('partner_two_response_id', $response->id);
+            })
+            ->latest('id')
+            ->first();
+
+        if ($plan) {
+            return redirect()->route('date-night.show', $plan);
+        }
+
+        $partner = $user->activePartner();
         $partnerCompleted = $partner
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;
@@ -203,13 +231,31 @@ class QuestionnaireController extends Controller
                 'slug' => $questionnaire->slug,
                 'is_solo' => $isSolo,
             ],
-            'partner_name' => $partner?->display_name ?? $partner?->name,
+            'partner_name' => $partner->display_name ?? $partner?->name,
+            'has_partner' => $partner !== null,
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
             'partner_completed' => $partnerCompleted,
+            'can_nudge' => app(NudgePartnerAction::class)->canNudge($response),
             // Solo always produces a plan; otherwise wait until the partner has also completed.
             'awaiting_plan' => $isSolo || $partnerCompleted,
         ]);
+    }
+
+    /**
+     * Remind the partner that this couple attempt is waiting for them.
+     */
+    public function nudge(Request $request, Questionnaire $questionnaire, NudgePartnerAction $nudge): RedirectResponse
+    {
+        $user = $request->user();
+        $response = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire, false);
+        $partnerName = $user->partner->display_name ?? $user->partner->name ?? 'your partner';
+
+        if ($response && $nudge->execute($response)) {
+            return back()->with('success', "We've reminded {$partnerName}.");
+        }
+
+        return back()->with('error', "You can remind {$partnerName} once a day while you are waiting for their answers.");
     }
 
     public function planStatus(Request $request, Questionnaire $questionnaire): JsonResponse
@@ -238,6 +284,18 @@ class QuestionnaireController extends Controller
     public function finish(FinishQuestionnaireRequest $request, Questionnaire $questionnaire): RedirectResponse
     {
         $response = $this->questionnaireService->getResponseWithAnswers($request->user(), $questionnaire);
+
+        if ($response && $response->status !== CompletionStatus::Completed) {
+            $answered = $response->answers->filter(fn ($answer) => filled($answer->value))->pluck('question_id');
+            $missing = $questionnaire->questions()->where('required', true)->whereNotIn('id', $answered)->pluck('display_order');
+
+            if ($missing->isNotEmpty()) {
+                return redirect()->route('questionnaires.summary', $questionnaire->slug)->withErrors([
+                    'answers' => 'Please answer every required question before completing: '
+                        .$missing->map(fn (int $order) => "Q{$order}")->implode(', ').'.',
+                ]);
+            }
+        }
 
         if ($response) {
             $this->questionnaireService->completeWithLocation($response, $request->validated());
@@ -287,6 +345,11 @@ class QuestionnaireController extends Controller
             return redirect()->route('questionnaires.show', $questionnaire->slug);
         }
 
+        // Once the plan exists the comparison lives under it.
+        if ($plan = $this->couplePlanFor($questionnaire, $userResponse)) {
+            return redirect()->route('date-night.answers', $plan);
+        }
+
         if (! $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)) {
             return redirect()->route('questionnaires.complete', $questionnaire->slug);
         }
@@ -302,6 +365,12 @@ class QuestionnaireController extends Controller
         $user = $request->user();
         $partner = $user->partner;
 
+        $userResponse = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire, false);
+
+        if ($userResponse && ($plan = $this->couplePlanFor($questionnaire, $userResponse))) {
+            return redirect()->route('date-night.compatibility', $plan);
+        }
+
         $partnerCompleted = $partner
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;
@@ -312,7 +381,7 @@ class QuestionnaireController extends Controller
                 'title' => $questionnaire->title,
                 'slug' => $questionnaire->slug,
             ],
-            'partner_name' => $partner?->display_name ?? $partner?->name,
+            'partner_name' => $partner->display_name ?? $partner?->name,
             'partner_completed' => $partnerCompleted,
             'compatibility' => $partnerCompleted ? $this->compatibilityService->calculate($user, $questionnaire) : null,
         ]);
@@ -360,6 +429,19 @@ class QuestionnaireController extends Controller
         ));
     }
 
+    private function couplePlanFor(Questionnaire $questionnaire, QuestionnaireResponse $response): ?DateNightPlan
+    {
+        return DateNightPlan::query()
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('is_solo', false)
+            ->where(function ($query) use ($response): void {
+                $query->where('partner_one_response_id', $response->id)
+                    ->orWhere('partner_two_response_id', $response->id);
+            })
+            ->latest('id')
+            ->first();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -392,6 +474,7 @@ class QuestionnaireController extends Controller
         return in_array($filter, ['all', 'couples', 'solo', 'intimacy', 'seasonal'], true) ? $filter : 'all';
     }
 
+    /** @return Builder<Questionnaire> */
     private function buildIndexQuery(string $filter): Builder
     {
         $query = Questionnaire::query()
@@ -460,6 +543,7 @@ class QuestionnaireController extends Controller
         }
 
         return DateNightPlan::where('questionnaire_id', $questionnaire->id)
+            ->where('is_solo', false)
             ->where(function ($query) use ($userResponseIds): void {
                 $query->whereIn('partner_one_response_id', $userResponseIds)
                     ->orWhereIn('partner_two_response_id', $userResponseIds);

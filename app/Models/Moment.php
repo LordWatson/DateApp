@@ -20,7 +20,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $date
  * @property bool $is_favourite
  * @property string|null $private_notes
- * @property array|null $tags
+ * @property array<int, string>|null $tags
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -50,11 +50,13 @@ class Moment extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<DateNightPlan, $this> */
     public function dateNightPlan(): BelongsTo
     {
         return $this->belongsTo(DateNightPlan::class);

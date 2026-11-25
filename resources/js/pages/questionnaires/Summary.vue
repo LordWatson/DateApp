@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { Bookmark, Check, LocateFixed, MapPin, Pencil, X } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
+import { toast } from 'vue-sonner';
 import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
@@ -61,6 +62,11 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// Set by the server when `finish` is refused (required questions unanswered).
+const finishError = computed(
+    () => (usePage().props.errors as Record<string, string>)?.answers ?? null,
+);
+
 const showSaveModal = ref(false);
 const profileName = ref('');
 const profileEmoji = ref('❤️');
@@ -78,7 +84,7 @@ type LocationStatus =
     | 'searching';
 
 const locationStatus = ref<LocationStatus>('idle');
-const locationSource = ref<'geolocation' | 'manual' | 'fallback' | null>(null);
+const locationSource = ref<'geolocation' | 'manual' | null>(null);
 const locationLatitude = ref<number | null>(null);
 const locationLongitude = ref<number | null>(null);
 const locationLabel = ref<string | null>(null);
@@ -89,32 +95,22 @@ const locationError = ref<string | null>(null);
 const manualLocationQuery = ref<string>('');
 const manualLocationError = ref<string | null>(null);
 
-// Default fallback location — used when geolocation is unavailable (e.g. HTTP
-// local development) so the questionnaire can still be completed end-to-end.
-const FALLBACK_LOCATION = {
-    latitude: 51.4545,
-    longitude: -2.5879,
-    label: 'Bristol, United Kingdom',
-    city: 'Bristol',
-    region: 'England',
-    country: 'United Kingdom',
-} as const;
-
 const DEFAULT_TRAVEL_RADIUS_MINUTES = 60;
 const travelRadiusMinutes = ref<number>(DEFAULT_TRAVEL_RADIUS_MINUTES);
 const TRAVEL_RADIUS_MIN = 0;
 const TRAVEL_RADIUS_MAX = 240;
 const TRAVEL_RADIUS_STEP = 30;
 
-function applyFallbackLocation(reason: string | null): void {
-    locationLatitude.value = FALLBACK_LOCATION.latitude;
-    locationLongitude.value = FALLBACK_LOCATION.longitude;
-    locationLabel.value = FALLBACK_LOCATION.label;
-    locationCity.value = FALLBACK_LOCATION.city;
-    locationRegion.value = FALLBACK_LOCATION.region;
-    locationCountry.value = FALLBACK_LOCATION.country;
-    locationSource.value = 'fallback';
-    locationStatus.value = 'granted';
+// No guessing: when the browser cannot give a position, ask for a place.
+function askForManualLocation(reason: string): void {
+    locationLatitude.value = null;
+    locationLongitude.value = null;
+    locationLabel.value = null;
+    locationCity.value = null;
+    locationRegion.value = null;
+    locationCountry.value = null;
+    locationSource.value = null;
+    locationStatus.value = 'manual';
     locationError.value = reason;
 }
 
@@ -188,8 +184,8 @@ async function reverseGeocode(
 
 function requestGeolocation(): void {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-        applyFallbackLocation(
-            "Your browser doesn't support geolocation, so we've defaulted to Bristol. You can enter a location manually below.",
+        askForManualLocation(
+            "Your browser can't share a location. Enter a town or postcode below.",
         );
 
         return;
@@ -219,10 +215,10 @@ function requestGeolocation(): void {
         (error) => {
             const reason =
                 error.code === error.PERMISSION_DENIED
-                    ? "Location permission was declined, so we've defaulted to Bristol. You can enter a location manually below."
-                    : "We couldn't read your location, so we've defaulted to Bristol. You can enter a location manually below.";
+                    ? 'Location permission was declined. Enter a town or postcode below.'
+                    : "We couldn't read your location. Enter a town or postcode below.";
 
-            applyFallbackLocation(reason);
+            askForManualLocation(reason);
         },
         {
             enableHighAccuracy: false,
@@ -362,8 +358,11 @@ const locationCardHeadline = computed(() => {
     return 'Where are you starting from?';
 });
 
+// A finished attempt is shown read-only: nothing left to edit, locate or submit.
+const isCompleted = computed(() => props.response_status === 'completed');
+
 onMounted(() => {
-    if (props.questionnaire.is_solo) {
+    if (props.questionnaire.is_solo && !isCompleted.value) {
         requestGeolocation();
     }
 });
@@ -460,7 +459,7 @@ async function saveProfile(): Promise<void> {
     saving.value = true;
 
     try {
-        await fetch('/saved-profiles', {
+        const response = await fetch('/saved-profiles', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -475,7 +474,15 @@ async function saveProfile(): Promise<void> {
                 questionnaire_id: props.questionnaire.id,
             }),
         });
+
+        if (!response.ok) {
+            throw new Error('save failed');
+        }
+
         showSaveModal.value = false;
+        toast.success('Profile saved. You can reuse these answers next time.');
+    } catch {
+        toast.error('That profile could not be saved. Please try again.');
     } finally {
         saving.value = false;
     }
@@ -529,7 +536,11 @@ function completeQuestionnaire(): void {
         <PageHeader
             :eyebrow="questionnaire.title"
             title="Your answers"
-            description="Review and edit before completing."
+            :description="
+                isCompleted
+                    ? 'This is what you answered.'
+                    : 'Review and edit before completing.'
+            "
         />
 
         <!-- Headline -->
@@ -581,6 +592,7 @@ function completeQuestionnaire(): void {
                         </p>
                     </div>
                     <button
+                        v-if="!isCompleted"
                         type="button"
                         class="-mr-2 inline-flex min-h-10 shrink-0 items-center rounded-full px-3 text-[13px] font-medium text-primary transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                         @click="editAnswer(group.question.display_order)"
@@ -593,7 +605,7 @@ function completeQuestionnaire(): void {
 
         <!-- Combined location + travel radius (solo questionnaires only) -->
         <section
-            v-if="questionnaire.is_solo"
+            v-if="questionnaire.is_solo && !isCompleted"
             class="space-y-4 card-premium p-5"
         >
             <div class="flex items-start gap-3.5">
@@ -632,16 +644,7 @@ function completeQuestionnaire(): void {
                     </span>
                 </p>
                 <p
-                    v-if="locationSource === 'fallback'"
-                    class="text-xs leading-relaxed text-muted-foreground"
-                >
-                    {{
-                        locationError ??
-                        "We couldn't detect your location, so we've defaulted to Bristol. You can enter one manually below."
-                    }}
-                </p>
-                <p
-                    v-else-if="locationSource === 'manual'"
+                    v-if="locationSource === 'manual'"
                     class="text-xs text-muted-foreground"
                 >
                     Using the location you entered.
@@ -761,7 +764,26 @@ function completeQuestionnaire(): void {
 
         <!-- Actions -->
         <div class="space-y-3">
+            <p
+                v-if="finishError && !isCompleted"
+                class="text-center text-sm text-destructive"
+                role="alert"
+            >
+                {{ finishError }}
+            </p>
             <PrimaryButton
+                v-if="isCompleted"
+                full-width
+                @click="
+                    router.visit(
+                        `/questionnaires/${questionnaire.slug}/complete`,
+                    )
+                "
+            >
+                See your date night
+            </PrimaryButton>
+            <PrimaryButton
+                v-else
                 full-width
                 :loading="finishing"
                 @click="completeQuestionnaire"

@@ -8,6 +8,7 @@ import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { answers, show as showPlan } from '@/routes/date-night';
 
 defineOptions({ layout: MobileLayout });
 
@@ -44,9 +45,11 @@ interface Props {
     partner_name: string | null;
     partner_completed: boolean;
     compatibility: CompatibilityData | null;
+    // Set when the page is opened from a date night plan.
+    plan_id?: number | null;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { plan_id: null });
 
 const circumference = 2 * Math.PI * 45;
 const dashOffset = computed(() => {
@@ -70,6 +73,8 @@ const dashOffset = computed(() => {
             :description="
                 partner_name ? `You & ${partner_name}` : 'You & your partner'
             "
+            :back-href="props.plan_id ? showPlan(props.plan_id).url : undefined"
+            back-label="Back to your plan"
         />
 
         <!-- Waiting state -->
@@ -246,7 +251,18 @@ const dashOffset = computed(() => {
                 </div>
             </section>
 
-            <PrimaryButton full-width @click="router.visit('/dashboard')">
+            <PrimaryButton
+                v-if="props.plan_id"
+                full-width
+                @click="router.visit(answers(props.plan_id).url)"
+            >
+                Compare your answers
+            </PrimaryButton>
+            <PrimaryButton
+                v-else
+                full-width
+                @click="router.visit('/dashboard')"
+            >
                 Return home
             </PrimaryButton>
         </template>

@@ -12,10 +12,12 @@ enum AchievementCategory: string
     case Compatibility = 'compatibility';
     case Romance = 'romance';
     case Milestones = 'milestones';
+    case Challenges = 'challenges';
 
     public function label(): string
     {
         return match ($this) {
+            self::Challenges => 'Challenges',
             self::Streaks => 'Streaks',
             self::Questionnaires => 'Questionnaires',
             self::LoveNotes => 'Love Notes',

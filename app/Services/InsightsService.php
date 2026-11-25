@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class InsightsService
 {
+    /** @return array<string, mixed> */
     public function getInsights(User $user): array
     {
         $partner = $user->partner;
@@ -21,13 +22,13 @@ class InsightsService
         $plansQuery = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        });
+        })->notHiddenFor($user);
 
-        $averageCompatibility = round($plansQuery->avg('compatibility_score') ?? 0);
+        $averageCompatibility = round((float) ($plansQuery->avg('compatibility_score') ?? 0));
         $totalPlans = $plansQuery->count();
 
-        $loveNotesSent = LoveNote::where('sender_id', $user->id)->count();
-        $loveNotesReceived = $partner ? LoveNote::where('sender_id', $partner->id)->where('recipient_id', $user->id)->count() : 0;
+        $loveNotesSent = LoveNote::visibleTo($user)->where('sender_id', $user->id)->count();
+        $loveNotesReceived = $partner ? LoveNote::visibleTo($user)->where('sender_id', $partner->id)->where('recipient_id', $user->id)->count() : 0;
 
         $mostCompletedMonth = Response::where('user_id', $user->id)
             ->where('status', 'completed')
@@ -39,7 +40,7 @@ class InsightsService
         $favouriteTheme = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        })
+        })->notHiddenFor($user)
             ->selectRaw('theme, COUNT(*) as count')
             ->groupBy('theme')
             ->orderByDesc('count')
@@ -48,7 +49,7 @@ class InsightsService
         $mostSelectedAtmosphere = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        })
+        })->notHiddenFor($user)
             ->whereNotNull('atmosphere')
             ->selectRaw('atmosphere, COUNT(*) as count')
             ->groupBy('atmosphere')
@@ -58,15 +59,15 @@ class InsightsService
         $compatibilityOverTime = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        })
+        })->notHiddenFor($user)
             ->selectRaw($this->extractYearMonth('created_at').' as month, AVG(compatibility_score) as avg_score')
             ->groupBy('month')
             ->orderBy('month')
             ->limit(12)
             ->get()
             ->map(fn ($row) => [
-                'month' => $row->month,
-                'score' => round($row->avg_score),
+                'month' => $row->getAttribute('month'),
+                'score' => round((float) $row->getAttribute('avg_score')),
             ]);
 
         return [
@@ -77,7 +78,7 @@ class InsightsService
             'love_notes_received' => $loveNotesReceived,
             'current_streak' => $user->current_streak,
             'longest_streak' => $user->longest_streak,
-            'most_completed_month' => $mostCompletedMonth ? $this->monthName((int) $mostCompletedMonth->month) : null,
+            'most_completed_month' => $mostCompletedMonth ? $this->monthName((int) $mostCompletedMonth->getAttribute('month')) : null,
             'favourite_theme' => $favouriteTheme?->theme,
             'most_selected_atmosphere' => $mostSelectedAtmosphere?->atmosphere,
             'compatibility_over_time' => $compatibilityOverTime,
@@ -91,6 +92,10 @@ class InsightsService
         return Carbon::create()->month((int) $month)->format('F');
     }
 
+    /**
+     * @param  literal-string  $column
+     * @return literal-string
+     */
     private function extractMonth(string $column): string
     {
         $driver = DB::getDriverName();
@@ -100,6 +105,10 @@ class InsightsService
             : "MONTH({$column})";
     }
 
+    /**
+     * @param  literal-string  $column
+     * @return literal-string
+     */
     private function extractYearMonth(string $column): string
     {
         $driver = DB::getDriverName();

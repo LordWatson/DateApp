@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ChevronRight, Search } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
@@ -57,19 +57,36 @@ const groupLabels: Record<string, string> = {
     achievements: 'Achievements',
 };
 
-const hasResults = Object.values(props.results).some(
-    (group) => group && group.length > 0,
+// Computed: the page keeps its state between searches, so a constant would stay stale.
+const hasResults = computed(() =>
+    Object.values(props.results).some((group) => group && group.length > 0),
 );
 
+const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+};
+
+function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (character) => htmlEntities[character]);
+}
+
+// The result is rendered with v-html and includes text other people wrote
+// (love notes), so everything is escaped before the <mark> is added.
 function highlight(text: string | null, query: string): string {
-    if (!text || !query) {
-        return text ?? '';
+    const safe = escapeHtml(text ?? '');
+
+    if (!safe || !query) {
+        return safe;
     }
 
-    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escaped})`, 'gi');
 
-    return text.replace(
+    return safe.replace(
         regex,
         '<mark class="rounded bg-gold-soft/30 px-0.5 text-foreground">$1</mark>',
     );

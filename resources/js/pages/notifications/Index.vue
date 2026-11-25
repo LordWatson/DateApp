@@ -52,44 +52,85 @@ function typeEmoji(type: string): string {
         partner_viewed_plan: '👀',
         partner_liked_plan: '❤️',
         daily_challenge: '✨',
+        partner_added_date_night_to_calendar: '📅',
+        achievement_unlocked: '🏆',
+        questionnaire_reminder: '⏰',
+        partner_connected: '💞',
+        partner_left: '👋',
+        invitation_declined: '✉️',
+        plan_failed: '⚠️',
+        calendar_reminder: '🗓️',
+        invitation_expired: '⌛',
+        data_export_ready: '📦',
+        partner_nudge: '⏳',
+        love_note_reaction: '💗',
+        connection_anniversary: '💞',
+        partner_completed_plan: '🥂',
+        connection_paused: '⏸️',
+        connection_resumed: '▶️',
     };
 
     return map[type] ?? '🔔';
 }
 
+function destination(notification: NotificationItem): string | null {
+    const data = notification.data ?? {};
+
+    switch (notification.type) {
+        case 'partner_completed':
+        case 'partner_nudge':
+        case 'plan_failed':
+            return data.questionnaire_slug
+                ? `/questionnaires/${data.questionnaire_slug}`
+                : '/questionnaires';
+        case 'questionnaire_reminder':
+            return '/questionnaires';
+        case 'date_night_plan_ready':
+        case 'partner_liked_plan':
+        case 'partner_viewed_plan':
+        case 'partner_completed_plan':
+            return data.plan_id
+                ? `/date-night/${data.plan_id}`
+                : '/date-night/history';
+        case 'partner_added_date_night_to_calendar':
+        case 'calendar_reminder':
+            return data.calendar_event_id
+                ? `/calendar/${data.calendar_event_id}`
+                : '/calendar';
+        case 'love_note_received':
+        case 'love_note_reaction':
+            return data.love_note_id
+                ? `/love-notes/${data.love_note_id}`
+                : '/love-notes';
+        case 'moment_created':
+            return data.moment_id ? `/moments/${data.moment_id}` : '/moments';
+        case 'achievement_unlocked':
+            return '/achievements';
+        case 'daily_challenge':
+            return '/dashboard';
+        case 'partner_left':
+            // The page sends on to /partner when there is nothing to choose.
+            return '/partner/after';
+        case 'partner_connected':
+        case 'connection_anniversary':
+        case 'connection_paused':
+        case 'connection_resumed':
+        case 'invitation_declined':
+        case 'invitation_expired':
+            return '/partner';
+        case 'data_export_ready':
+            return '/settings/profile';
+        default:
+            return null;
+    }
+}
+
 function handleNotificationClick(notification: NotificationItem): void {
     const redirect = (): void => {
-        if (
-            notification.type === 'partner_completed' &&
-            notification.data?.questionnaire_slug
-        ) {
-            router.visit(
-                `/questionnaires/${notification.data.questionnaire_slug}`,
-            );
-        } else if (
-            notification.type === 'date_night_plan_ready' &&
-            notification.data?.plan_id
-        ) {
-            router.visit(`/date-night/${notification.data.plan_id}`);
-        } else if (
-            notification.type === 'partner_liked_plan' &&
-            notification.data?.plan_id
-        ) {
-            router.visit(`/date-night/${notification.data.plan_id}`);
-        } else if (
-            notification.type === 'love_note_received' &&
-            notification.data?.love_note_id
-        ) {
-            router.visit(`/love-notes/${notification.data.love_note_id}`);
-        } else if (notification.type === 'love_note_received') {
-            router.visit('/love-notes');
-        } else if (
-            notification.type === 'moment_created' &&
-            notification.data?.moment_id
-        ) {
-            router.visit(`/moments/${notification.data.moment_id}`);
-        } else if (notification.type === 'moment_created') {
-            router.visit('/moments');
+        const url = destination(notification);
+
+        if (url) {
+            router.visit(url);
         }
     };
 

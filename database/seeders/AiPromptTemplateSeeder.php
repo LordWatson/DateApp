@@ -23,7 +23,7 @@ class AiPromptTemplateSeeder extends Seeder
     /**
      * @return list<array<string, mixed>>
      */
-    private function templates(): array
+    public function templates(): array
     {
         $safety = (string) config('ai.safety.system_rules');
 
@@ -47,6 +47,9 @@ Rules:
   meal" or "a fun activity".
 - `theme` is a 2–5 word Title Case name that accurately reflects the plan you
   actually produced (no emojis, no markdown, no trailing punctuation).
+- If `requested_change` is present, the couple has read the plan in
+  `deterministic_plan` and asked for that change. Rewrite the plan so it clearly
+  honours the request, keep what still fits, and stay within every other rule.
 
 Context:
 {{context}}
@@ -63,7 +66,7 @@ non-empty strings, no markdown):
   "romantic_challenge": string
 }
 PROMPT,
-                'version' => 11,
+                'version' => 12,
                 'active' => true,
                 // Schema has 9 short string fields; keep a generous but not
                 // excessive output budget so DeepSeek does not truncate.
@@ -87,6 +90,9 @@ Rules:
   as a rough total budget in the user's local currency and tailor spend to it.
 - `theme` is a 2–5 word Title Case name that accurately reflects the plan you
   produced (no emojis, no markdown, no trailing punctuation).
+- If `requested_change` is present, the user has read the plan in
+  `deterministic_plan` and asked for that change. Rewrite the plan so it clearly
+  honours the request, keep what still fits, and stay within every other rule.
 
 Location & travel radius (only when `location` is provided):
 - `location` may include a rough label (city/region/country), approximate
@@ -129,7 +135,7 @@ non-empty, no markdown):
 Hard limit: `local_suggestions` MUST contain at most 3 entries; prefer fewer,
 higher-quality picks over padding. Return an empty array when `location` is null.
 PROMPT,
-                'version' => 1,
+                'version' => 2,
                 'active' => true,
                 'max_tokens' => 5000,
             ],
@@ -159,6 +165,9 @@ Compromise rules (this is the point of the plan):
   say which partner gave which answer and never invent preferences.
 - `theme` is a 2–5 word Title Case name that reflects the plan you produced
   (no emojis, no markdown, no trailing punctuation).
+- If `requested_change` is present, the couple has read the plan in
+  `deterministic_plan` and asked for that change. Rewrite the plan so it clearly
+  honours the request, keep what still fits, and stay within every other rule.
 
 Location & travel radius (only when `location` is provided):
 - `location` may include a rough label (city/region/country), approximate
@@ -199,120 +208,27 @@ non-empty, no markdown):
 Hard limit: `local_suggestions` MUST contain at most 3 entries; prefer fewer,
 higher-quality picks over padding. Return an empty array when `location` is missing.
 PROMPT,
-                'version' => 1,
+                'version' => 2,
                 'active' => true,
                 'max_tokens' => 5000,
             ],
             [
-                'name' => AIUseCase::ConversationPrompt->value,
-                'description' => 'Generates a thoughtful conversation starter for a couple.',
-                'system_prompt' => $safety."\n\nYou create warm, open-ended conversation prompts that build emotional connection.",
-                'user_prompt_template' => <<<'PROMPT'
-Suggest one gentle, non-invasive conversation prompt for the couple.
-
-Context:
-{{context}}
-
-Respond as JSON with:
-{ "prompt": string, "follow_up": string }
-PROMPT,
-                'version' => 1,
-                'active' => true,
-            ],
-            [
-                'name' => AIUseCase::RelationshipInsight->value,
-                'description' => 'Summarises a light, supportive relationship insight from questionnaire data.',
-                'system_prompt' => $safety."\n\nYou highlight relationship strengths and gentle growth areas without diagnosing or advising.",
-                'user_prompt_template' => <<<'PROMPT'
-Given the couple's recent shared answers, produce one supportive insight.
-
-Context:
-{{context}}
-
-Respond as JSON with:
-{ "headline": string, "body": string, "suggestion": string }
-PROMPT,
-                'version' => 1,
-                'active' => true,
-            ],
-            [
-                'name' => AIUseCase::CompatibilitySummary->value,
-                'description' => 'Summarises the deterministic compatibility calculation in friendly language.',
-                'system_prompt' => $safety."\n\nYou describe an already-calculated compatibility score in warm, non-judgemental language. Never recompute the score.",
-                'user_prompt_template' => <<<'PROMPT'
-Summarise the couple's compatibility using ONLY the provided score and matches.
-
-Context:
-{{context}}
-
-Respond as JSON with:
-{ "summary": string, "strengths": [string], "growth_areas": [string] }
-PROMPT,
-                'version' => 1,
-                'active' => true,
-            ],
-            [
-                'name' => AIUseCase::ChallengeVariation->value,
-                'description' => 'Creates a playful variation of an existing romantic challenge.',
-                'system_prompt' => $safety."\n\nYou create playful, respectful variations of romantic challenges without adding unsafe content.",
-                'user_prompt_template' => <<<'PROMPT'
-Given the challenge below, propose one variation the couple could try instead.
-
-Context:
-{{context}}
-
-Respond as JSON with:
-{ "variation": string, "why_it_works": string }
-PROMPT,
-                'version' => 1,
-                'active' => true,
-            ],
-            [
-                'name' => AIUseCase::ThemeDescription->value,
-                'description' => 'Writes a short, evocative description for a date night theme.',
-                'system_prompt' => $safety."\n\nYou write short, evocative, tasteful theme descriptions.",
-                'user_prompt_template' => <<<'PROMPT'
-Enhance the given theme with a short, evocative description.
-
-Context:
-{{context}}
-
-Respond as JSON with:
-{ "description": string, "keywords": [string] }
-PROMPT,
-                'version' => 1,
-                'active' => true,
-            ],
-            [
-                'name' => AIUseCase::MomentCaption->value,
-                'description' => 'Writes a short, warm caption for a saved shared moment.',
-                'system_prompt' => $safety."\n\nYou write short, warm captions for shared moments. Never invent personal details.",
-                'user_prompt_template' => <<<'PROMPT'
-Write one short caption for the couple's saved moment.
-
-Context:
-{{context}}
-
-Respond as JSON with:
-{ "caption": string }
-PROMPT,
-                'version' => 1,
-                'active' => true,
-            ],
-            [
                 'name' => AIUseCase::IntimacyGame->value,
-                'description' => 'Writes a short, sexy, erotic game for a couple to play together.',
-                'system_prompt' => $safety."\n\nYou write sexy, erotic games for couples. Never invent personal details.",
+                'description' => 'Writes one new prompt card for an intimacy game a couple is playing.',
+                'system_prompt' => $safety."\n\nYou write playful, consensual prompt cards for couples' intimacy games. Never invent personal details.",
                 'user_prompt_template' => <<<'PROMPT'
-Write one sex / intimacy game for a couple.
+Write one new prompt card for the intimacy game described in the context.
+Match the game's category and intensity, keep it to one or two sentences that
+can be read aloud, make it easy to skip or swap, and do not repeat any card
+already listed in the context.
 
 Context:
 {{context}}
 
 Respond as JSON with:
-{ "caption": string }
+{ "prompt": string }
 PROMPT,
-                'version' => 1,
+                'version' => 2,
                 'active' => true,
             ],
             [

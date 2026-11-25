@@ -25,7 +25,7 @@ Run PHP and artisan through PowerShell; `php` is not on the Git Bash PATH on thi
 
 ## How the code is organised
 
-- **Request path:** thin controller → FormRequest → Action (single class, `execute()`) → Service for domain logic → Presenter (`app/Http/Presenters`) or a hand-built array for Inertia props. The classes in `app/Http/Resources` are mostly unused; do not assume a page uses them.
+- **Request path:** thin controller → FormRequest → Action (single class, `execute()`) → Service for domain logic → Presenter (`app/Http/Presenters`) or a hand-built array for Inertia props. There are no API Resource classes.
 - **Side effects:** action dispatches an Event → listener named `<Verb>On<Event>` with a `public string $queue` → Job (`onQueue()`, `$tries = 3`, logging `failed()`) → queued Mailable.
 - **Event wiring is manual.** Discovery is off; every listener must be added to `$listen` in `app/Providers/EventServiceProvider.php`.
 - **Scheduled commands** are defined in `bootstrap/app.php` (`withSchedule`), not `routes/console.php`.
@@ -41,10 +41,10 @@ Run PHP and artisan through PowerShell; `php` is not on the Git Bash PATH on thi
 
 - **Queues:** jobs use six queues (`default`, `notifications`, `emails`, `analytics`, `ai`, `exports`). `composer dev` works all of them (the worker is re-registered in `AppServiceProvider`); a worker started by hand or in production needs `--queue=default,notifications,emails,analytics,ai,exports` or only `default` runs. Tests hide this because they use the sync queue.
 - **`ziggy-js` `route()` is not set up.** The server package is not installed and there is no `@routes` directive, so do not copy that pattern from the pages that still import it; use Wayfinder.
-- **Composer hook:** `composer require/update` runs `php artisan install:features` (a starter-kit feature picker that can rewrite project files). Set `LARAVEL_INSTALLER_DEFER_HOOKS=1` first to skip it.
+- **Deploying:** `docs/DEPLOY.md` is the checklist and `.env.production.example` the settings. Browser tests: `npm run test:e2e`.
 - **Cached routes and events:** `bootstrap/cache/` can hold a cached route and event list locally. If a new route 404s or a new listener does not fire, run `php artisan optimize:clear`.
 - **Windows:** no `pcntl`, so `composer dev` leaves out the Pail log tailer (see `AppServiceProvider`). Use `/log-viewer` (super admins only).
-- **Unused code is common:** many events are never dispatched, several jobs are only referenced by tests, and feature flags are not checked anywhere outside admin. Check the module doc's "Rules and gotchas" before building on something.
+- **Some code is still unused:** a few model helpers, enum cases and policy methods have no callers. Check the module doc's "Rules and gotchas" before building on something.
 
 ## Laravel Boost
 

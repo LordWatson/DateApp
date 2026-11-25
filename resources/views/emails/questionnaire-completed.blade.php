@@ -47,6 +47,7 @@
             </div>
             <div class="footer">
                 <p>Date Night &mdash; Made with ❤️ for couples</p>
+                @include('emails.partials.unsubscribe', ['user' => $recipient, 'category' => 'partner_activity'])
             </div>
         </div>
     </div>

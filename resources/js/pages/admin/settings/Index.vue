@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -19,6 +19,7 @@ interface Setting {
 
 const props = defineProps<{
     settings: Record<string, Setting[]>;
+    inUse: string[];
 }>();
 
 // Build local editable copy
@@ -40,7 +41,7 @@ const saveAll = () => {
     }));
 
     router.post(
-        route('admin.settings.bulk-update'),
+        admin.settings.bulkUpdate().url,
         { settings: payload },
         {
             onFinish: () => {
@@ -59,7 +60,9 @@ const saveAll = () => {
                     System settings
                 </h1>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    Configure application-wide settings.
+                    Application-wide settings. A setting marked "Not in use" is
+                    saved but nothing in the app reads it yet. AI settings have
+                    their own page.
                 </p>
             </div>
             <Button size="sm" @click="saveAll" :disabled="saving">
@@ -82,6 +85,11 @@ const saveAll = () => {
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-foreground">
                             {{ setting.label }}
+                            <span
+                                v-if="!inUse.includes(setting.key)"
+                                class="ml-2 badge-soft"
+                                >Not in use</span
+                            >
                         </p>
                         <p
                             v-if="setting.description"

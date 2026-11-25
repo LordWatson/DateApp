@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
 import { LogOut } from '@lucide/vue';
+import LegalLinks from '@/components/LegalLinks.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
+import { edit as editNotifications } from '@/routes/notification-settings';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
@@ -14,6 +16,10 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
         href: editProfile(),
+    },
+    {
+        title: 'Notifications',
+        href: editNotifications(),
     },
     {
         title: 'Security',
@@ -66,5 +72,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
             <LogOut class="size-4" aria-hidden="true" />
             Log out
         </button>
+
+        <LegalLinks />
     </div>
 </template>

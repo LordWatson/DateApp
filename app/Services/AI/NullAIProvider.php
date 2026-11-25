@@ -39,34 +39,22 @@ final class NullAIProvider implements AIProvider
     private function stubData(AIUseCase $useCase): array
     {
         return match ($useCase) {
+            // Only keys DateNightGeneratorService accepts (its ENHANCEABLE_FIELDS).
             AIUseCase::DateNightPlan => [
-                'title' => 'A gentle evening in',
                 'summary' => 'A calm, connection-focused evening at home.',
-                'activities' => [],
+            ],
+            AIUseCase::DateNightPlanSolo => [
+                'summary' => 'An easy date out, planned around what you asked for.',
+                'local_suggestions' => [],
+            ],
+            AIUseCase::WeeklyReflection => [
+                'summary' => 'A steady week with small moments worth noticing.',
+            ],
+            AIUseCase::IntimacyGame => [
+                'prompt' => 'Share one thing your partner did recently that made you feel close.',
             ],
             AIUseCase::DateNightPlanOutCouple => [
                 'summary' => 'An easy evening out that gives each of you something you asked for.',
-            ],
-            AIUseCase::ConversationPrompt => [
-                'prompt' => 'What made you smile this week?',
-            ],
-            AIUseCase::RelationshipInsight => [
-                'headline' => 'You value quality time together.',
-                'body' => 'Consider a distraction-free evening this week.',
-            ],
-            AIUseCase::CompatibilitySummary => [
-                'summary' => 'You share many values around connection.',
-                'strengths' => [],
-                'growth_areas' => [],
-            ],
-            AIUseCase::ChallengeVariation => [
-                'variation' => 'Swap the activity for a shared playlist.',
-            ],
-            AIUseCase::ThemeDescription => [
-                'description' => 'A warm, romantic and playful theme.',
-            ],
-            AIUseCase::MomentCaption => [
-                'caption' => 'A little moment worth remembering.',
             ],
         };
     }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ChevronRight, MapPin, Pencil, Plus, Trash2, X } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
@@ -21,6 +22,11 @@ interface CalendarEvent {
     type: string;
     emoji: string | null;
     date: string;
+    recurrence: string | null;
+    /** Where the event next falls: its own date unless it repeats. */
+    next_date: string;
+    days_until: number;
+    occurrence: number | null;
     time: string | null;
     location: string | null;
     notes: string | null;
@@ -39,6 +45,8 @@ interface EventType {
 const props = defineProps<{
     events: CalendarEvent[];
     eventTypes: EventType[];
+    /** Today's date (YYYY-MM-DD) in the user's own timezone. */
+    today: string;
 }>();
 
 const showForm = ref(false);
@@ -49,7 +57,8 @@ const form = useForm({
     description: '',
     type: 'custom',
     emoji: '',
-    date: new Date().toISOString().split('T')[0],
+    date: props.today,
+    recurrence: '',
     time: '',
     location: '',
     notes: '',
@@ -57,24 +66,22 @@ const form = useForm({
     reminder: '',
 });
 
-const today = new Date().toISOString().split('T')[0];
-
 const upcomingEvents = computed(() =>
     props.events
-        .filter((e) => e.date >= today)
-        .sort((a, b) => a.date.localeCompare(b.date)),
+        .filter((e) => e.next_date >= props.today)
+        .sort((a, b) => a.next_date.localeCompare(b.next_date)),
 );
 
 const pastEvents = computed(() =>
     props.events
-        .filter((e) => e.date < today)
-        .sort((a, b) => b.date.localeCompare(a.date)),
+        .filter((e) => e.next_date < props.today)
+        .sort((a, b) => b.next_date.localeCompare(a.next_date)),
 );
 
 function openCreate(): void {
     editingEvent.value = null;
     form.reset();
-    form.date = today;
+    form.date = props.today;
     showForm.value = true;
 }
 
@@ -85,12 +92,43 @@ function openEdit(event: CalendarEvent): void {
     form.type = event.type;
     form.emoji = event.emoji ?? '';
     form.date = event.date;
+    form.recurrence = event.recurrence ?? '';
     form.time = event.time ?? '';
     form.location = event.location ?? '';
     form.notes = event.notes ?? '';
     form.colour = event.colour;
     form.reminder = event.reminder ?? '';
     showForm.value = true;
+}
+
+// Anniversaries and birthdays come round every year unless the user says otherwise.
+watch(
+    () => form.type,
+    (type) => {
+        if (!editingEvent.value) {
+            form.recurrence = ['anniversary', 'birthday'].includes(type)
+                ? 'yearly'
+                : '';
+        }
+    },
+);
+
+function countdown(days: number): string {
+    if (days === 0) {
+        return 'Today';
+    }
+
+    return days === 1 ? 'Tomorrow' : `In ${days} days`;
+}
+
+function ordinal(n: number): string {
+    const tens = n % 100;
+    const suffix =
+        tens >= 11 && tens <= 13
+            ? 'th'
+            : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+
+    return `${n}${suffix}`;
 }
 
 function submit(): void {
@@ -111,8 +149,12 @@ function submit(): void {
     }
 }
 
-function deleteEvent(event: CalendarEvent): void {
-    router.delete(destroy.url({ calendarEvent: event.id }));
+const eventToDelete = ref<CalendarEvent | null>(null);
+
+function deleteEvent(): void {
+    if (eventToDelete.value) {
+        router.delete(destroy.url({ calendarEvent: eventToDelete.value.id }));
+    }
 }
 
 function truncateDescription(description: string): string {
@@ -197,8 +239,20 @@ const iconButtonClass =
                         <span
                             class="mt-0.5 block text-xs text-muted-foreground"
                         >
-                            {{ formatDate(event.date)
+                            {{ formatDate(event.next_date)
                             }}{{ event.time ? ' · ' + event.time : '' }}
+                        </span>
+                        <span class="mt-1.5 flex flex-wrap gap-1.5">
+                            <span class="badge-soft tabular-nums">{{
+                                countdown(event.days_until)
+                            }}</span>
+                            <span v-if="event.recurrence" class="badge-soft">
+                                {{
+                                    event.occurrence
+                                        ? `${ordinal(event.occurrence)} · every year`
+                                        : 'Every year'
+                                }}
+                            </span>
                         </span>
                         <span
                             v-if="event.location"
@@ -240,7 +294,7 @@ const iconButtonClass =
                                 'text-destructive hover:bg-destructive/10',
                             ]"
                             :aria-label="`Delete ${event.title}`"
-                            @click.stop="deleteEvent(event)"
+                            @click.stop="eventToDelete = event"
                         >
                             <Trash2 class="size-4" aria-hidden="true" />
                         </button>
@@ -399,6 +453,22 @@ const iconButtonClass =
                                 {{ form.errors.date }}
                             </p>
 
+                            <div class="flex items-center gap-3">
+                                <input
+                                    id="event-recurrence"
+                                    v-model="form.recurrence"
+                                    type="checkbox"
+                                    true-value="yearly"
+                                    false-value=""
+                                    class="size-5 rounded accent-primary"
+                                />
+                                <label
+                                    for="event-recurrence"
+                                    class="text-sm font-medium text-foreground"
+                                    >Repeats every year</label
+                                >
+                            </div>
+
                             <div>
                                 <label :class="labelClass" for="event-location"
                                     >Location</label
@@ -490,6 +560,13 @@ const iconButtonClass =
             </div>
         </Transition>
     </Teleport>
+    <ConfirmDialog
+        :open="eventToDelete !== null"
+        title="Delete this event?"
+        description="It is removed from your shared calendar and cannot be brought back."
+        @update:open="eventToDelete = null"
+        @confirm="deleteEvent"
+    />
 </template>
 
 <style scoped>

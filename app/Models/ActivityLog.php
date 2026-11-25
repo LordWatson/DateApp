@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -14,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $action
  * @property string|null $subject_type
  * @property int|null $subject_id
- * @property array|null $metadata
+ * @property array<string, mixed>|null $metadata
  */
 #[Fillable([
     'user_id',
@@ -25,8 +24,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 ])]
 class ActivityLog extends Model
 {
-    use HasFactory;
-
     protected $table = 'activity_log';
 
     protected function casts(): array
@@ -36,11 +33,13 @@ class ActivityLog extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return MorphTo<Model, $this> */
     public function subject(): MorphTo
     {
         return $this->morphTo();

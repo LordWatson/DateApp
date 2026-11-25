@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\FeatureFlag;
 use App\Services\AdminAuditService;
+use App\Services\RuntimeSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,6 +20,8 @@ class AdminFeatureFlagController extends AdminController
 
         return Inertia::render('admin/feature-flags/Index', [
             'flags' => $flags->groupBy('group'),
+            // The page labels every other flag as "not in use".
+            'inUse' => array_keys(RuntimeSettings::FLAG_DEFAULTS),
         ]);
     }
 

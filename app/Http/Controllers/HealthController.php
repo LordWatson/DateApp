@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -10,8 +11,13 @@ use Illuminate\Support\Facades\Storage;
 
 class HealthController extends Controller
 {
-    public function __invoke(): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
+        $token = (string) config('app.health_token');
+
+        // With a token configured, only the monitor that knows it may run the checks.
+        abort_if($token !== '' && ! hash_equals($token, (string) $request->bearerToken()), 404);
+
         $checks = [
             'database' => $this->checkDatabase(),
             'cache' => $this->checkCache(),
@@ -28,6 +34,7 @@ class HealthController extends Controller
         ], $healthy ? 200 : 503);
     }
 
+    /** @return array{status: string, message: string} */
     private function checkDatabase(): array
     {
         try {
@@ -39,6 +46,7 @@ class HealthController extends Controller
         }
     }
 
+    /** @return array{status: string, message: string} */
     private function checkCache(): array
     {
         try {
@@ -51,6 +59,7 @@ class HealthController extends Controller
         }
     }
 
+    /** @return array{status: string, message: string} */
     private function checkQueue(): array
     {
         try {
@@ -62,11 +71,13 @@ class HealthController extends Controller
         }
     }
 
+    /** @return array{status: string, message: string} */
     private function checkStorage(): array
     {
         try {
-            Storage::put('health_check.txt', 'ok');
-            Storage::delete('health_check.txt');
+            $uploads = Storage::disk(config('filesystems.uploads'));
+            $uploads->put('health_check.txt', 'ok');
+            $uploads->delete('health_check.txt');
 
             return ['status' => 'ok', 'message' => 'Writable'];
         } catch (\Throwable $e) {

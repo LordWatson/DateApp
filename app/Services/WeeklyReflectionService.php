@@ -15,9 +15,12 @@ use App\Models\User;
 use App\Models\WeeklyReflection;
 use App\Services\AI\AIService;
 use Carbon\CarbonImmutable;
+use Closure;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
@@ -48,12 +51,18 @@ final readonly class WeeklyReflectionService
     {
         $now ??= CarbonImmutable::now();
 
-        $existing = $this->sharedQuery($user)
+        $find = fn (): ?WeeklyReflection => $this->sharedQuery($user)
             ->whereDate('week_start', $this->weekKey($now))
             ->orderBy('id')
             ->first();
 
-        return $existing ?? $this->generate($user, $now);
+        // Looked up again inside the lock: the other partner may have generated it while we waited.
+        $existing = $find();
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return $this->locked($user, $now, fn (): WeeklyReflection => $find() ?? $this->generate($user, $now));
     }
 
     /**
@@ -63,9 +72,47 @@ final readonly class WeeklyReflectionService
     {
         $now ??= CarbonImmutable::now();
 
-        $this->sharedQuery($user)->whereDate('week_start', $this->weekKey($now))->delete();
+        return $this->locked($user, $now, function () use ($user, $now): WeeklyReflection {
+            $this->sharedQuery($user)->whereDate('week_start', $this->weekKey($now))->delete();
 
-        return $this->generate($user, $now);
+            return $this->generate($user, $now);
+        });
+    }
+
+    /**
+     * The cache key of the lock that keeps a couple to one reflection per week.
+     * It is the same whichever partner asks.
+     */
+    public function lockKey(User $user, CarbonImmutable $now): string
+    {
+        $ids = array_filter([$user->id, $user->partner_id]);
+        sort($ids);
+
+        return 'weekly-reflection:'.implode('-', $ids).':'.$this->weekKey($now);
+    }
+
+    /**
+     * Run one generation at a time per couple and week, so both partners opening
+     * the page at the same instant cannot each create a row.
+     *
+     * @param  Closure(): WeeklyReflection  $callback
+     */
+    private function locked(User $user, CarbonImmutable $now, Closure $callback): WeeklyReflection
+    {
+        $lock = Cache::lock($this->lockKey($user, $now), 120);
+
+        try {
+            $lock->block(30);
+        } catch (LockTimeoutException) {
+            // The other request is unusually slow: carry on rather than fail the page.
+            return $callback();
+        }
+
+        try {
+            return $callback();
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
@@ -166,6 +213,14 @@ final readonly class WeeklyReflectionService
             ->orderBy('created_at')
             ->get();
 
+        $done = DB::table('date_night_plan_completions')
+            ->join('date_night_plans', 'date_night_plans.id', '=', 'date_night_plan_completions.date_night_plan_id')
+            ->whereIn('date_night_plan_completions.user_id', $ids)
+            ->whereDate('completed_on', '>=', $days[0])
+            ->whereDate('completed_on', '<=', $days[1])
+            ->orderBy('completed_on')
+            ->get(['date_night_plans.theme', 'date_night_plan_completions.user_id', 'rating', 'completed_on']);
+
         $notes = LoveNote::query()
             ->whereIn('sender_id', $ids)
             ->whereIn('recipient_id', $ids)
@@ -227,6 +282,13 @@ final readonly class WeeklyReflectionService
                 'meal' => $plan->meal_suggestion,
                 'where' => $plan->location_label,
             ], static fn (mixed $value): bool => $value !== null))->values()->all(),
+            // Date nights the couple actually did this week, with each person's rating out of 5.
+            'date_nights_done' => $done->take(self::MAX_ITEMS)->map(fn (object $row): array => [
+                'date' => substr((string) $row->completed_on, 0, 10),
+                'theme' => $row->theme,
+                'rated_by' => $name((int) $row->user_id),
+                'rating_out_of_5' => (int) $row->rating,
+            ])->values()->all(),
             'love_notes' => [
                 'total' => $notes->count(),
                 'sent_by' => $notes->countBy(fn (LoveNote $note): string => $name($note->sender_id))->all(),
@@ -283,6 +345,8 @@ final readonly class WeeklyReflectionService
                 useCase: AIUseCase::WeeklyReflection,
                 // The prompt template reads {{context}}; any other key never reaches the model.
                 context: ['context' => $activity],
+                // The recap holds both partners' notes and moments, so both must have agreed.
+                people: array_filter([$user, $user->partner]),
                 userId: $user->id,
             );
         } catch (Throwable $e) {
@@ -347,6 +411,21 @@ final readonly class WeeklyReflectionService
         }
 
         $comingUp = $activity['calendar']['coming_up'][0]['title'] ?? null;
+
+        // Someone without a partner gets a recap about their own week, not about a couple.
+        if (! $activity['partner_connected']) {
+            return [
+                'headline' => 'Your Week',
+                'summary' => $highlights === []
+                    ? 'A quiet week. Rest counts too.'
+                    : 'This week you made time for the things that matter to you. Every plan and saved moment adds up.',
+                'highlights' => $highlights === [] ? ['A gentle, quiet week.'] : array_slice($highlights, 0, 5),
+                'gentle_suggestion' => $comingUp !== null
+                    ? "You have \u{201C}{$comingUp}\u{201D} coming up — take a few minutes to look forward to it."
+                    : 'Next week, maybe try one small new thing — a walk, a coffee somewhere new, or a fresh playlist.',
+                'encouragement' => 'You are making time for yourself, and that matters.',
+            ];
+        }
 
         return [
             'headline' => 'This Week Together',

@@ -12,7 +12,10 @@ use App\Models\LoveNote;
 use App\Models\Moment;
 use App\Models\User;
 use App\Models\WeeklyReflection;
+use App\Services\WeeklyReflectionService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class WeeklyReflectionTest extends TestCase
@@ -122,5 +125,66 @@ class WeeklyReflectionTest extends TestCase
 
         $this->assertTrue($reflection->fallback_used);
         $this->assertStringContainsString('Pizza night', implode(' ', $reflection->highlights));
+    }
+
+    public function test_a_user_without_a_partner_gets_solo_wording_in_the_plain_recap(): void
+    {
+        AiPromptTemplate::query()->delete();
+        $solo = User::factory()->create();
+        Moment::factory()->create(['user_id' => $solo->id, 'title' => 'Pizza night', 'date' => now()]);
+
+        $this->actingAs($solo)->get(route('weekly-reflection.index'))->assertOk();
+
+        $reflection = WeeklyReflection::sole();
+        $text = implode(' ', [$reflection->headline, $reflection->summary, $reflection->gentle_suggestion, $reflection->encouragement, ...$reflection->highlights]);
+
+        $this->assertSame('Your Week', $reflection->headline);
+        $this->assertStringContainsString('Pizza night', $text);
+        $this->assertStringNotContainsStringIgnoringCase('together', $text);
+        $this->assertStringNotContainsStringIgnoringCase('each other', $text);
+    }
+
+    public function test_regenerating_is_throttled(): void
+    {
+        for ($i = 0; $i < 20; $i++) {
+            $this->actingAs($this->user)->post(route('weekly-reflection.regenerate'))->assertRedirect();
+        }
+
+        $this->actingAs($this->user)->post(route('weekly-reflection.regenerate'))->assertTooManyRequests();
+
+        $this->assertCount(20, $this->prompts);
+    }
+
+    public function test_generation_holds_one_lock_per_couple_so_both_partners_cannot_each_create_a_row(): void
+    {
+        $service = app(WeeklyReflectionService::class);
+        $key = $service->lockKey($this->user, CarbonImmutable::now());
+
+        $this->assertSame($key, $service->lockKey($this->partner, CarbonImmutable::now()));
+
+        // The AI call happens in the middle of generation: the partner's request could not get the lock then.
+        $freeDuringGeneration = null;
+        $this->app->instance(AIProvider::class, new class($freeDuringGeneration, $key) implements AIProvider
+        {
+            public function __construct(private ?bool &$free, private string $key) {}
+
+            public function name(): string
+            {
+                return 'fake';
+            }
+
+            public function complete(AIRequest $request): AIResponse
+            {
+                $this->free = Cache::lock($this->key, 5)->get();
+
+                return AIResponse::failure($request->useCase, 'skipped', 'not needed');
+            }
+        });
+
+        $this->actingAs($this->user)->get(route('weekly-reflection.index'))->assertOk();
+
+        $this->assertFalse($freeDuringGeneration);
+        $this->assertTrue(Cache::lock($key, 5)->get(), 'The lock is released once the reflection is saved.');
+        $this->assertSame(1, WeeklyReflection::count());
     }
 }

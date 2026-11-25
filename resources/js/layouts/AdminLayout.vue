@@ -10,16 +10,17 @@ import {
     Heart,
     Images,
     LayoutDashboard,
-    Mail,
     Menu,
     ScrollText,
     Settings,
+    SlidersHorizontal,
     Sparkles,
     Target,
     Trophy,
     Users,
 } from '@lucide/vue';
 import { ref, computed } from 'vue';
+import type { AdminAbilities } from '@/types';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -32,25 +33,90 @@ const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value;
 };
 
-const navItems = [
+const allNavItems: Array<{
+    label: string;
+    href: string;
+    icon: unknown;
+    exact?: boolean;
+    can?: keyof AdminAbilities;
+}> = [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, exact: true },
     { label: 'Users', href: '/admin/users', icon: Users },
-    { label: 'Couples', href: '/admin/couples', icon: Heart },
+    {
+        label: 'Couples',
+        href: '/admin/couples',
+        icon: Heart,
+        can: 'manageUsers',
+    },
     {
         label: 'Questionnaires',
         href: '/admin/questionnaires',
         icon: ClipboardList,
+        can: 'manageContent',
     },
-    { label: 'Challenges', href: '/admin/challenges', icon: Target },
-    { label: 'Achievements', href: '/admin/achievements', icon: Trophy },
-    { label: 'Feature flags', href: '/admin/feature-flags', icon: Flag },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
-    { label: 'Email templates', href: '/admin/email-templates', icon: Mail },
-    { label: 'AI prompts', href: '/admin/ai-prompts', icon: Sparkles },
-    { label: 'Media library', href: '/admin/media', icon: Images },
-    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { label: 'Audit logs', href: '/admin/audit-logs', icon: ScrollText },
+    {
+        label: 'Challenges',
+        href: '/admin/challenges',
+        icon: Target,
+        can: 'manageContent',
+    },
+    {
+        label: 'Achievements',
+        href: '/admin/achievements',
+        icon: Trophy,
+        can: 'manageContent',
+    },
+    {
+        label: 'Feature flags',
+        href: '/admin/feature-flags',
+        icon: Flag,
+        can: 'superAdmin',
+    },
+    {
+        label: 'Settings',
+        href: '/admin/settings',
+        icon: Settings,
+        can: 'superAdmin',
+    },
+    // Email templates is left out: no mail class reads the table yet.
+    {
+        label: 'AI settings',
+        href: '/admin/ai-settings',
+        icon: SlidersHorizontal,
+        can: 'superAdmin',
+    },
+    {
+        label: 'AI prompts',
+        href: '/admin/ai-prompts',
+        icon: Sparkles,
+        can: 'manageContent',
+    },
+    {
+        label: 'Media library',
+        href: '/admin/media',
+        icon: Images,
+        can: 'manageContent',
+    },
+    {
+        label: 'Analytics',
+        href: '/admin/analytics',
+        icon: BarChart3,
+        can: 'viewAnalytics',
+    },
+    {
+        label: 'Audit logs',
+        href: '/admin/audit-logs',
+        icon: ScrollText,
+        can: 'manageUsers',
+    },
 ];
+
+// Hide what this role would only get a 403 from. The routes enforce it too.
+const navItems = computed(() =>
+    allNavItems.filter(
+        (item) => !item.can || page.props.auth?.can?.[item.can] === true,
+    ),
+);
 
 const isActive = (href: string, exact = false) =>
     exact

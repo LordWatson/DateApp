@@ -2,9 +2,9 @@
 import { router, useForm } from '@inertiajs/vue3';
 import { X, FileText } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -41,7 +41,7 @@ const onFileChange = (e: Event) => {
 };
 
 const doUpload = () => {
-    uploadForm.post(route('admin.media.store'), {
+    uploadForm.post(admin.media.store().url, {
         onSuccess: () => {
             uploadForm.reset();
 
@@ -53,7 +53,7 @@ const doUpload = () => {
 };
 
 const doDelete = (id: number) => {
-    router.delete(route('admin.media.destroy', id), {
+    router.delete(admin.media.destroy(id).url, {
         onSuccess: () => {
             confirmDelete.value = null;
         },
@@ -97,6 +97,7 @@ const humanSize = (bytes: number): string => {
                     <input
                         ref="fileInput"
                         type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
                         @change="onFileChange"
                         class="mt-1 block text-sm text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary hover:file:bg-muted"
                     />
@@ -127,6 +128,16 @@ const humanSize = (bytes: number): string => {
                     Upload
                 </Button>
             </div>
+            <p class="mt-3 text-xs text-muted-foreground">
+                Images only (JPG, PNG, GIF or WebP), up to 10 MB.
+            </p>
+            <p
+                v-if="uploadForm.errors.file"
+                class="mt-1 text-xs text-destructive"
+                role="alert"
+            >
+                {{ uploadForm.errors.file }}
+            </p>
         </div>
 
         <!-- Grid -->

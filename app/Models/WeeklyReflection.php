@@ -54,11 +54,13 @@ class WeeklyReflection extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function partner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'partner_id');

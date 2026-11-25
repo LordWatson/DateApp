@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\AppNotification;
+use App\Services\ImpersonationService;
+use App\Services\RuntimeSettings;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -40,7 +42,20 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                // An explicit list: the user row also holds role, suspension and date of birth.
+                'user' => $request->user() ? [
+                    ...$request->user()->only([
+                        'id', 'name', 'display_name', 'email', 'avatar', 'email_verified_at', 'timezone', 'partner_id', 'onboarding_completed',
+                    ]),
+                    // true = agreed, false = declined, null = not asked yet.
+                    'ai_consent' => $request->user()->aiConsent(),
+                ] : null,
+                'can' => $request->user()?->isAdmin() ? [
+                    'manageUsers' => $request->user()->can('manage-users'),
+                    'manageContent' => $request->user()->can('manage-content'),
+                    'viewAnalytics' => $request->user()->can('view-analytics'),
+                    'superAdmin' => $request->user()->can('super-admin'),
+                ] : null,
             ],
             'unreadNotificationsCount' => $request->user()
                 ? AppNotification::where('user_id', $request->user()->id)
@@ -51,7 +66,11 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
             ],
-            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // Set while an administrator is viewing the app as this user (read-only).
+            'impersonating' => $request->user() && app(ImpersonationService::class)->isActive()
+                ? ['name' => $request->user()->display_name ?? $request->user()->name]
+                : null,
+            'registrationOpen' => app(RuntimeSettings::class)->flag('registration'),
         ];
     }
 }

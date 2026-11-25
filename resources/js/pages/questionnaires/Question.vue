@@ -147,9 +147,13 @@ async function saveAnswer(): Promise<void> {
             `/questionnaires/${props.questionnaire.slug}/question/${props.question.display_order}/answer`,
             { value: answer.value },
         );
-    } catch {
+    } catch (error) {
         saveError.value = true;
-        setTimeout(() => saveAnswer(), 3000);
+
+        // The server rejected the value (422): sending it again cannot succeed.
+        if (!axios.isAxiosError(error) || error.response?.status !== 422) {
+            setTimeout(() => saveAnswer(), 3000);
+        }
     } finally {
         saving.value = false;
     }

@@ -8,6 +8,7 @@ defineProps<{
     mau: Array<{ month: string; count: number }>;
     completions: Array<{ date: string; count: number }>;
     dropoff: Array<{ display_order: number; title: string; count: number }>;
+    active_users: number;
     avg_compatibility: number;
     love_note_activity: Array<{ date: string; count: number }>;
     moment_activity: Array<{ date: string; count: number }>;
@@ -19,7 +20,11 @@ defineProps<{
         <div class="mb-6">
             <h1 class="text-2xl font-semibold text-foreground">Analytics</h1>
             <p class="mt-1 text-sm text-muted-foreground">
-                Application usage and engagement metrics.
+                Application usage and engagement metrics. A user counts as
+                active when they finished a questionnaire, saved a moment, sent
+                a love note, unlocked an achievement or connected a partner.
+                Logins are not tracked. Average compatibility covers couple
+                plans only.
             </p>
         </div>
 
@@ -34,11 +39,11 @@ defineProps<{
                 </p>
             </div>
             <div class="card-premium rounded-2xl p-5">
-                <p class="mb-1 eyebrow">New users (30d)</p>
+                <p class="mb-1 eyebrow">Active users (30d)</p>
                 <p
                     class="font-display text-3xl font-semibold text-foreground tabular-nums"
                 >
-                    {{ dau.reduce((s, d) => s + d.count, 0) }}
+                    {{ active_users }}
                 </p>
             </div>
             <div class="card-premium rounded-2xl p-5">
@@ -63,7 +68,7 @@ defineProps<{
             <!-- Daily Users Chart (simple bar) -->
             <div class="card-premium rounded-2xl p-6">
                 <h2 class="mb-4 text-lg font-semibold text-foreground">
-                    Daily new users (30 days)
+                    Daily active users (30 days)
                 </h2>
                 <div class="flex h-32 items-end gap-1">
                     <div
@@ -159,7 +164,7 @@ defineProps<{
             <!-- Monthly Active Users -->
             <div class="card-premium rounded-2xl p-6">
                 <h2 class="mb-4 text-lg font-semibold text-foreground">
-                    Monthly registrations (12 months)
+                    Monthly active users (12 months)
                 </h2>
                 <div class="flex h-32 items-end gap-1">
                     <div

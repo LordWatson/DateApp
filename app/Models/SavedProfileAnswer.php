@@ -26,16 +26,19 @@ class SavedProfileAnswer extends Model
         'value',
     ];
 
+    /** @return BelongsTo<SavedProfile, $this> */
     public function savedProfile(): BelongsTo
     {
         return $this->belongsTo(SavedProfile::class);
     }
 
+    /** @return BelongsTo<Question, $this> */
     public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class);
     }
 
+    /** @return BelongsTo<QuestionOption, $this> */
     public function questionOption(): BelongsTo
     {
         return $this->belongsTo(QuestionOption::class);

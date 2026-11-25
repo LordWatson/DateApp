@@ -2,14 +2,15 @@
 
 namespace App\Providers;
 
-use App\AI\NullAIProvider;
-use App\Contracts\AIProvider;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\DevCommands;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -20,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(AIProvider::class, NullAIProvider::class);
+        //
     }
 
     /**
@@ -30,6 +31,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->registerGates();
+        $this->registerRateLimiters();
+    }
+
+    protected function registerRateLimiters(): void
+    {
+        $perUser = static fn (Request $request): string => (string) ($request->user()->id ?? $request->ip());
+
+        // Each invite or resend sends an email to an address the user typed.
+        RateLimiter::for('invites', fn (Request $request) => Limit::perDay(10)->by($perUser($request)));
+
+        // Each of these costs one AI request.
+        RateLimiter::for('ai', fn (Request $request) => Limit::perHour(20)->by($perUser($request)));
     }
 
     protected function registerGates(): void

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import { Bell, MapPin, Trash2 } from '@lucide/vue';
+import { ref } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
@@ -15,6 +17,10 @@ interface CalendarEvent {
     type: string;
     emoji: string | null;
     date: string;
+    recurrence: string | null;
+    next_date: string;
+    days_until: number;
+    occurrence: number | null;
     time: string | null;
     location: string | null;
     notes: string | null;
@@ -37,6 +43,20 @@ function formatDate(dateStr: string): string {
     });
 }
 
+function countdown(days: number): string {
+    if (days < 0) {
+        return '';
+    }
+
+    if (days === 0) {
+        return 'Today';
+    }
+
+    return days === 1 ? 'Tomorrow' : `In ${days} days`;
+}
+
+const confirmingDelete = ref(false);
+
 function deleteEvent(): void {
     router.delete(destroy.url({ calendarEvent: props.event.id }));
 }
@@ -52,7 +72,8 @@ function deleteEvent(): void {
             "
             :title="event.title"
             :description="
-                formatDate(event.date) + (event.time ? ' · ' + event.time : '')
+                formatDate(event.next_date) +
+                (event.time ? ' · ' + event.time : '')
             "
             :back-href="index.url()"
             back-label="Back to calendar"
@@ -64,6 +85,20 @@ function deleteEvent(): void {
                 >{{ event.emoji ?? '📅' }}</span
             >
         </PageHeader>
+
+        <div
+            v-if="countdown(event.days_until) || event.recurrence"
+            class="flex flex-wrap gap-2"
+        >
+            <span
+                v-if="countdown(event.days_until)"
+                class="badge-soft tabular-nums"
+                >{{ countdown(event.days_until) }}</span
+            >
+            <span v-if="event.recurrence" class="badge-soft"
+                >Every year since {{ event.date.slice(0, 4) }}</span
+            >
+        </div>
 
         <div
             v-if="
@@ -127,11 +162,17 @@ function deleteEvent(): void {
                 variant="ghost"
                 full-width
                 class="text-destructive! hover:bg-destructive/10!"
-                @click="deleteEvent"
+                @click="confirmingDelete = true"
             >
                 <Trash2 class="size-4" aria-hidden="true" />
                 Delete
             </SecondaryButton>
         </div>
+        <ConfirmDialog
+            v-model:open="confirmingDelete"
+            title="Delete this event?"
+            description="It is removed from your shared calendar and cannot be brought back."
+            @confirm="deleteEvent"
+        />
     </div>
 </template>

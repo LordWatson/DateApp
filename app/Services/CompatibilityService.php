@@ -12,6 +12,7 @@ class CompatibilityService
 {
     /**
      * @param  Response|null  $userResponse  Compare these exact attempts instead of each partner's latest one.
+     * @return array<string, mixed>|null
      */
     public function calculate(
         User $user,
@@ -19,9 +20,10 @@ class CompatibilityService
         ?Response $userResponse = null,
         ?Response $partnerResponse = null,
     ): ?array {
-        $partner = $user->partner;
+        // Two exact responses (a saved plan) need no current partner: the couple may have disconnected since.
+        $partner = $userResponse && $partnerResponse ? null : $user->partner;
 
-        if (! $partner) {
+        if (! $partner && ! ($userResponse && $partnerResponse)) {
             return null;
         }
 
@@ -70,12 +72,7 @@ class CompatibilityService
                 QuestionType::SingleChoice => $this->scoreSingleChoice($userResponse, $partnerResponse, $question->id),
                 QuestionType::MultipleChoice => $this->scoreMultipleChoice($userResponse, $partnerResponse, $question->id),
                 QuestionType::Slider => $this->scoreSlider($userResponse, $partnerResponse, $question->id, $question->minimum_value ?? 1, $question->maximum_value ?? 10),
-                default => null,
             };
-
-            if ($score === null) {
-                continue;
-            }
 
             $totalScore += $score;
             $totalWeight += 1;
@@ -162,6 +159,7 @@ class CompatibilityService
         return max(0.0, 1.0 - ($distance / $range));
     }
 
+    /** @return Collection<int, mixed> */
     private function getAnswerValues(Response $response, int $questionId): Collection
     {
         return $response->answers
@@ -184,11 +182,11 @@ class CompatibilityService
         $answers = $response->answers->where('question_id', $question->id);
 
         if ($question->type === QuestionType::Slider || $question->type === QuestionType::Text || $question->type === QuestionType::TextArea) {
-            return $answers->first()?->value ?? '';
+            return $answers->first()->value ?? '';
         }
 
         return $answers->map(function ($answer) {
-            $label = $answer->questionOption?->title ?? $answer->value;
+            $label = $answer->questionOption->title ?? $answer->value;
             $emoji = $answer->questionOption?->emoji;
 
             return $emoji ? "{$emoji} {$label}" : $label;

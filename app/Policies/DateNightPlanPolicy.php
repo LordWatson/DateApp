@@ -16,6 +16,11 @@ class DateNightPlanPolicy
 {
     public function view(User $user, DateNightPlan $plan): bool
     {
+        // Taken out of this person's account after the connection ended.
+        if ($plan->isHiddenFor($user)) {
+            return false;
+        }
+
         if ($plan->partner_user_id === $user->id) {
             return true;
         }
@@ -37,6 +42,11 @@ class DateNightPlanPolicy
     }
 
     public function like(User $user, DateNightPlan $plan): bool
+    {
+        return $this->view($user, $plan);
+    }
+
+    public function complete(User $user, DateNightPlan $plan): bool
     {
         return $this->view($user, $plan);
     }

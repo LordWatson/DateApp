@@ -45,6 +45,7 @@ class Challenge extends Model
         ];
     }
 
+    /** @return HasMany<DailyChallenge, $this> */
     public function dailyChallenges(): HasMany
     {
         return $this->hasMany(DailyChallenge::class);

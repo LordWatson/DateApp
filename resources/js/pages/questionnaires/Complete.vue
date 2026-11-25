@@ -6,6 +6,7 @@ import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import SuccessAnimation from '@/components/SuccessAnimation.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { nudge } from '@/routes/questionnaires';
 
 defineOptions({ layout: MobileLayout });
 
@@ -22,10 +23,27 @@ interface Props {
     current_streak: number;
     partner_completed: boolean;
     partner_name?: string | null;
+    has_partner?: boolean;
     awaiting_plan: boolean;
+    can_nudge?: boolean;
 }
 
 const props = defineProps<Props>();
+
+const nudging = ref(false);
+
+// The server answers with a toast and `can_nudge: false`, which hides the button.
+function nudgePartner(): void {
+    router.post(
+        nudge(props.questionnaire.slug).url,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => (nudging.value = true),
+            onFinish: () => (nudging.value = false),
+        },
+    );
+}
 
 const completedTime = props.completed_at
     ? new Date(props.completed_at).toLocaleTimeString([], {
@@ -52,10 +70,32 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 let stopped = false;
 
 const POLL_INTERVAL_MS = 2000;
+// About 90 seconds. After that the plan is late, not "a moment" away.
+const MAX_POLLS = 45;
+let polls = 0;
+const timedOut = ref(false);
+
+const needsPartner = computed(
+    () => !props.questionnaire.is_solo && props.has_partner === false,
+);
+
+const waitingMessage = computed(() =>
+    needsPartner.value
+        ? 'This questionnaire is planned from both of your answers. Connect your partner and we will plan your date once they have answered too.'
+        : `We've let ${props.partner_name ?? 'your partner'} know. We'll plan your date the moment they finish.`,
+);
 const MESSAGE_INTERVAL_MS = 2500;
 
 async function pollForPlan(): Promise<void> {
     if (stopped) {
+        return;
+    }
+
+    if (++polls > MAX_POLLS) {
+        stopped = true;
+        stopTimers();
+        timedOut.value = true;
+
         return;
     }
 
@@ -153,11 +193,35 @@ onBeforeUnmount(() => {
             >
                 We're planning your date night
             </h1>
-            <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+            <p
+                v-if="!timedOut"
+                class="mt-3 text-sm leading-relaxed text-muted-foreground"
+            >
                 Hang tight — this only takes a moment.
             </p>
+            <div v-else class="mt-4 w-full max-w-sm space-y-4" role="status">
+                <p class="text-sm leading-relaxed text-muted-foreground">
+                    This is taking longer than usual. Your answers are saved,
+                    and we will send you a notification as soon as your date
+                    night is ready.
+                </p>
+                <PrimaryButton full-width @click="router.visit('/dashboard')">
+                    Back to home
+                </PrimaryButton>
+                <SecondaryButton
+                    variant="ghost"
+                    full-width
+                    @click="router.visit('/date-night/history')"
+                >
+                    Your date nights
+                </SecondaryButton>
+            </div>
 
-            <div class="mt-8 min-h-[3rem] w-full" aria-live="polite">
+            <div
+                v-if="!timedOut"
+                class="mt-8 min-h-[3rem] w-full"
+                aria-live="polite"
+            >
                 <transition
                     mode="out-in"
                     enter-active-class="transition duration-500 ease-out"
@@ -174,7 +238,7 @@ onBeforeUnmount(() => {
                 </transition>
             </div>
 
-            <div class="mt-8 flex gap-2" aria-hidden="true">
+            <div v-if="!timedOut" class="mt-8 flex gap-2" aria-hidden="true">
                 <span
                     class="size-1.5 animate-bounce rounded-full bg-primary"
                     style="animation-delay: 0ms"
@@ -197,7 +261,7 @@ onBeforeUnmount(() => {
         >
             <SuccessAnimation
                 title="Your answers are in"
-                :message="`We've let ${partner_name ?? 'your partner'} know. We'll plan your date the moment they finish.`"
+                :message="waitingMessage"
                 emoji="🎉"
             />
 
@@ -231,13 +295,21 @@ onBeforeUnmount(() => {
                 <div class="space-y-2 px-3">
                     <p class="eyebrow text-gold-soft">Partner</p>
                     <p class="font-display text-xl leading-none font-medium">
-                        Waiting
+                        {{ needsPartner ? 'Not connected' : 'Waiting' }}
                     </p>
                 </div>
             </section>
 
             <div class="space-y-3">
                 <PrimaryButton
+                    v-if="needsPartner"
+                    full-width
+                    @click="router.visit('/partner')"
+                >
+                    Connect your partner
+                </PrimaryButton>
+                <PrimaryButton
+                    v-else
                     full-width
                     @click="
                         router.visit(
@@ -247,6 +319,16 @@ onBeforeUnmount(() => {
                 >
                     View summary
                 </PrimaryButton>
+
+                <SecondaryButton
+                    v-if="can_nudge"
+                    variant="outline"
+                    full-width
+                    :disabled="nudging"
+                    @click="nudgePartner"
+                >
+                    Remind {{ partner_name ?? 'your partner' }}
+                </SecondaryButton>
 
                 <SecondaryButton
                     variant="ghost"

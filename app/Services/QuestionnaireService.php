@@ -46,6 +46,15 @@ class QuestionnaireService
         ]);
     }
 
+    public function getInProgressResponse(User $user, Questionnaire $questionnaire): ?Response
+    {
+        return Response::where('user_id', $user->id)
+            ->where('questionnaire_id', $questionnaire->id)
+            ->where('status', CompletionStatus::InProgress)
+            ->latest('id')
+            ->first();
+    }
+
     public function startNewResponse(User $user, Questionnaire $questionnaire, ?bool $solo = null): Response
     {
         Response::where('user_id', $user->id)
@@ -94,6 +103,7 @@ class QuestionnaireService
             ->first();
     }
 
+    /** @return Collection<int, Response> */
     public function getCompletedResponses(User $user, Questionnaire $questionnaire): Collection
     {
         return Response::where('user_id', $user->id)
@@ -132,6 +142,7 @@ class QuestionnaireService
         ]);
     }
 
+    /** @param  array<int, mixed>  $values */
     private function saveMultipleChoiceAnswer(Response $response, Question $question, array $values): void
     {
         Answer::where('response_id', $response->id)
@@ -159,6 +170,7 @@ class QuestionnaireService
         );
     }
 
+    /** @return Collection<int, Answer> */
     public function getAnswersForResponse(Response $response): Collection
     {
         return $response->answers()->with('question', 'questionOption')->get();
@@ -171,7 +183,7 @@ class QuestionnaireService
         foreach ($profileAnswers->groupBy('question_id') as $questionId => $answers) {
             $question = $answers->first()->question;
 
-            if (! $question) {
+            if (! $question || $question->questionnaire_id !== $response->questionnaire_id) {
                 continue;
             }
 
@@ -269,6 +281,12 @@ class QuestionnaireService
             $previous->delete();
         }
 
+        // Answering is what a reminder asked for, so the user's own reminders are done with.
+        AppNotification::where('user_id', $user->id)
+            ->where('type', NotificationType::PartnerNudge)
+            ->whereJsonContains('data->questionnaire_id', $questionnaire->id)
+            ->delete();
+
         $partner = $user->partner;
 
         if (! $partner) {
@@ -276,11 +294,12 @@ class QuestionnaireService
         }
 
         AppNotification::where('user_id', $partner->id)
-            ->where('type', NotificationType::PartnerCompleted)
+            ->whereIn('type', [NotificationType::PartnerCompleted, NotificationType::PartnerNudge])
             ->whereJsonContains('data->questionnaire_id', $questionnaire->id)
             ->delete();
     }
 
+    /** @return array<int, mixed> */
     public function getAnsweredQuestionIds(Response $response): array
     {
         return $response->answers()->pluck('question_id')->unique()->values()->toArray();
@@ -379,6 +398,6 @@ class QuestionnaireService
             ->orderBy('display_order')
             ->first();
 
-        return $next?->display_order ?? $questionnaire->questions()->max('display_order');
+        return $next->display_order ?? $questionnaire->questions()->max('display_order');
     }
 }

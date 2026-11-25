@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Actions\GenerateDateNightPlanAction;
 use App\Enums\CompletionStatus;
+use App\Enums\NotificationType;
+use App\Models\AppNotification;
 use App\Models\DateNightPlan;
 use App\Models\Questionnaire;
 use App\Models\Response;
@@ -97,5 +99,15 @@ final class GenerateDateNightPlanJob implements ShouldQueue
             'questionnaire' => $this->questionnaire->id,
             'error' => $e->getMessage(),
         ]);
+
+        foreach (array_filter([$this->userOne, $this->userTwo]) as $user) {
+            AppNotification::create([
+                'user_id' => $user->id,
+                'type' => NotificationType::PlanFailed,
+                'title' => 'We could not plan your date night',
+                'body' => "Something went wrong while planning from \"{$this->questionnaire->title}\". Your answers are saved. Open it and restart to try again.",
+                'data' => ['questionnaire_slug' => $this->questionnaire->slug],
+            ]);
+        }
     }
 }

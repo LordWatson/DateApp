@@ -54,6 +54,15 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // When set, GET /health answers only to requests carrying it as a bearer token.
+    'health_token' => env('HEALTH_TOKEN'),
+
+    // Who runs this site, shown on the privacy policy and terms. Set both before launch.
+    'legal' => [
+        'operator' => env('LEGAL_OPERATOR', '[OPERATOR NAME NOT SET]'),
+        'contact_email' => env('LEGAL_CONTACT_EMAIL', 'privacy@example.com'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

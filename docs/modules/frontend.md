@@ -1,5 +1,5 @@
 # Frontend (Vue 3 + Inertia 3 + TypeScript)
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-25
 
 ## Purpose
 How the SPA shell is wired: entry point, layouts, shared props, route helpers, UI kit, styling, and the conventions every page follows. Feature pages themselves are documented in their module docs (mapping below).
@@ -9,7 +9,7 @@ How the SPA shell is wired: entry point, layouts, shared props, route helpers, U
 |---|---|
 | `resources/js/app.ts` | `createInertiaApp` (title, default layout resolver, progress bar), `initializeTheme()`, `initializeFlashToast()`. No manual page resolver — `@inertiajs/vite` handles it |
 | `resources/views/app.blade.php` | Root view: dark-class bootstrap script, inline `html` background colours (keep in sync with `--background` in `app.css`), Inter + Fraunces fonts (Google Fonts), `@fonts`, `@vite([app.css, app.ts, "resources/js/pages/{component}.vue"])`, `<x-inertia::head>`, `<x-inertia::app />` |
-| `vite.config.ts` | Plugins: `laravel` (inputs `resources/css/app.css`, `resources/js/app.ts`; bunny font "Instrument Sans"), `inertia()`, `tailwindcss()`, `vue`, `wayfinder({ formVariants: true })` |
+| `vite.config.ts` | Plugins: `laravel` (inputs `resources/css/app.css`, `resources/js/app.ts`), `inertia()`, `tailwindcss()`, `vue`, `wayfinder({ formVariants: true })` |
 | `tsconfig.json` | `strict`, `moduleResolution: bundler`, alias `@/*` -> `resources/js/*` |
 | `components.json` | shadcn-vue config: style `new-york-v4`, base color `neutral`, CSS variables, icon library `lucide`, aliases `@/components`, `@/components/ui`, `@/lib/utils`, `@/composables` |
 | `app/Http/Middleware/HandleInertiaRequests.php` | Root view `app`; shared props |
@@ -39,7 +39,6 @@ Resolution order (Inertia): a page's own `defineOptions({ layout })` wins; other
 | `layouts/AuthLayout.vue` | Wrapper around `GuestLayout` | `auth/*`. Auth pages pass layout props with `defineOptions({ layout: { title, description } })` (or `setLayoutProps` in `TwoFactorChallenge`) |
 | `layouts/settings/Layout.vue` | `PageHeader`, horizontal `chip` links (Profile, Security, Appearance), the page slot, and the **Log out** button (it lives here, not in the header) | `settings/*` |
 | `layouts/AdminLayout.vue` | Admin sidebar shell | `admin/*` via `defineOptions` — see `admin.md` |
-| `layouts/app/AppHeaderLayout.vue`, `app/AppSidebarLayout.vue`, `auth/AuthCardLayout.vue`, `auth/AuthSplitLayout.vue` | Starter-kit leftovers, not referenced by anything. `auth/AuthSimpleLayout.vue` wraps `GuestLayout` but is also unreferenced | – |
 
 ## Shared props and types
 `HandleInertiaRequests::share()` adds to every page:
@@ -48,7 +47,7 @@ Resolution order (Inertia): a page's own `defineOptions({ layout })` wins; other
 |---|---|---|
 | `name` | `config('app.name')` | `global.d.ts` `sharedPageProps` |
 | `auth.user` | Full `User` model or null (hidden: `password`, `two_factor_secret`, `two_factor_recovery_codes`, `remember_token`) | `auth.ts` `User`, `Auth` |
-| `sidebarOpen` | from `sidebar_state` cookie | `global.d.ts` |
+| `impersonating` | `{name}` while an administrator is viewing as this user, else null; `ImpersonationBanner.vue` in `MobileLayout` | typed in `global.d.ts` |
 | `unreadNotificationsCount` | unread `AppNotification` count (one query per request) | **not typed** — read with a cast in `MobileLayout` |
 | `flash.success`, `flash.error` | session flash from `->with('success'|'error', ...)` | **not typed** — pages declare it locally |
 
@@ -61,7 +60,6 @@ Types: `types/auth.ts` (`User`, `Auth`, `Passkey`, `TwoFactorConfigContent`), `t
   - Forms: `<Form v-bind="store.form()">` (Inertia `<Form>` + Wayfinder form variants), or `useForm` + `form.post(x().url)`.
   - `toUrl()` in `lib/utils.ts` normalises a string-or-route-object href.
 - Usage in `pages/`, `components/`, `layouts/`: 32 files import `@/routes`, 9 import `@/actions`.
-- **Do not use `ziggy-js`.** 17 pages (`admin/*` CRUD pages, `moments/Index`, `moments/Show`) import `route` from it, but no Ziggy config is ever provided (see Suspected issues).
 - Some links are plain strings (`'/settings/profile'` in `MobileLayout`, all hrefs in `AdminLayout`).
 
 ## SSR
@@ -83,8 +81,8 @@ Types: `types/auth.ts` (`User`, `Auth`, `Passkey`, `TwoFactorConfigContent`), `t
 Dark mode: `HandleAppearance` passes the `appearance` cookie to Blade (class `dark` on first paint, inline script handles `system`); the `appearance` and `sidebar_state` cookies are excluded from encryption in `bootstrap/app.php`. CSS variant: `@custom-variant dark (&:is(.dark *))`.
 
 ## Components and styling
-- **UI kit** (`components/ui/<kit>`, import from the kit's index, e.g. `@/components/ui/button`): alert, avatar, badge, breadcrumb, button, card, checkbox, collapsible, dialog, dropdown-menu, input, input-otp, label, navigation-menu, select, separator, sheet, sidebar, skeleton, sonner, spinner, tooltip. Built on `reka-ui` + `class-variance-authority`. Excluded from Prettier and ESLint — treat as vendored.
-- **App components most used**: `PrimaryButton` (props `type`, `disabled`, `loading`, `size`, `fullWidth`), `SecondaryButton`, `EmptyState` (props `emoji`, `title`, `description`, `actionLabel`; emits `action`), `InputError`, `Heading`, `PasswordInput`, `FloatingHearts`, `AnimatedBackground`, `AppLogoIcon`, `ProgressBar`, `SuccessAnimation`, `OptionCard`, `StatCard`, `ChallengeCard`, `CompatibilityCard`, `StepIndicator`; `components/questions/*` (`SingleChoice`, `MultipleChoice`, `Slider`, `Text`, `Textarea` question inputs).
+- **UI kit** (`components/ui/<kit>`, import from the kit's index, e.g. `@/components/ui/button`): alert, badge, button, checkbox, collapsible, dialog, input, input-otp, label, select, sonner, spinner. Kits nothing used were removed in Phase 4; add one back with shadcn-vue when needed. Built on `reka-ui` + `class-variance-authority`. Excluded from Prettier and ESLint — treat as vendored.
+- **App components most used**: `PrimaryButton` (props `type`, `disabled`, `loading`, `size`, `fullWidth`), `SecondaryButton`, `EmptyState` (props `emoji`, `title`, `description`, `actionLabel`; emits `action`), `InputError`, `Heading`, `PasswordInput`, `FloatingHearts`, `AppLogoIcon`, `ProgressBar`, `SuccessAnimation`, `OptionCard`, `StatCard`, `ChallengeCard`, `StepIndicator`; `components/questions/*` (`SingleChoice`, `MultipleChoice`, `Slider`, `Text`, `Textarea` question inputs).
 - **Icons**: `@lucide/vue` (`import { Bell } from '@lucide/vue'`), in the app and in admin.
 - **Tailwind v4**, CSS-first (no `tailwind.config.js`). `resources/css/app.css`: `@theme inline` maps `--color-*` to CSS variables defined in `:root` / `.dark`; custom `@utility` classes `gradient-primary`, `gradient-primary-soft`, `gradient-text`, `shadow-glow`, `card-premium`, `card-hover`, `btn-primary`, `btn-secondary`, `btn-outline`, `focus-ring`; animation classes `animate-page-fade-in`, `animate-pulse-glow`, `animate-float-heart`, `animate-success-pop`, etc. Use semantic tokens (`bg-background`, `text-foreground`, `text-muted-foreground`, `text-primary`) so dark mode works.
 - The full visual language (tokens, primitives, components, rules) is in **Design system** below.
@@ -180,6 +178,10 @@ The look is "quiet luxury with a wink": parchment and ink, deep wine as the one 
 | `admin/` | `admin.md` |
 | `relationship-hub/` (`RelationshipHubController`) | dashboard-insights-search.md |
 | `Welcome.vue`, `About.vue` | this doc — `Route::inertia` in `routes/web.php`, no layout, no controller |
+| `Error.vue` | `platform.md` — rendered by the exception handler for 403, 404, 500 and 503 with one prop, `status`. It gets **no shared props** (no `auth`, no `flash`), so it sets `GuestLayout` itself and must not read them |
+| `legal/Privacy.vue`, `legal/Terms.vue` | `auth-settings.md` — public, no layout (`legal/` returns null in the `app.ts` resolver), shell is `components/LegalDocument.vue` |
+| `Maintenance.vue` | `admin.md` — rendered by `EnsureNotInMaintenance` with a 503; sets `GuestLayout` itself |
+| `saved-profiles/Index.vue` | `saved-profiles.md` |
 
 ## How to add a new page
 1. Controller returns `Inertia::render('<dir>/<Name>', [...props])` — page name = path under `resources/js/pages` without `.vue`; shape/format the props in the controller.
@@ -201,19 +203,18 @@ The look is "quiet luxury with a wink": parchment and ink, deep wine as the one 
 Style rules enforced: Prettier 4-space, single quotes, semicolons, Tailwind class sorting (`cn`, `clsx`, `cva`); ESLint requires `import type` for types, alphabetised import order, braces on all control statements, blank lines around control statements. `.npmrc` sets `ignore-scripts=true`.
 
 ## Rules and gotchas
+- `auth.user.ai_consent` (true / false / null = not asked) drives `components/AiConsentCard.vue` (dashboard until answered, Settings, Profile always). `components/LegalLinks.vue` is the Privacy and Terms footer used by `GuestLayout`, About and the settings layout.
+- **Routes are always Wayfinder.** `ziggy-js` is gone. For many routes of one area import the namespace: `import admin from '@/routes/admin'` then `admin.users.suspend(id).url`. If a page has a prop with the same name as the namespace (`moments`), alias the import (`momentRoutes`).
+- **Flash messages:** `lib/flashToast.ts` turns both `Inertia::flash('toast', ...)` and `->with('success' | 'error', ...)` into toasts on Inertia's `success` event, so pages must not draw their own banners. `AdminLayout` has no toaster and still renders its own.
+- **Destructive actions** use `components/ConfirmDialog.vue` (`v-model:open`, `title`, `description`, `confirm-label`, emits `confirm`).
 - Every Inertia HTML response `@vite`-includes the page file, so a missing page or missing `public/build/manifest.json` is a 500 (also in PHPUnit).
 - Generated Wayfinder dirs do not exist on a fresh clone until Vite or `wayfinder:generate` runs; `vue-tsc` fails without them.
-- **Suspected issue:** `ziggy-js` `route()` is used in 17 pages with no Ziggy backend package, no `@routes` directive and no config passed -> throws "Ziggy error: missing configuration" (e.g. `resources/js/pages/moments/Index.vue:117,121`, `moments/Show.vue:36,40,52`, all `admin/*` CRUD pages).
-- **Suspected issue:** most controllers flash `with('success', ...)` but `MobileLayout` does not render `flash.success`/`flash.error`; only three places do (see Flash).
 - **Suspected issue:** `SavedProfileController.php:26` renders `saved-profiles/Index` and `AdminAiSettingController.php:40` renders `admin/ai-settings/Index`; neither page file exists.
 - `animate-page-fade-in` (on `<main>`) uses `animation-fill-mode: backwards` on purpose: a transform left on `<main>` would make it the containing block for `position: fixed` modals in pages.
 - Content inside `MobileLayout` needs about `pb-24` so the floating tab bar does not cover the last element; a page-level sticky action bar should sit at `bottom-24` (see `questionnaires/Question.vue`).
-- `AnimatedBackground` is no longer mounted anywhere (it painted behind the `body` background and was invisible); the ambient glow comes from `body` in `app.css`.
 - Do not nest a `<button>` inside a `<button>` (for example row actions inside a clickable card): browsers re-parent the inner one and the layout collapses. Make the outer element a `div` with `role="button"` and `tabindex="0"`, as `calendar/Index.vue` does.
 - Custom utilities can be overridden by a single Tailwind utility on the same element (`card-premium rounded-2xl`, `badge-soft bg-success/10 text-success`); for the `border` shorthand in `card-premium` use the important flag (`border-destructive/30!`).
-- **Dead code:** `AppSidebar.vue` (its nav items all point at `dashboard()`), `NavMain`, `NavFooter`, `NavUser`, `AppHeader`, `AppShell`, `AppContent`, `AppSidebarHeader` are reachable only from the unused starter layouts; `LoadingSpinner`, `PlaceholderPattern`, `ProfileCard`, `QuestionCard` are imported nowhere. Edit `MobileLayout`, not `AppSidebar`, to change navigation.
-- **Suspected issue:** `types/global.d.ts:18-23` `sharedPageProps` omits `unreadNotificationsCount` and `flash`.
-- **Suspected issue:** `vite.config.ts:15` bundles "Instrument Sans", which no CSS references (the app uses Inter and Fraunces from Google Fonts in `app.blade.php`). `components.json:5` points at a non-existent `tailwind.config.js`.
+- **Suspected issue:** `components.json:5` points at a non-existent `tailwind.config.js`.
 - `auth.user` shares the whole user row (minus hidden fields) with every page.
 
 ## Related modules
@@ -226,3 +227,10 @@ No JS unit/e2e test runner is configured. Frontend checks are `npm run lint:chec
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Design-system overhaul: new palette, Fraunces display font, tinted shadows, pill buttons, floating tab bar, centred `max-w-xl` shell, `<Toaster />` mounted in `MobileLayout`, reduced-motion support.
 - 2026-11-24 — Design system v2 applied to every screen (app, auth, marketing, settings, admin): parchment / ink / wine / gold palette, new primitives (`eyebrow`, `icon-tile`, `card-feature`, `chip`, `list-row`, `badge-soft`, `input-premium`, `hairline-gold`), new `PageHeader`, `SectionHeader`, `SegmentedTabs`; emoji removed from headings and buttons; Log out moved to settings; `search` and `timeline` now use Wayfinder instead of an undefined `route()`.
+- 2026-11-24 — Roadmap Phase 0: `auth.user` is an explicit field list and `auth.can` carries admin abilities (`types/auth.ts`); new page `onboarding/AcceptInvite`.
+- 2026-11-24 — Roadmap Phase 1: `ziggy-js` removed (all pages use Wayfinder), session flashes shown as toasts, `ConfirmDialog` component, search icon in the header, `flash` and `unreadNotificationsCount` typed.
+- 2026-11-24 — Roadmap Phase 2 (2.1, 2.13): pages `saved-profiles/Index` and `Maintenance`; shared prop `registrationOpen` (typed in `types/global.d.ts`) hides sign-up on Welcome and Login.
+- 2026-11-25 — Roadmap Phase 3 (3.4, 3.14): `calendar/Index.vue` and `moments/Index.vue` take a `today` prop instead of the browser's UTC date; moment photo URLs point at the `moments.photo` route.
+- 2026-11-25 — Roadmap Phase 3 (3.3, 3.5, 3.6): pages `Error`, `legal/Privacy`, `legal/Terms`; components `LegalDocument`, `LegalLinks`, `AiConsentCard`; shared prop `auth.user.ai_consent`; terms checkbox on Register.
+- 2026-11-26 — Roadmap Phase 4 (4.5): removed the starter layouts (`layouts/app`, `layouts/auth`), the sidebar/header components, six unused components, the UI kits only they used, the `sidebarOpen` shared prop and the unused "Instrument Sans" font.
+- 2026-11-25 — Roadmap Phase 5.11: `ImpersonationBanner` in `MobileLayout`, shared prop `impersonating`.

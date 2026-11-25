@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\Challenge;
 use App\Models\DailyChallenge;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,29 +25,9 @@ final class DailyChallengeSelectionJob implements ShouldQueue
 
     public function handle(): void
     {
-        $today = now()->toDateString();
-
-        if (DailyChallenge::whereDate('date', $today)->exists()) {
-            return;
-        }
-
-        $challenge = Challenge::inRandomOrder()->first();
-
-        if (! $challenge) {
+        if (! DailyChallenge::forToday()) {
             Log::warning('DailyChallengeSelectionJob: no challenges available');
-
-            return;
         }
-
-        DailyChallenge::create([
-            'challenge_id' => $challenge->id,
-            'date' => $today,
-        ]);
-
-        Log::info('DailyChallengeSelectionJob: challenge selected', [
-            'challenge' => $challenge->id,
-            'date' => $today,
-        ]);
     }
 
     public function failed(\Throwable $e): void

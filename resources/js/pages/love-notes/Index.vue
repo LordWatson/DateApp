@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Check, Send } from '@lucide/vue';
-import { ref } from 'vue';
+import axios from 'axios';
+import { computed, ref, watch } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -9,6 +10,7 @@ import PrimaryButton from '@/components/PrimaryButton.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import SegmentedTabs from '@/components/SegmentedTabs.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { markRead, react, store } from '@/routes/love-notes';
 
 defineOptions({ layout: MobileLayout });
 
@@ -17,6 +19,7 @@ interface NoteItem {
     message: string;
     person_name: string | null;
     person_avatar: string | null;
+    reaction: string | null;
     read_at: string | null;
     created_at: string;
 }
@@ -27,22 +30,34 @@ interface Partner {
     avatar?: string;
 }
 
-defineProps<{
+const props = defineProps<{
     sent: NoteItem[];
     received: NoteItem[];
     partner: Partner | null;
+    connection_paused: boolean;
     default_messages: string[];
+    reactions: string[];
 }>();
 
 type Tab = 'send' | 'received' | 'sent';
 
-const tabs: { key: Tab; label: string }[] = [
-    { key: 'send', label: 'Send' },
-    { key: 'received', label: 'Received' },
-    { key: 'sent', label: 'Sent' },
-];
-
 const activeTab = ref<Tab>('send');
+
+// Notes count as read once the Received tab has actually been opened.
+const unread = ref(props.received.filter((note) => !note.read_at).length);
+
+const tabs = computed<{ key: Tab; label: string; count?: number }[]>(() => [
+    { key: 'send', label: 'Send' },
+    { key: 'received', label: 'Received', count: unread.value },
+    { key: 'sent', label: 'Sent' },
+]);
+
+watch(activeTab, (tab) => {
+    if (tab === 'received' && unread.value > 0) {
+        unread.value = 0;
+        void axios.post(markRead().url).catch(() => undefined);
+    }
+});
 const customMessage = ref('');
 
 const form = useForm({ message: '' });
@@ -53,7 +68,7 @@ function selectMessage(msg: string): void {
 }
 
 function sendNote(): void {
-    form.post('/love-notes', {
+    form.post(store().url, {
         preserveScroll: true,
         onSuccess: () => {
             form.reset();
@@ -61,6 +76,15 @@ function sendNote(): void {
             activeTab.value = 'sent';
         },
     });
+}
+
+// Tapping the reaction already chosen removes it.
+function toggleReaction(note: NoteItem, emoji: string): void {
+    router.post(
+        react(note.id).url,
+        { reaction: note.reaction === emoji ? null : emoji },
+        { preserveScroll: true, preserveState: true },
+    );
 }
 
 function formatTime(iso: string): string {
@@ -102,6 +126,15 @@ function formatTime(iso: string): string {
         <template v-if="activeTab === 'send'">
             <div v-if="!partner" class="card-premium">
                 <EmptyState
+                    v-if="connection_paused"
+                    emoji="⏸️"
+                    title="Your connection is paused"
+                    description="Love notes cannot be sent while it is paused. The ones you have are still here."
+                    action-label="Partner settings"
+                    @action="router.visit('/partner')"
+                />
+                <EmptyState
+                    v-else
                     emoji="💔"
                     title="No partner connected"
                     description="Connect with your partner to send love notes."
@@ -188,6 +221,27 @@ function formatTime(iso: string): string {
                             From {{ note.person_name }} ·
                             {{ formatTime(note.created_at) }}
                         </p>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <button
+                                v-for="emoji in reactions"
+                                :key="emoji"
+                                type="button"
+                                class="chip px-2.5 py-1 text-base"
+                                :aria-pressed="note.reaction === emoji"
+                                :aria-label="`React with ${emoji}`"
+                                @click="toggleReaction(note, emoji)"
+                            >
+                                {{ emoji }}
+                            </button>
+                            <button
+                                v-if="partner"
+                                type="button"
+                                class="ml-auto min-h-8 rounded-full px-3 text-[13px] font-medium text-primary transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                                @click="activeTab = 'send'"
+                            >
+                                Reply
+                            </button>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -225,6 +279,10 @@ function formatTime(iso: string): string {
                         >
                             <Check class="size-3.5" aria-hidden="true" />
                             Seen
+                        </span>
+                        <span v-if="note.reaction" class="text-sm">
+                            <span class="sr-only">Reaction:</span>
+                            {{ note.reaction }}
                         </span>
                     </p>
                 </div>

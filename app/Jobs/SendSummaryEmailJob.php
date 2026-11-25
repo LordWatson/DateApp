@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\NotificationCategory;
 use App\Mail\DateNightReadyMail;
 use App\Models\DateNightPlan;
 use App\Models\User;
@@ -30,7 +31,7 @@ final class SendSummaryEmailJob implements ShouldQueue
 
     public function handle(): void
     {
-        if (! $this->user->email_notifications) {
+        if (! $this->user->wantsEmail(NotificationCategory::PartnerActivity)) {
             return;
         }
 

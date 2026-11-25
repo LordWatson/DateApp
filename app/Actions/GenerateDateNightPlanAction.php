@@ -40,7 +40,7 @@ class GenerateDateNightPlanAction
             // A solo questionnaire is filled out by one user, but if they have
             // a partner the resulting date night must appear on the partner's
             // side too (history, notifications, emails).
-            $partner = $userOne->partner;
+            $partner = $userOne->activePartner();
 
             $plan = $this->generatorService->generate(
                 $responseOne,

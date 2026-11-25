@@ -2,9 +2,9 @@
 import { router, useForm } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -63,7 +63,7 @@ const saveEdit = () => {
         return;
     }
 
-    editForm.put(route('admin.ai-prompts.update', editingId.value), {
+    editForm.put(admin.aiPrompts.update(editingId.value).url, {
         preserveScroll: true,
         onSuccess: () => {
             editingId.value = null;
@@ -83,7 +83,7 @@ const cancelCreate = () => {
 };
 
 const saveCreate = () => {
-    createForm.post(route('admin.ai-prompts.store'), {
+    createForm.post(admin.aiPrompts.store().url, {
         preserveScroll: true,
         onSuccess: () => {
             creating.value = false;
@@ -94,7 +94,7 @@ const saveCreate = () => {
 
 const doDelete = (tpl: PromptTemplate) => {
     if (confirm(`Delete template "${tpl.name}"?`)) {
-        router.delete(route('admin.ai-prompts.destroy', tpl.id), {
+        router.delete(admin.aiPrompts.destroy(tpl.id).url, {
             preserveScroll: true,
         });
     }

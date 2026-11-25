@@ -5,6 +5,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { compatibility, show as showPlan } from '@/routes/date-night';
 
 defineOptions({ layout: MobileLayout });
 
@@ -40,11 +41,14 @@ interface Props {
     grouped_answers: GroupedAnswer[];
     completed_at?: string | null;
     is_past_attempt?: boolean;
+    // Set when the page is opened from a date night plan.
+    plan_id?: number | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     completed_at: null,
     is_past_attempt: false,
+    plan_id: null,
 });
 
 function formatDate(iso: string | null): string {
@@ -93,8 +97,14 @@ function answersMatch(group: GroupedAnswer): boolean {
         <PageHeader
             :eyebrow="questionnaire.title"
             title="Partner's answers"
-            :back-href="`/questionnaires/${questionnaire.slug}`"
-            back-label="Back to questionnaire"
+            :back-href="
+                props.plan_id
+                    ? showPlan(props.plan_id).url
+                    : `/questionnaires/${questionnaire.slug}`
+            "
+            :back-label="
+                props.plan_id ? 'Back to your plan' : 'Back to questionnaire'
+            "
         >
             <template #description>
                 See how you and {{ partner_name }} compare.
@@ -217,7 +227,9 @@ function answersMatch(group: GroupedAnswer): boolean {
                 full-width
                 @click="
                     router.visit(
-                        `/questionnaires/${questionnaire.slug}/compatibility`,
+                        props.plan_id
+                            ? compatibility(props.plan_id).url
+                            : `/questionnaires/${questionnaire.slug}/compatibility`,
                     )
                 "
             >

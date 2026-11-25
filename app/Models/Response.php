@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property CompletionStatus $status
  * @property Carbon|null $started_at
  * @property Carbon|null $completed_at
+ * @property Carbon|null $partner_nudged_at
  * @property int|null $compatibility_score
  * @property string|null $location_label
  * @property string|null $location_city
@@ -41,6 +42,7 @@ class Response extends Model
         'is_solo',
         'started_at',
         'completed_at',
+        'partner_nudged_at',
         'compatibility_score',
         'location_label',
         'location_city',
@@ -58,22 +60,26 @@ class Response extends Model
             'is_solo' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'partner_nudged_at' => 'datetime',
             'location_latitude' => 'float',
             'location_longitude' => 'float',
             'travel_radius_minutes' => 'integer',
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<Questionnaire, $this> */
     public function questionnaire(): BelongsTo
     {
         return $this->belongsTo(Questionnaire::class);
     }
 
+    /** @return HasMany<Answer, $this> */
     public function answers(): HasMany
     {
         return $this->hasMany(Answer::class);
@@ -90,6 +96,9 @@ class Response extends Model
     /**
      * Limit to attempts made in the given mode. Only questionnaires that offer the choice are filtered;
      * attempts made before the choice existed (null) count as the questionnaire's default mode.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeInMode(Builder $query, Questionnaire $questionnaire, bool $solo): Builder
     {

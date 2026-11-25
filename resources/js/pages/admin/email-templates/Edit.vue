@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3';
 import { ChevronLeft, ExternalLink } from '@lucide/vue';
-import { route } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -27,7 +27,7 @@ const form = useForm({
 });
 
 const save = () => {
-    form.put(route('admin.email-templates.update', props.template.id));
+    form.put(admin.emailTemplates.update(props.template.id).url);
 };
 
 const preview = () => {
@@ -44,7 +44,7 @@ const preview = () => {
     <div>
         <div class="mb-6 flex items-center gap-4">
             <Link
-                :href="route('admin.email-templates.index')"
+                :href="admin.emailTemplates.index().url"
                 class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                 ><ChevronLeft class="size-4" aria-hidden="true" />Email
                 templates</Link
@@ -122,7 +122,7 @@ const preview = () => {
                     Save template
                 </Button>
                 <Button as-child variant="outline" size="sm"
-                    ><Link :href="route('admin.email-templates.index')">
+                    ><Link :href="admin.emailTemplates.index().url">
                         Cancel
                     </Link></Button
                 >

@@ -50,16 +50,19 @@ class Question extends Model
         ];
     }
 
+    /** @return BelongsTo<Questionnaire, $this> */
     public function questionnaire(): BelongsTo
     {
         return $this->belongsTo(Questionnaire::class);
     }
 
+    /** @return HasMany<QuestionOption, $this> */
     public function options(): HasMany
     {
         return $this->hasMany(QuestionOption::class)->orderBy('display_order');
     }
 
+    /** @return HasMany<Answer, $this> */
     public function answers(): HasMany
     {
         return $this->hasMany(Answer::class);

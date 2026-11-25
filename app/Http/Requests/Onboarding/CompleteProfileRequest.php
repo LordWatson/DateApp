@@ -13,6 +13,7 @@ class CompleteProfileRequest extends FormRequest
         return true;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
@@ -20,7 +21,7 @@ class CompleteProfileRequest extends FormRequest
             'gender' => ['required', Rule::enum(Gender::class)],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'timezone' => ['required', 'string', 'timezone:all'],
-            'avatar' => ['nullable', 'string', 'max:500'],
+            'avatar' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

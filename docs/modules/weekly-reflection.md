@@ -1,5 +1,5 @@
 # Weekly Reflection
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-25
 
 ## Purpose
 Insights for a couple drawn from what they actually did in the past seven days (date nights, love notes, moments, calendar, questionnaires, achievements, streaks). One reflection per calendar week is shared by both partners, so they always read the same text. It is generated the first time either of them opens the page that week, stored, and can be regenerated on demand. The text comes from the AI when available and from a plain recap otherwise.
@@ -31,7 +31,7 @@ Under `auth`, `verified`, `onboarding` middleware.
 | Name | Method + URI | Controller@method | Notes |
 |------|--------------|-------------------|-------|
 | `weekly-reflection.index` | GET `/weekly-reflection` | `WeeklyReflectionController@index` | Generates on first visit of the week |
-| `weekly-reflection.regenerate` | POST `/weekly-reflection/regenerate` | `WeeklyReflectionController@regenerate` | Deletes and recreates this week's row, redirects to index |
+| `weekly-reflection.regenerate` | POST `/weekly-reflection/regenerate` | `WeeklyReflectionController@regenerate` | `throttle:ai` (20 an hour per user); deletes and recreates this week's row, redirects to index |
 
 ## Flows
 
@@ -44,9 +44,11 @@ Under `auth`, `verified`, `onboarding` middleware.
 6. The row is saved with the period and totals. The page also receives up to 8 past reflections (one per week), minus the current one. `present()` shows the seven-day period as `week_start` / `week_end`.
 
 ### Regenerate
-POST deletes the couple's row for this week and runs generation again, so the new text replaces it for both partners. The Vue page disables the button while the request runs.
+POST deletes the couple's row for this week and runs generation again, so the new text replaces it for both partners. The Vue page disables the button while the request runs, and shows a toast instead of an error page when the limit answers 429.
 
 ## Rules and gotchas
+- The context sent to the AI includes `date_nights_done`: date nights either partner marked as done in the period (`date_night_plan_completions.completed_on`), with who rated it and the rating out of 5. The rule-based fallback text does not use it.
+- **AI needs consent from both partners** (the recap contains both people's notes and moments); a user without a partner needs only their own. Otherwise the deterministic recap is stored with `fallback_used = true`, and the page shows a one-line note linking to Settings whenever `fallback_used` is set. See `ai.md`.
 - **The context key must be `context`.** The prompt template interpolates `{{context}}`; any other key is silently dropped and the model writes generic text. This was the original bug.
 - **Prompt:** `weekly_reflection` version 2 in `AiPromptTemplateSeeder` (specific, shared, no per-person tallies, no verbatim notes). Environments must reseed to get it; an older active version still receives the full log but with the older instructions.
 - **Privacy:** love note text and moment descriptions are sent to the AI provider. Moment `private_notes`, calendar `notes` and surnames are never sent, and the log itself is not stored (only counts are).
@@ -54,9 +56,10 @@ POST deletes the couple's row for this week and runs generation again, so the ne
 - No events, jobs or mail. The AI call runs synchronously inside the web request (about 5 seconds with Claude), so a slow provider delays the page (see worst-case duration in `ai.md`).
 - A GET request has side effects (creates a row and may call the AI).
 - No authorisation beyond the route middleware is needed: everything is scoped to `$request->user()` and their current partner.
-- No rate limit on regenerate; each call is one AI request, and either partner can replace the text the other is reading.
+- Regenerate is limited by `throttle:ai`, the limiter shared with the other AI-costing requests. Either partner can replace the text the other is reading.
 - Rows generated before a couple connected stay private to their owner. If a couple disconnects, each keeps only the rows they generated themselves.
-- Suspected issue: two partners opening the page at the same moment in a new week can each create a row; both then see the older one (lowest id) and the newer one is unused.
+- **One row per couple and week** is kept by a cache lock, not by the database (the unique index is per `user_id`). `WeeklyReflectionService::locked()` holds `weekly-reflection:{ids}:{week}` (`lockKey()`, the same for both partners) around "look again, then generate" and around regenerate. A partner arriving mid-generation waits up to 30 seconds and then reads the row the other one made. The cache store must support locks (array, file, database and redis all do).
+- **Solo wording:** when the user has no partner (`partner_connected` false in the activity log) the plain recap uses "Your Week" and wording without "together" or "each other", and the page title is "Your week". The AI prompt already receives `partner_connected`.
 - Suspected issue: the migration adds a plain index on (`user_id`, `week_start`) that duplicates the unique index (lines 29-30).
 - With `AI_PROVIDER=null` the null provider throws for this use case and the recap is always used.
 
@@ -66,8 +69,11 @@ POST deletes the couple's row for this week and runs generation again, so the ne
 - `date-night.md`, `love-notes.md`, `moments-timeline.md`, `calendar.md`, `questionnaires.md`: data sources for the metrics.
 
 ## Tests
-`php artisan test --filter=WeeklyReflectionTest`: both partners' activity reaches the prompt (and old or private data does not), both partners see the same reflection from one AI call, regenerating replaces it for both, and the recap names real activity when the AI is unavailable.
+`php artisan test --filter=WeeklyReflectionTest`: both partners' activity reaches the prompt (and old or private data does not), both partners see the same reflection from one AI call, regenerating replaces it for both, the recap names real activity when the AI is unavailable, a user without a partner gets solo wording, regenerate is throttled, and generation holds the per-couple lock.
 
 ## Change log
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Reflections are now built from the couple's real activity over the past seven days and shared by both partners; fixed the context key that kept the data from the model; prompt version 2; first tests.
+- 2026-11-24 — Roadmap Phase 2 (2.16): regenerate is throttled (`throttle:ai`) and the page handles the 429; solo wording for users without a partner; a cache lock keeps a couple to one row per week.
+- 2026-11-25 — Roadmap Phase 3 (3.6): the AI recap needs AI consent from the user and their partner; fallback recaps show a note linking to Settings.
+- 2026-11-25 — Roadmap Phase 5.2: `date_nights_done` (ratings of date nights done in the period) added to the AI context.

@@ -23,6 +23,7 @@ import {
 import type { Component } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
+import LegalLinks from '@/components/LegalLinks.vue';
 import {
     Collapsible,
     CollapsibleContent,
@@ -302,10 +303,16 @@ const focusRing =
                     <div class="my-6 hairline-gold opacity-60" />
 
                     <Link
-                        :href="register()"
+                        :href="
+                            $page.props.registrationOpen ? register() : login()
+                        "
                         class="group flex min-h-12 w-full items-center justify-between rounded-full bg-white pr-2 pl-6 text-[15px] font-semibold tracking-tight text-primary transition-all duration-200 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary focus-visible:outline-none active:scale-[0.98]"
                     >
-                        Create your account
+                        {{
+                            $page.props.registrationOpen
+                                ? 'Create your account'
+                                : 'Sign in'
+                        }}
                         <span
                             class="flex size-9 items-center justify-center rounded-full text-white transition-transform gradient-primary group-hover:translate-x-0.5"
                         >
@@ -336,6 +343,8 @@ const focusRing =
                         {{ point.label }}
                     </li>
                 </ul>
+
+                <LegalLinks />
             </div>
         </main>
     </div>

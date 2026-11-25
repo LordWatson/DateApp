@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\NotificationCategory;
 use App\Mail\QuestionnaireCompletedMail;
 use App\Models\Questionnaire;
 use App\Models\User;
@@ -31,6 +32,11 @@ final class SendQuestionnaireCompletedNotificationJob implements ShouldQueue
 
     public function handle(): void
     {
+        // The listener has already created the in-app notification; this job is only the email.
+        if (! $this->recipient->wantsEmail(NotificationCategory::PartnerActivity)) {
+            return;
+        }
+
         Mail::to($this->recipient->email)
             ->queue(new QuestionnaireCompletedMail($this->recipient, $this->sender, $this->questionnaire));
     }

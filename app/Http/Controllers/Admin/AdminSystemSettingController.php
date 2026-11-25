@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\SystemSetting;
 use App\Services\AdminAuditService;
+use App\Services\RuntimeSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,10 +16,13 @@ class AdminSystemSettingController extends AdminController
 
     public function index(): Response
     {
-        $settings = SystemSetting::orderBy('group')->orderBy('label')->get();
+        // The ai.* keys are edited, with validation, on the AI settings page.
+        $settings = SystemSetting::where('group', '!=', 'ai')->orderBy('group')->orderBy('label')->get();
 
         return Inertia::render('admin/settings/Index', [
             'settings' => $settings->groupBy('group'),
+            // The page labels every other setting as "not in use".
+            'inUse' => RuntimeSettings::SETTINGS_IN_USE,
         ]);
     }
 
@@ -44,7 +48,7 @@ class AdminSystemSettingController extends AdminController
         ]);
 
         foreach ($validated['settings'] as $item) {
-            $setting = SystemSetting::find($item['id']);
+            $setting = SystemSetting::whereKey($item['id'])->firstOrFail();
             $before = ['value' => $setting->value];
             $setting->update(['value' => $item['value']]);
             $this->audit->logModel('setting.updated', $setting, $before, ['value' => $item['value']]);

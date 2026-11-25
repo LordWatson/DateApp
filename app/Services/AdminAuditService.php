@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AdminAuditLog;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -10,6 +11,10 @@ class AdminAuditService
 {
     public function __construct(private readonly Request $request) {}
 
+    /**
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
     public function log(
         string $action,
         ?string $auditableType = null,
@@ -29,7 +34,11 @@ class AdminAuditService
         ]);
     }
 
-    public function logModel(string $action, object $model, ?array $before = null, ?array $after = null): AdminAuditLog
+    /**
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
+    public function logModel(string $action, Model $model, ?array $before = null, ?array $after = null): AdminAuditLog
     {
         return $this->log(
             action: $action,

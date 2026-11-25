@@ -34,7 +34,7 @@ class AIServiceProvider extends ServiceProvider
         $this->app->singleton(AISettingsService::class);
 
         $this->app->singleton(AIProvider::class, function (Application $app): AIProvider {
-            $provider = (string) $app['config']->get('ai.provider', 'anthropic');
+            $provider = (string) $app->make('config')->get('ai.provider', 'anthropic');
 
             if (! isset(self::PROVIDERS[$provider])) {
                 throw new BindingResolutionException(

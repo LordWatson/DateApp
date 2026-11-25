@@ -36,7 +36,7 @@ class AddDateNightPlanToCalendarAction
             'colour' => self::DEFAULT_COLOUR,
         ]);
 
-        $partner = $user->partner;
+        $partner = $user->activePartner();
 
         if ($partner) {
             $this->notificationService->notifyPartnerAddedDateNightToCalendar(
