@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { Moon, Pencil, Plus, Star, Trash2, X } from '@lucide/vue';
-import { onMounted, ref } from 'vue';
+import { ImagePlus, Moon, Pencil, Plus, Star, Trash2, X } from '@lucide/vue';
+import { computed, onMounted, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import PhotoCarousel from '@/components/PhotoCarousel.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
@@ -18,7 +19,8 @@ interface Moment {
     title: string;
     description: string | null;
     mood: string | null;
-    photo: string | null;
+    /** Up to three photo URLs; the first is the cover. */
+    photos: string[];
     date: string;
     is_favourite: boolean;
     private_notes: string | null;
@@ -67,45 +69,67 @@ const form = useForm({
     is_favourite: false,
     private_notes: '',
     tags: [] as string[],
-    photo: null as File | null,
-    remove_photo: false,
+    /** Files picked in this form, added after the saved photos. */
+    photos: [] as File[],
+    /** Positions of saved photos to delete (edit only). */
+    remove_photos: [] as number[],
     date_night_plan_id: null as number | null,
 });
 
-// What the form shows: the stored photo when editing, or the file just picked.
-const photoPreview = ref<string | null>(null);
-const photoInput = ref<HTMLInputElement | null>(null);
+const MAX_PHOTOS = 3;
 
-function setPreview(url: string | null): void {
-    if (photoPreview.value?.startsWith('blob:')) {
-        URL.revokeObjectURL(photoPreview.value);
-    }
+// The saved photos still kept (editing), and a preview for each picked file.
+const savedPhotos = ref<{ url: string; index: number }[]>([]);
+const newPreviews = ref<string[]>([]);
+const photoCount = computed(
+    () => savedPhotos.value.length + form.photos.length,
+);
+// Laravel reports a bad file as `photos.0`, the limit as `photos`.
+const photoError = computed(
+    () =>
+        Object.entries(form.errors as Record<string, string>).find(([key]) =>
+            key.startsWith('photos'),
+        )?.[1],
+);
 
-    photoPreview.value = url;
+function clearPhotoErrors(): void {
+    (form.clearErrors as (...fields: string[]) => void)(
+        ...Object.keys(form.errors).filter((key) => key.startsWith('photos')),
+    );
 }
 
-function onPhotoChange(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0];
+function onPhotosChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []).slice(
+        0,
+        MAX_PHOTOS - photoCount.value,
+    );
 
-    if (!file) {
-        return;
-    }
-
-    form.photo = file;
-    form.remove_photo = false;
-    form.clearErrors('photo');
-    setPreview(URL.createObjectURL(file));
+    form.photos.push(...files);
+    newPreviews.value.push(...files.map((file) => URL.createObjectURL(file)));
+    clearPhotoErrors();
+    // So picking the same file again still fires `change`.
+    input.value = '';
 }
 
-function removePhoto(): void {
-    form.photo = null;
-    // Only an already-saved photo needs the server to delete it.
-    form.remove_photo = Boolean(editingMoment.value?.photo);
-    setPreview(null);
+function removeSavedPhoto(position: number): void {
+    form.remove_photos.push(savedPhotos.value[position].index);
+    savedPhotos.value.splice(position, 1);
+}
 
-    if (photoInput.value) {
-        photoInput.value.value = '';
-    }
+function removeNewPhoto(position: number): void {
+    URL.revokeObjectURL(newPreviews.value[position]);
+    newPreviews.value.splice(position, 1);
+    form.photos.splice(position, 1);
+    clearPhotoErrors();
+}
+
+function resetPhotos(saved: string[] = []): void {
+    newPreviews.value.forEach((url) => URL.revokeObjectURL(url));
+    newPreviews.value = [];
+    form.photos = [];
+    form.remove_photos = [];
+    savedPhotos.value = saved.map((url, index) => ({ url, index }));
 }
 
 function openCreate(): void {
@@ -114,16 +138,14 @@ function openCreate(): void {
     form.clearErrors();
     form.date = props.today;
     tagInput.value = '';
-    setPreview(null);
+    resetPhotos();
     showForm.value = true;
 }
 
 function openEdit(moment: Moment): void {
     editingMoment.value = moment;
     form.clearErrors();
-    form.photo = null;
-    form.remove_photo = false;
-    setPreview(moment.photo);
+    resetPhotos(moment.photos);
     form.title = moment.title;
     form.description = moment.description ?? '';
     form.mood = moment.mood ?? '';
@@ -142,6 +164,16 @@ onMounted(() => {
         form.title = props.prefill.title;
         form.date = props.prefill.date;
         form.date_night_plan_id = props.prefill.date_night_plan_id;
+
+        return;
+    }
+
+    // "Edit" on the moment page lands here with ?edit=<id>.
+    const id = Number(new URLSearchParams(window.location.search).get('edit'));
+    const moment = props.moments.find((m) => m.id === id && m.is_owner);
+
+    if (moment) {
+        openEdit(moment);
     }
 });
 
@@ -235,14 +267,12 @@ const focusClass =
                 @click="router.visit(show(moment.id).url)"
                 @keydown.enter="router.visit(show(moment.id).url)"
             >
-                <!-- Photo -->
-                <div v-if="moment.photo" class="h-48 overflow-hidden">
-                    <img
-                        :src="moment.photo"
-                        :alt="moment.title"
-                        class="h-full w-full object-cover"
-                    />
-                </div>
+                <!-- Photos: whole, never cropped; swipe for the next -->
+                <PhotoCarousel
+                    v-if="moment.photos.length > 0"
+                    :photos="moment.photos"
+                    :alt="moment.title"
+                />
 
                 <div class="space-y-4 p-5">
                     <div class="flex items-start gap-3.5">
@@ -289,7 +319,7 @@ const focusClass =
 
                     <p
                         v-if="moment.description"
-                        class="text-sm leading-relaxed text-foreground/80"
+                        class="line-clamp-3 text-sm leading-relaxed text-foreground/80"
                     >
                         {{ moment.description }}
                     </p>
@@ -522,63 +552,91 @@ const focusClass =
                                 />
                             </div>
 
-                            <div>
-                                <label :class="labelClass" for="moment-photo"
-                                    >Photo</label
-                                >
-                                <div
-                                    v-if="photoPreview"
-                                    class="mb-2 overflow-hidden rounded-2xl border border-border"
-                                >
-                                    <img
-                                        :src="photoPreview"
-                                        alt="Selected photo"
-                                        class="h-40 w-full object-cover"
-                                    />
-                                </div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <input
-                                        id="moment-photo"
-                                        ref="photoInput"
-                                        type="file"
-                                        accept="image/*"
-                                        class="block min-w-0 flex-1 text-sm text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary hover:file:bg-muted"
-                                        :aria-describedby="
-                                            form.errors.photo
-                                                ? 'moment-photo-error'
-                                                : 'moment-photo-hint'
-                                        "
-                                        @change="onPhotoChange"
-                                    />
-                                    <button
-                                        v-if="photoPreview"
-                                        type="button"
-                                        :class="[
-                                            'inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10',
-                                            focusClass,
-                                        ]"
-                                        @click="removePhoto"
+                            <div role="group" aria-labelledby="moment-photos">
+                                <p id="moment-photos" :class="labelClass">
+                                    Photos
+                                    <span
+                                        class="font-normal text-muted-foreground tabular-nums"
+                                        >{{ photoCount }} of
+                                        {{ MAX_PHOTOS }}</span
                                     >
-                                        <Trash2
-                                            class="size-3.5"
+                                </p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div
+                                        v-for="(photo, i) in [
+                                            ...savedPhotos.map((p) => p.url),
+                                            ...newPreviews,
+                                        ]"
+                                        :key="photo"
+                                        class="relative aspect-square overflow-hidden rounded-2xl border border-border bg-muted"
+                                    >
+                                        <!-- Thumbnails show the whole picture too -->
+                                        <img
+                                            :src="photo"
+                                            :alt="`Photo ${i + 1}`"
+                                            class="size-full object-contain"
+                                        />
+                                        <span
+                                            v-if="i === 0"
+                                            class="absolute bottom-1.5 left-1.5 badge-soft"
+                                            >Cover</span
+                                        >
+                                        <button
+                                            type="button"
+                                            class="absolute top-1 right-1 flex size-8 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/75 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+                                            :aria-label="`Remove photo ${i + 1}`"
+                                            @click="
+                                                i < savedPhotos.length
+                                                    ? removeSavedPhoto(i)
+                                                    : removeNewPhoto(
+                                                          i -
+                                                              savedPhotos.length,
+                                                      )
+                                            "
+                                        >
+                                            <X
+                                                class="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        </button>
+                                    </div>
+                                    <label
+                                        v-if="photoCount < MAX_PHOTOS"
+                                        class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-input text-xs font-medium text-muted-foreground transition-colors focus-within:ring-2 focus-within:ring-primary hover:bg-muted hover:text-foreground"
+                                    >
+                                        <ImagePlus
+                                            class="size-5"
                                             aria-hidden="true"
                                         />
-                                        Remove photo
-                                    </button>
+                                        Add photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            class="sr-only"
+                                            :aria-describedby="
+                                                photoError
+                                                    ? 'moment-photo-error'
+                                                    : 'moment-photo-hint'
+                                            "
+                                            @change="onPhotosChange"
+                                        />
+                                    </label>
                                 </div>
                                 <p
-                                    v-if="form.errors.photo"
+                                    v-if="photoError"
                                     id="moment-photo-error"
-                                    class="mt-1 text-sm text-destructive"
+                                    class="mt-1.5 text-sm text-destructive"
                                 >
-                                    {{ form.errors.photo }}
+                                    {{ photoError }}
                                 </p>
                                 <p
                                     v-else
                                     id="moment-photo-hint"
-                                    class="mt-1 text-xs text-muted-foreground"
+                                    class="mt-1.5 text-xs text-muted-foreground"
                                 >
-                                    One image, up to 5 MB.
+                                    Up to {{ MAX_PHOTOS }} images, 5 MB each.
+                                    The first one is the cover.
                                 </p>
                             </div>
 

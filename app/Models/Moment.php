@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property string $title
  * @property string|null $description
  * @property string|null $mood
- * @property string|null $photo
+ * @property list<string>|null $photos Paths on the uploads disk, at most MAX_PHOTOS; the first is the cover.
  * @property Carbon $date
  * @property bool $is_favourite
  * @property string|null $private_notes
@@ -30,7 +30,7 @@ use Illuminate\Support\Carbon;
     'title',
     'description',
     'mood',
-    'photo',
+    'photos',
     'date',
     'is_favourite',
     'private_notes',
@@ -41,9 +41,29 @@ class Moment extends Model
     /** @use HasFactory<MomentFactory> */
     use HasFactory;
 
+    public const MAX_PHOTOS = 3;
+
+    /**
+     * One `moments.photo` URL per photo. The file name is in the query string,
+     * so a replaced photo is not served from the browser cache.
+     *
+     * @return list<string>
+     */
+    public function photoUrls(): array
+    {
+        $photos = $this->photos ?? [];
+
+        return array_map(
+            fn (string $path, int $index): string => route('moments.photo', ['moment' => $this, 'index' => $index, 'v' => basename($path)]),
+            $photos,
+            array_keys($photos),
+        );
+    }
+
     protected function casts(): array
     {
         return [
+            'photos' => 'array',
             'date' => 'date',
             'is_favourite' => 'boolean',
             'tags' => 'array',

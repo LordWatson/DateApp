@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { ChevronRight, MapPin, Pencil, Plus, Trash2, X } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import {
+    ChevronRight,
+    MapPin,
+    Pencil,
+    Plus,
+    Sparkles,
+    Trash2,
+    X,
+} from '@lucide/vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -10,8 +18,7 @@ import SecondaryButton from '@/components/SecondaryButton.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import { destroy, show, store, update } from '@/routes/calendar';
-
-const DESCRIPTION_PREVIEW_LENGTH = 40;
+import { show as showPlan } from '@/routes/date-night';
 
 defineOptions({ layout: MobileLayout });
 
@@ -20,6 +27,9 @@ interface CalendarEvent {
     title: string;
     description: string | null;
     type: string;
+    type_label: string;
+    /** The date night plan this event was added from, when the viewer can open it. */
+    plan: { id: number; theme: string; emoji: string | null } | null;
     emoji: string | null;
     date: string;
     recurrence: string | null;
@@ -66,11 +76,41 @@ const form = useForm({
     reminder: '',
 });
 
+/** The pieces of a date the card shows separately: a "12 Dec" block and the weekday. */
+function dateParts(dateStr: string): {
+    day: number;
+    month: string;
+    weekday: string;
+} {
+    const date = new Date(dateStr + 'T00:00:00');
+    const year = dateStr.slice(0, 4);
+
+    return {
+        day: date.getDate(),
+        month: date.toLocaleDateString('en-GB', { month: 'short' }),
+        // The year only when it is not this one.
+        weekday:
+            date.toLocaleDateString('en-GB', { weekday: 'long' }) +
+            (year === props.today.slice(0, 4) ? '' : ` ${year}`),
+    };
+}
+
 const upcomingEvents = computed(() =>
     props.events
         .filter((e) => e.next_date >= props.today)
-        .sort((a, b) => a.next_date.localeCompare(b.next_date)),
+        .sort((a, b) => a.next_date.localeCompare(b.next_date))
+        .map((e) => ({ ...e, when: dateParts(e.next_date) })),
 );
+
+// "Edit" on the event page lands here with ?edit=<id>.
+onMounted(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('edit'));
+    const event = props.events.find((e) => e.id === id && e.is_mine);
+
+    if (event) {
+        openEdit(event);
+    }
+});
 
 const pastEvents = computed(() =>
     props.events
@@ -157,14 +197,6 @@ function deleteEvent(): void {
     }
 }
 
-function truncateDescription(description: string): string {
-    if (description.length <= DESCRIPTION_PREVIEW_LENGTH) {
-        return description;
-    }
-
-    return description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trimEnd() + '…';
-}
-
 function openShow(event: CalendarEvent): void {
     router.get(show.url({ calendarEvent: event.id }));
 }
@@ -219,86 +251,131 @@ const iconButtonClass =
                     tabindex="0"
                     @keydown.enter.self="openShow(event)"
                     :class="[
-                        'flex w-full card-hover cursor-pointer items-start gap-3.5 card-premium p-4 text-left',
+                        'w-full card-hover cursor-pointer overflow-hidden card-premium text-left',
                         focusClass,
                     ]"
                     @click="openShow(event)"
                 >
-                    <span
-                        class="icon-tile h-12 w-12 text-2xl"
-                        :style="{
-                            boxShadow: `inset 0 0 0 1.5px ${event.colour}`,
-                        }"
-                        aria-hidden="true"
-                        >{{ event.emoji ?? '📅' }}</span
-                    >
-                    <span class="block min-w-0 flex-1">
-                        <span class="block font-medium text-foreground">{{
-                            event.title
-                        }}</span>
+                    <div class="flex items-start gap-3.5 p-4">
+                        <!-- Date block, ringed in the event's colour -->
                         <span
-                            class="mt-0.5 block text-xs text-muted-foreground"
+                            class="icon-tile h-14 w-12 flex-col gap-0.5"
+                            :style="{
+                                boxShadow: `inset 0 0 0 1.5px ${event.colour}`,
+                            }"
+                            aria-hidden="true"
                         >
-                            {{ formatDate(event.next_date)
-                            }}{{ event.time ? ' · ' + event.time : '' }}
+                            <span
+                                class="text-[10px] leading-none font-semibold tracking-wider text-gold uppercase"
+                                >{{ event.when.month }}</span
+                            >
+                            <span
+                                class="font-display text-xl leading-none font-semibold text-foreground tabular-nums"
+                                >{{ event.when.day }}</span
+                            >
                         </span>
-                        <span class="mt-1.5 flex flex-wrap gap-1.5">
-                            <span class="badge-soft tabular-nums">{{
-                                countdown(event.days_until)
+                        <span class="block min-w-0 flex-1">
+                            <span
+                                class="flex items-center gap-1.5 font-medium text-foreground"
+                            >
+                                <span aria-hidden="true">{{
+                                    event.emoji ?? '📅'
+                                }}</span>
+                                <span class="truncate">{{ event.title }}</span>
+                            </span>
+                            <span class="sr-only">{{
+                                formatDate(event.next_date)
                             }}</span>
-                            <span v-if="event.recurrence" class="badge-soft">
-                                {{
-                                    event.occurrence
-                                        ? `${ordinal(event.occurrence)} · every year`
-                                        : 'Every year'
+                            <span
+                                class="mt-0.5 block text-xs text-muted-foreground"
+                            >
+                                {{ event.when.weekday
+                                }}{{
+                                    event.time
+                                        ? ' · ' + event.time.slice(0, 5)
+                                        : ''
+                                }}{{
+                                    event.is_mine
+                                        ? ''
+                                        : ' · Added by ' + event.owner
                                 }}
+                            </span>
+                            <span
+                                v-if="event.location"
+                                class="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+                            >
+                                <MapPin
+                                    class="size-3.5 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <span class="truncate">{{
+                                    event.location
+                                }}</span>
+                            </span>
+                            <span class="mt-2 flex flex-wrap gap-1.5">
+                                <span
+                                    class="badge-soft bg-primary/10 text-primary tabular-nums"
+                                    >{{ countdown(event.days_until) }}</span
+                                >
+                                <span class="badge-soft">{{
+                                    event.type_label
+                                }}</span>
+                                <span
+                                    v-if="event.recurrence"
+                                    class="badge-soft"
+                                >
+                                    {{
+                                        event.occurrence
+                                            ? `${ordinal(event.occurrence)} · every year`
+                                            : 'Every year'
+                                    }}
+                                </span>
                             </span>
                         </span>
                         <span
-                            v-if="event.location"
-                            class="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+                            v-if="event.is_mine"
+                            class="-mt-1 -mr-1.5 flex shrink-0"
                         >
-                            <MapPin
-                                class="size-3.5 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <span class="truncate">{{ event.location }}</span>
+                            <button
+                                type="button"
+                                :class="[
+                                    iconButtonClass,
+                                    focusClass,
+                                    'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                ]"
+                                :aria-label="`Edit ${event.title}`"
+                                @click.stop="openEdit(event)"
+                            >
+                                <Pencil class="size-4" aria-hidden="true" />
+                            </button>
+                            <button
+                                type="button"
+                                :class="[
+                                    iconButtonClass,
+                                    focusClass,
+                                    'text-destructive hover:bg-destructive/10',
+                                ]"
+                                :aria-label="`Delete ${event.title}`"
+                                @click.stop="eventToDelete = event"
+                            >
+                                <Trash2 class="size-4" aria-hidden="true" />
+                            </button>
                         </span>
-                        <span
-                            v-if="event.description"
-                            class="mt-2 block text-sm text-foreground/80"
-                            >{{ truncateDescription(event.description) }}</span
-                        >
-                    </span>
-                    <span
-                        v-if="event.is_mine"
-                        class="-mt-1 -mr-1.5 flex shrink-0"
+                    </div>
+                    <Link
+                        v-if="event.plan"
+                        :href="showPlan.url({ dateNightPlan: event.plan.id })"
+                        class="flex min-h-11 items-center gap-2 border-t border-border px-4 text-sm font-medium text-primary transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                        @click.stop
+                        @keydown.enter.stop
                     >
-                        <button
-                            type="button"
-                            :class="[
-                                iconButtonClass,
-                                focusClass,
-                                'text-muted-foreground hover:bg-muted hover:text-foreground',
-                            ]"
-                            :aria-label="`Edit ${event.title}`"
-                            @click.stop="openEdit(event)"
-                        >
-                            <Pencil class="size-4" aria-hidden="true" />
-                        </button>
-                        <button
-                            type="button"
-                            :class="[
-                                iconButtonClass,
-                                focusClass,
-                                'text-destructive hover:bg-destructive/10',
-                            ]"
-                            :aria-label="`Delete ${event.title}`"
-                            @click.stop="eventToDelete = event"
-                        >
-                            <Trash2 class="size-4" aria-hidden="true" />
-                        </button>
-                    </span>
+                        <Sparkles class="size-4 shrink-0" aria-hidden="true" />
+                        View the date night plan
+                        <ChevronRight
+                            class="ml-auto size-4 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    </Link>
                 </div>
             </div>
         </section>

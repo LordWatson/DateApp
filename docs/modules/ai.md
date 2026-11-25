@@ -76,6 +76,7 @@ None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-setting
 |--------|----------|---------------------------|
 | `app/Services/DateNightGeneratorService.php` | `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple` | Inside `GenerateDateNightPlanJob`, and synchronously from the plan page's "Try again with AI" (`date-night.retry-ai`, `throttle:ai`; see `date-night.md`) |
 | `app/Services/WeeklyReflectionService.php` | `weekly_reflection` | Web request (see `weekly-reflection.md`) |
+| `app/Actions/GenerateIntimacyCardsAction.php` | `intimacy_game` | Web request (`intimacy.games.cards`, JSON, `throttle:ai`): ten cards per call, `people: []` because the context is only the game. See `intimacy.md` |
 | `app/Http/Controllers/Admin/AdminAiSettingController.php` | Any (test connection, preview) | Admin UI (see `admin.md`). Exempt from consent: test connection calls the provider directly with a fixed probe, preview passes `people: []` because the admin types the context |
 
 
@@ -138,3 +139,4 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 - 2026-11-25 — Roadmap Phase 3 (3.6): per-user AI consent. `AIService` methods require `$people` and refuse with `ai_consent_missing` unless all of them agreed; callers pass the people whose content is sent.
 - 2026-11-26 — Roadmap Phase 4: removed the legacy `App\Contracts\AIProvider`, `App\AI\NullAIProvider` and their binding, `AiPrompt` (new migration drops `ai_prompts`), the four never-dispatched `ai`-queue jobs, and the six use cases only they or nobody used (`conversation_prompt`, `relationship_insight`, `compatibility_summary`, `challenge_variation`, `theme_description`, `moment_caption`) with their `AIService` methods, null-provider stubs and seeded templates. Rows for those templates already in a database are left alone and are no longer read.
 - 2026-11-25 — Roadmap Phase 5.3: plan prompts bumped (v12, v2, v2) with a `requested_change` rule; new synchronous caller `date-night.regenerate`.
+- 2026-11-25 — `intimacy_game` has a caller (`GenerateIntimacyCardsAction`); its template is version 3 and answers `{ "cards": [string] }`, and the null provider stub matches.

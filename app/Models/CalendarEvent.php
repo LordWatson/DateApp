@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $user_id
+ * @property int|null $date_night_plan_id
  * @property string $title
  * @property string|null $description
  * @property string $type
@@ -33,6 +34,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'user_id',
+    'date_night_plan_id',
     'title',
     'description',
     'type',

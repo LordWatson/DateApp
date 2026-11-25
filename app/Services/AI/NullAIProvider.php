@@ -51,7 +51,7 @@ final class NullAIProvider implements AIProvider
                 'summary' => 'A steady week with small moments worth noticing.',
             ],
             AIUseCase::IntimacyGame => [
-                'prompt' => 'Share one thing your partner did recently that made you feel close.',
+                'cards' => ['Share one thing your partner did recently that made you feel close.'],
             ],
             AIUseCase::DateNightPlanOutCouple => [
                 'summary' => 'An easy evening out that gives each of you something you asked for.',

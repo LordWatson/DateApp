@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\GenerateIntimacyCardsAction;
 use App\Enums\QuestionnaireStatus;
+use App\Http\Requests\Intimacy\GenerateIntimacyCardsRequest;
 use App\Models\IntimacyGame;
 use App\Models\Questionnaire;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -72,8 +75,22 @@ class IntimacyController extends Controller
                 'intensity_emoji' => $intimacyGame->intensity->emoji(),
                 'category' => $intimacyGame->category->value,
                 'category_label' => $intimacyGame->category->label(),
+                // The stored cards: played only when the AI deck cannot be written.
                 'prompts' => $intimacyGame->prompts ?? [],
             ],
+        ]);
+    }
+
+    /**
+     * A fresh AI-written deck for the game. `cards` is empty when the AI is
+     * unavailable; the page then falls back to the game's stored cards.
+     */
+    public function cards(GenerateIntimacyCardsRequest $request, IntimacyGame $intimacyGame, GenerateIntimacyCardsAction $generateCards): JsonResponse
+    {
+        abort_unless($intimacyGame->is_active, 404);
+
+        return response()->json([
+            'cards' => $generateCards->execute($intimacyGame, $request->user(), $request->validated('seen') ?? []),
         ]);
     }
 }

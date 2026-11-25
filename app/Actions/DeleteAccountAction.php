@@ -23,7 +23,7 @@ class DeleteAccountAction
 {
     public function execute(User $user): void
     {
-        $photos = Moment::where('user_id', $user->id)->whereNotNull('photo')->pluck('photo')->all();
+        $photos = Moment::where('user_id', $user->id)->pluck('photos')->flatten()->filter()->all();
         $export = ExportUserDataJob::pathFor($user);
 
         DB::transaction(function () use ($user): void {

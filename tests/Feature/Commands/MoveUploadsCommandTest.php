@@ -19,9 +19,9 @@ class MoveUploadsCommandTest extends TestCase
         Storage::disk('public')->put('moments/old.jpg', 'old');
         Storage::disk('public')->put('unrelated.txt', 'stay');
         $uploads->put('moments/new.jpg', 'new');
-        Moment::factory()->create(['photo' => 'moments/old.jpg']);
-        Moment::factory()->create(['photo' => 'moments/new.jpg']);
-        Moment::factory()->create(['photo' => 'moments/lost.jpg']);
+        Moment::factory()->create(['photos' => ['moments/old.jpg']]);
+        Moment::factory()->create(['photos' => ['moments/new.jpg']]);
+        Moment::factory()->create(['photos' => ['moments/lost.jpg']]);
 
         $this->artisan('datenight:move-uploads')->assertSuccessful();
         $this->artisan('datenight:move-uploads')->assertSuccessful();

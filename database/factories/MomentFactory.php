@@ -21,7 +21,7 @@ class MomentFactory extends Factory
             'title' => $this->faker->sentence(3),
             'description' => $this->faker->paragraph(),
             'mood' => $this->faker->randomElement(['😍', '😊', '🥰', '😂', '😌']),
-            'photo' => null,
+            'photos' => [],
             'date' => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
             'is_favourite' => false,
             'private_notes' => null,

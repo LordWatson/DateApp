@@ -8,10 +8,12 @@ use App\Models\DateNightPlan;
 use App\Models\Moment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MomentController extends Controller
@@ -81,24 +83,33 @@ class MomentController extends Controller
     /**
      * Photos sit on a private disk; this is the only way to read one.
      */
-    public function photo(Moment $moment): StreamedResponse
+    public function photo(Moment $moment, int $index = 0): StreamedResponse
     {
         $this->authorize('view', $moment);
 
         $disk = Storage::disk(config('filesystems.uploads'));
+        $path = $moment->photos[$index] ?? null;
 
-        abort_unless($moment->photo && $disk->exists($moment->photo), 404);
+        abort_unless($path && $disk->exists($path), 404);
 
-        return $disk->response($moment->photo, null, ['Cache-Control' => 'private, max-age=3600']);
+        return $disk->response($path, null, ['Cache-Control' => 'private, max-age=3600']);
+    }
+
+    /** @return list<string> */
+    private function storePhotos(StoreMomentRequest $request): array
+    {
+        return array_values(array_map(
+            // A failed write must not end up in the list as `false`.
+            static fn (UploadedFile $file): string => $file->store('moments', config('filesystems.uploads'))
+                ?: throw new RuntimeException('Could not store the photo.'),
+            $request->file('photos', []),
+        ));
     }
 
     public function store(StoreMomentRequest $request): RedirectResponse
     {
-        $data = $request->safe()->except(['photo', 'remove_photo']);
-
-        if ($request->hasFile('photo')) {
-            $data['photo'] = $request->file('photo')->store('moments', config('filesystems.uploads'));
-        }
+        $data = $request->safe()->except(['photos', 'remove_photos']);
+        $data['photos'] = $this->storePhotos($request);
 
         $moment = $request->user()->moments()->create($data);
 
@@ -111,20 +122,18 @@ class MomentController extends Controller
     {
         $this->authorize('update', $moment);
 
-        // `photo` is only written when a file arrives or removal is asked for:
-        // the edit form sends null when the picture is left alone.
-        $data = $request->safe()->except(['photo', 'remove_photo']);
+        $data = $request->safe()->except(['photos', 'remove_photos']);
         // A multipart form cannot send an empty list, so no tags means "none".
         $data['tags'] ??= [];
 
-        if ($request->hasFile('photo') || $request->boolean('remove_photo')) {
-            if ($moment->photo) {
-                Storage::disk(config('filesystems.uploads'))->delete($moment->photo);
-            }
-            $data['photo'] = $request->file('photo')?->store('moments', config('filesystems.uploads'));
-        }
+        // Saved photos stay unless their position is in `remove_photos`; new files go after them.
+        $saved = collect($moment->photos);
+        $removed = $saved->only($request->input('remove_photos', []));
+        $data['photos'] = $saved->except($removed->keys())->values()->merge($this->storePhotos($request))->all();
 
         $moment->update($data);
+
+        Storage::disk(config('filesystems.uploads'))->delete($removed->values()->all());
 
         return redirect()->route('moments.index')->with('success', 'Moment updated!');
     }
@@ -133,9 +142,7 @@ class MomentController extends Controller
     {
         $this->authorize('delete', $moment);
 
-        if ($moment->photo) {
-            Storage::disk(config('filesystems.uploads'))->delete($moment->photo);
-        }
+        Storage::disk(config('filesystems.uploads'))->delete($moment->photos ?? []);
 
         $moment->delete();
 
@@ -160,8 +167,7 @@ class MomentController extends Controller
             'title' => $moment->title,
             'description' => $moment->description,
             'mood' => $moment->mood,
-            // The file name changes with the photo, so a replaced photo is not served from cache.
-            'photo' => $moment->photo ? route('moments.photo', [$moment, 'v' => basename($moment->photo)]) : null,
+            'photos' => $moment->photoUrls(),
             'date' => $moment->date->toDateString(),
             'is_favourite' => $moment->is_favourite,
             'is_owner' => $isOwner,

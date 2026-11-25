@@ -22,14 +22,14 @@ A simple shared event list for a couple: date nights, anniversaries, birthdays, 
 | `database/migrations/2026_07_14_000001_create_calendar_events_table.php` | Schema |
 | `database/factories/CalendarEventFactory.php` | Factory |
 | **Frontend** | |
-| `resources/js/pages/calendar/Index.vue` | Upcoming/past lists + create/edit form |
-| `resources/js/pages/calendar/Show.vue` | Event detail; delete for owner |
+| `resources/js/pages/calendar/Index.vue` | Upcoming cards (date block, badges, plan link) and past list + create/edit form; opens the edit form for `?edit=<id>` |
+| `resources/js/pages/calendar/Show.vue` | Event detail: date hero, plan link, details with icons, "Open in maps"; edit and delete for owner |
 | **Tests** | |
 | `tests/Feature/CalendarEventTest.php` | Feature tests |
 
 ## Data model
 
-`calendar_events`: `user_id` (FK, cascade), `title`, `description?`, `type` (string, default `custom`), `emoji?`, `date` (cast `date`), `time?` (TIME column, not cast), `location?`, `notes?`, `colour` (default `#EC4899`), `reminder?` (string), `reminder_sent` (bool, default false), `recurrence?` (string, cast `CalendarRecurrence`: only `yearly`), `reminded_for_date?` (date: the occurrence a repeating event was last reminded for). Indexes: `(user_id, date)`, `type`.
+`calendar_events`: `user_id` (FK, cascade), `date_night_plan_id?` (FK, null on delete: the plan the event was added from), `title`, `description?`, `type` (string, default `custom`), `emoji?`, `date` (cast `date`), `time?` (TIME column, not cast), `location?`, `notes?`, `colour` (default `#EC4899`), `reminder?` (string), `reminder_sent` (bool, default false), `recurrence?` (string, cast `CalendarRecurrence`: only `yearly`), `reminded_for_date?` (date: the occurrence a repeating event was last reminded for). Indexes: `(user_id, date)`, `type`.
 
 - Relation: `User::calendarEvents()` hasMany.
 - `type` values: `date_night`, `anniversary`, `birthday`, `holiday`, `weekend_away`, `movie_night`, `dinner_reservation`, `custom`.
@@ -76,8 +76,9 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 ### Add a date night plan to the calendar
 
 1. `DateNightPlanController@addToCalendar` authorises `addToCalendar` on the plan, then calls `AddDateNightPlanToCalendarAction::execute($user, $plan, $data)`.
-2. The action creates an event for the acting user (`title` = plan theme, `description` = plan summary, `type` = `date_night`, `emoji` = theme emoji, `colour` = `#EC4899`, plus `date`, optional `time` / `location`).
+2. The action creates an event for the acting user (`date_night_plan_id` = the plan, `title` = plan theme, `description` = plan summary, `type` = `date_night`, `emoji` = theme emoji, `colour` = `#EC4899`, plus `date`, optional `time` / `location`).
 3. If the user has a partner, `NotificationService::notifyPartnerAddedDateNightToCalendar()` is called. Details in date-night.md and notifications-activity-mail.md.
+4. Back to the plan: `formatEvent()` sends `plan` (`{id, theme, emoji}` or null) and both pages link to `date-night.show`. `CalendarEventController::plansFor()` loads the plans with `DateNightPlan::visibleTo($viewer)`, so `plan` is null when the viewer may not open it (for example they hid it). The link survives editing the event; it is not in the request rules, so a user cannot set it.
 
 ## Rules and gotchas
 
@@ -88,7 +89,8 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
   - Policies rely on Laravel's auto-discovery (no explicit registration).
 - Validation: `title` required max 255; `type` required and in the list above; `date` required; `time` must be `H:i`; `description` max 1000; `notes` max 2000; `location` max 255; `emoji` max 10; `colour` max 20 (not validated as a colour); `reminder` nullable and in the list above; `recurrence` nullable and a `CalendarRecurrence` value.
 - Event types live only in `CalendarEventType`: add a case (with label and emoji) and both request classes and the page pick it up. The model does not cast `type`; it stays a string.
-- Upcoming vs past is split in the browser using the client's date (`calendar/Index.vue:57-69`).
+- Events added from a plan before `date_night_plan_id` existed were linked by the migration only where title and description still matched the plan's theme and summary; the rest have no link.
+- The payload also carries `type_label` (from `CalendarEventType`). The upcoming cards no longer show the description; it is on the event page.
 - **Today is the user's own day**: `calendar.index` sends `today` (`User::today()`, from `users.timezone`); the page uses it for the upcoming/past split and as the default date of a new event. The relationship hub's upcoming events and the timeline's calendar entries use the same date. Event dates stay plain dates.
 - Reminders are whole-day: `time` is never used to decide when to send (it is nullable and has no timezone), only shown in the text. The reminder appears within an hour of the due day starting in the owner's timezone; the partner gets it at the same moment. An event created after its due day has started is reminded on the next hourly run; a past event never is. In-app only, no email.
 - `CalendarEventCreated` is dispatched by `store` only, not by `AddDateNightPlanToCalendarAction`: an event added from a plan counts towards `calendar_events_created` achievements at the next evaluation (see challenges-achievements-streaks.md).
@@ -115,6 +117,8 @@ Run: `php artisan test --filter="CalendarEventTest|SendCalendarRemindersCommandT
 
 - `tests/Feature/CalendarRecurrenceTest.php` - next occurrence this year, next year, today and for a leap day; ordering; the hub; validation. The reminders test also covers one reminder per occurrence.
 
+- `tests/Feature/DateNightPlanTest.php` - an event added from a plan stores the plan, both partners get the link, a hidden plan is not linked.
+
 Not covered: partner visibility on index/show, validation limits.
 
 ## Change log
@@ -125,3 +129,4 @@ Not covered: partner visibility on index/show, validation limits.
 - 2026-11-25 — Roadmap Phase 3 (3.14): the upcoming/past split and the default date use the user's timezone (`today` prop).
 - 2026-11-26 — Roadmap Phase 4: (4.6) the two request classes and `CalendarEventController::eventTypes()` use `CalendarEventType` instead of their own copies of the list.
 - 2026-11-25 — Roadmap Phase 5.7: yearly recurrence (`recurrence`, `reminded_for_date`, `CalendarEvent::nextOccurrence()`), countdown and occurrence badges, a reminder for every occurrence.
+- 2026-11-25 — Events remember their date night plan (`date_night_plan_id`, `plan` and `type_label` in the payload) and link to it; event page and upcoming cards redesigned (date hero and date block, icon rows, "Open in maps", Edit from the event page via `?edit=<id>`).

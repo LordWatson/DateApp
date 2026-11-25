@@ -27,7 +27,7 @@ class MomentPhotoTest extends TestCase
     {
         return Moment::factory()->create([
             'user_id' => $this->user->id,
-            'photo' => UploadedFile::fake()->image('old.jpg')->store('moments', config('filesystems.uploads')),
+            'photos' => [UploadedFile::fake()->image('old.jpg')->store('moments', config('filesystems.uploads'))],
             'tags' => ['beach'],
         ]);
     }
@@ -79,12 +79,12 @@ class MomentPhotoTest extends TestCase
         Storage::fake('public');
         $moment = $this->momentWithPhoto();
 
-        Storage::disk('public')->assertMissing($moment->photo);
+        Storage::disk('public')->assertMissing($moment->photos[0]);
     }
 
     public function test_a_moment_without_a_photo_has_no_photo_to_fetch(): void
     {
-        $moment = Moment::factory()->create(['user_id' => $this->user->id, 'photo' => null]);
+        $moment = Moment::factory()->create(['user_id' => $this->user->id, 'photos' => []]);
 
         $this->actingAs($this->user)->get(route('moments.photo', $moment))->assertNotFound();
     }
@@ -94,64 +94,104 @@ class MomentPhotoTest extends TestCase
         $this->actingAs($this->user)->post(route('moments.store'), [
             'title' => 'Picnic',
             'date' => '2026-07-01',
-            'photo' => UploadedFile::fake()->image('picnic.jpg'),
+            'photos' => [UploadedFile::fake()->image('picnic.jpg')],
         ])->assertRedirect(route('moments.index'));
 
         $moment = Moment::sole();
-        $this->assertNotNull($moment->photo);
-        Storage::disk(config('filesystems.uploads'))->assertExists($moment->photo);
+        $this->assertCount(1, $moment->photos);
+        Storage::disk(config('filesystems.uploads'))->assertExists($moment->photos[0]);
 
-        $url = route('moments.photo', [$moment, 'v' => basename($moment->photo)]);
+        $url = route('moments.photo', [$moment, 0, 'v' => basename($moment->photos[0])]);
 
         $this->actingAs($this->user)->get(route('moments.index'))
-            ->assertInertia(fn ($page) => $page->where('moments.0.photo', $url));
+            ->assertInertia(fn ($page) => $page->where('moments.0.photos', [$url]));
         $this->actingAs($this->user)->get(route('moments.show', $moment))
-            ->assertInertia(fn ($page) => $page->where('moment.photo', $url));
+            ->assertInertia(fn ($page) => $page->where('moment.photos', [$url]));
     }
 
     public function test_photo_can_be_added_on_edit(): void
     {
-        $moment = Moment::factory()->create(['user_id' => $this->user->id, 'photo' => null]);
+        $moment = Moment::factory()->create(['user_id' => $this->user->id, 'photos' => []]);
 
-        $this->updateMoment($moment, ['photo' => UploadedFile::fake()->image('new.png')])
+        $this->updateMoment($moment, ['photos' => [UploadedFile::fake()->image('new.png')]])
             ->assertRedirect(route('moments.index'));
 
-        Storage::disk(config('filesystems.uploads'))->assertExists($moment->fresh()->photo);
+        Storage::disk(config('filesystems.uploads'))->assertExists($moment->fresh()->photos[0]);
     }
 
     public function test_replacing_the_photo_deletes_the_old_file(): void
     {
         $moment = $this->momentWithPhoto();
-        $oldPath = $moment->photo;
+        $oldPath = $moment->photos[0];
 
-        $this->updateMoment($moment, ['photo' => UploadedFile::fake()->image('new.jpg')]);
+        $this->updateMoment($moment, ['remove_photos' => [0], 'photos' => [UploadedFile::fake()->image('new.jpg')]]);
 
-        $newPath = $moment->fresh()->photo;
-        $this->assertNotSame($oldPath, $newPath);
+        $photos = $moment->fresh()->photos;
+        $this->assertCount(1, $photos);
+        $this->assertNotSame($oldPath, $photos[0]);
         Storage::disk(config('filesystems.uploads'))->assertMissing($oldPath);
-        Storage::disk(config('filesystems.uploads'))->assertExists($newPath);
+        Storage::disk(config('filesystems.uploads'))->assertExists($photos[0]);
+    }
+
+    public function test_new_photos_are_added_after_the_saved_ones_and_each_can_be_fetched(): void
+    {
+        $moment = $this->momentWithPhoto();
+        $oldPath = $moment->photos[0];
+
+        $this->updateMoment($moment, ['photos' => [UploadedFile::fake()->image('a.png'), UploadedFile::fake()->image('b.png')]])
+            ->assertRedirect(route('moments.index'));
+
+        $photos = $moment->fresh()->photos;
+        $this->assertCount(3, $photos);
+        $this->assertSame($oldPath, $photos[0]);
+
+        $this->actingAs($this->user)->get(route('moments.photo', [$moment, 2]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
+        $this->actingAs($this->user)->get(route('moments.photo', [$moment, 3]))->assertNotFound();
+    }
+
+    public function test_a_moment_cannot_have_more_than_three_photos(): void
+    {
+        $fourPhotos = fn (): array => array_map(fn (int $i) => UploadedFile::fake()->image("{$i}.jpg"), range(1, 4));
+
+        $this->actingAs($this->user)->post(route('moments.store'), [
+            'title' => 'Picnic',
+            'date' => '2026-07-01',
+            'photos' => $fourPhotos(),
+        ])->assertSessionHasErrors('photos');
+
+        // One saved photo plus three new ones is one too many, unless the saved one goes.
+        $moment = $this->momentWithPhoto();
+        $threePhotos = array_slice($fourPhotos(), 0, 3);
+
+        $this->updateMoment($moment, ['photos' => $threePhotos])->assertSessionHasErrors('photos');
+        $this->assertCount(1, $moment->fresh()->photos);
+
+        $this->updateMoment($moment, ['photos' => $threePhotos, 'remove_photos' => [0]])->assertSessionHasNoErrors();
+        $this->assertCount(3, $moment->fresh()->photos);
     }
 
     public function test_editing_without_a_new_photo_keeps_the_photo(): void
     {
         $moment = $this->momentWithPhoto();
 
-        $this->updateMoment($moment, ['photo' => null, 'tags' => ['beach']]);
+        $this->updateMoment($moment, ['tags' => ['beach']]);
 
         $moment->refresh();
         $this->assertSame('Updated', $moment->title);
-        $this->assertNotNull($moment->photo);
-        Storage::disk(config('filesystems.uploads'))->assertExists($moment->photo);
+        $this->assertCount(1, $moment->photos);
+        Storage::disk(config('filesystems.uploads'))->assertExists($moment->photos[0]);
     }
 
     public function test_photo_can_be_removed_on_edit(): void
     {
         $moment = $this->momentWithPhoto();
-        $oldPath = $moment->photo;
+        $oldPath = $moment->photos[0];
 
-        $this->updateMoment($moment, ['remove_photo' => true]);
+        $this->updateMoment($moment, ['remove_photos' => [0]]);
 
-        $this->assertNull($moment->fresh()->photo);
+        $this->assertSame([], $moment->fresh()->photos);
         Storage::disk(config('filesystems.uploads'))->assertMissing($oldPath);
     }
 
@@ -173,15 +213,15 @@ class MomentPhotoTest extends TestCase
             $this->actingAs($this->user)->post(route('moments.store'), [
                 'title' => 'Picnic',
                 'date' => '2026-07-01',
-                'photo' => $file,
-            ])->assertSessionHasErrors('photo');
+                'photos' => [$file],
+            ])->assertSessionHasErrors('photos.0');
         }
 
         $moment = $this->momentWithPhoto();
-        $this->updateMoment($moment, ['photo' => $notAnImage])->assertSessionHasErrors('photo');
+        $this->updateMoment($moment, ['photos' => [$notAnImage]])->assertSessionHasErrors('photos.0');
 
         $this->assertSame(1, Moment::count());
-        Storage::disk(config('filesystems.uploads'))->assertExists($moment->fresh()->photo);
+        Storage::disk(config('filesystems.uploads'))->assertExists($moment->fresh()->photos[0]);
     }
 
     public function test_partner_cannot_change_the_photo(): void
@@ -189,8 +229,8 @@ class MomentPhotoTest extends TestCase
         $moment = $this->momentWithPhoto();
         $partner = $this->connectPartner();
 
-        $this->updateMoment($moment, ['remove_photo' => true], $partner)->assertForbidden();
+        $this->updateMoment($moment, ['remove_photos' => [0]], $partner)->assertForbidden();
 
-        Storage::disk(config('filesystems.uploads'))->assertExists($moment->fresh()->photo);
+        Storage::disk(config('filesystems.uploads'))->assertExists($moment->fresh()->photos[0]);
     }
 }

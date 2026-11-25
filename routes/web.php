@@ -139,6 +139,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('intimacy')->name('intimacy.')->group(function () {
             Route::get('/', [IntimacyController::class, 'index'])->name('index');
             Route::get('/games/{intimacyGame:slug}', [IntimacyController::class, 'show'])->name('games.show');
+            Route::post('/games/{intimacyGame:slug}/cards', [IntimacyController::class, 'cards'])->middleware('throttle:ai')->name('games.cards');
         });
 
         // Calendar
@@ -155,7 +156,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [MomentController::class, 'index'])->name('index');
             Route::post('/', [MomentController::class, 'store'])->name('store');
             Route::get('/{moment}', [MomentController::class, 'show'])->name('show');
-            Route::get('/{moment}/photo', [MomentController::class, 'photo'])->name('photo');
+            Route::get('/{moment}/photo/{index?}', [MomentController::class, 'photo'])->whereNumber('index')->name('photo');
             Route::put('/{moment}', [MomentController::class, 'update'])->name('update');
             Route::delete('/{moment}', [MomentController::class, 'destroy'])->name('destroy');
             Route::post('/{moment}/favourite', [MomentController::class, 'toggleFavourite'])->name('toggle-favourite');

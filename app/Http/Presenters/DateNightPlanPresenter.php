@@ -78,7 +78,7 @@ final class DateNightPlanPresenter
                     'id' => $moment->id,
                     'title' => $moment->title,
                     'mood' => $moment->mood,
-                    'photo' => $moment->photo ? route('moments.photo', [$moment, 'v' => basename($moment->photo)]) : null,
+                    'photo' => $moment->photoUrls()[0] ?? null,
                 ])
                 ->all(),
             'last_steer' => $plan->last_steer,

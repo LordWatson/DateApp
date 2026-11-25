@@ -51,7 +51,7 @@ class AccountSafetyTest extends TestCase
         ]);
 
         Storage::disk(config('filesystems.uploads'))->put('moments/leaving.jpg', 'x');
-        Moment::factory()->create(['user_id' => $leaving->id, 'photo' => 'moments/leaving.jpg']);
+        Moment::factory()->create(['user_id' => $leaving->id, 'photos' => ['moments/leaving.jpg']]);
         $partnerMoment = Moment::factory()->create(['user_id' => $partner->id]);
         LoveNote::factory()->create(['sender_id' => $partner->id, 'recipient_id' => $leaving->id]);
 

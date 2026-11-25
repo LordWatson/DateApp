@@ -12,6 +12,7 @@ use App\Models\Questionnaire;
 use App\Models\Response;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class DateNightPlanTest extends TestCase
@@ -289,6 +290,7 @@ class DateNightPlanTest extends TestCase
 
         $this->assertDatabaseHas('calendar_events', [
             'user_id' => $this->userOne->id,
+            'date_night_plan_id' => $this->plan->id,
             'type' => 'date_night',
             'title' => $this->plan->theme,
             'description' => $this->plan->summary,
@@ -301,6 +303,43 @@ class DateNightPlanTest extends TestCase
             'user_id' => $this->userTwo->id,
             'type' => NotificationType::PartnerAddedDateNightToCalendar->value,
         ]);
+    }
+
+    public function test_calendar_event_links_back_to_its_plan_for_both_partners(): void
+    {
+        $event = CalendarEvent::factory()->create([
+            'user_id' => $this->userOne->id,
+            'date_night_plan_id' => $this->plan->id,
+        ]);
+
+        $this->actingAs($this->userTwo)
+            ->get(route('calendar.show', $event))
+            ->assertInertia(fn ($page) => $page
+                ->where('event.plan.id', $this->plan->id)
+                ->where('event.plan.theme', $this->plan->theme)
+            );
+
+        $this->actingAs($this->userOne)
+            ->get(route('calendar.index'))
+            ->assertInertia(fn ($page) => $page->where('events.0.plan.id', $this->plan->id));
+    }
+
+    public function test_calendar_event_does_not_link_to_a_plan_the_viewer_has_hidden(): void
+    {
+        $event = CalendarEvent::factory()->create([
+            'user_id' => $this->userOne->id,
+            'date_night_plan_id' => $this->plan->id,
+        ]);
+
+        DB::table('date_night_plan_hidden')->insert([
+            'date_night_plan_id' => $this->plan->id,
+            'user_id' => $this->userTwo->id,
+        ]);
+
+        $this->actingAs($this->userTwo)
+            ->get(route('calendar.show', $event))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('event.plan', null));
     }
 
     public function test_add_to_calendar_requires_a_valid_future_date(): void

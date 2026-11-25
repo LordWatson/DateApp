@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ChevronLeft, Lock, Moon, Star, Trash2 } from '@lucide/vue';
+import { ChevronLeft, Lock, Moon, Pencil, Star, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import PhotoCarousel from '@/components/PhotoCarousel.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import momentRoutes from '@/routes/moments';
@@ -16,7 +17,7 @@ interface Moment {
     title: string;
     description: string | null;
     mood: string | null;
-    photo: string | null;
+    photos: string[];
     date: string;
     is_favourite: boolean;
     is_owner: boolean;
@@ -96,11 +97,15 @@ const focusClass =
         </div>
 
         <!-- Photo -->
-        <div v-if="moment.photo" class="overflow-hidden card-premium">
-            <img
-                :src="moment.photo"
+        <div
+            v-if="moment.photos.length > 0"
+            class="overflow-hidden card-premium"
+        >
+            <PhotoCarousel
+                :photos="moment.photos"
                 :alt="moment.title"
-                class="h-72 w-full object-cover"
+                max-height-class="max-h-[75vh]"
+                zoomable
             />
         </div>
 
@@ -123,7 +128,7 @@ const focusClass =
 
             <p
                 v-if="moment.description"
-                class="text-[15px] leading-relaxed text-foreground/80"
+                class="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground/80"
             >
                 {{ moment.description }}
             </p>
@@ -171,16 +176,16 @@ const focusClass =
         </section>
 
         <!-- Actions -->
-        <div class="space-y-3">
+        <div v-if="moment.is_owner" class="space-y-3">
             <SecondaryButton
                 variant="outline"
                 full-width
-                @click="router.visit(index().url)"
+                @click="router.visit(index({ query: { edit: moment.id } }).url)"
             >
-                Back to moments
+                <Pencil class="size-4" aria-hidden="true" />
+                Edit
             </SecondaryButton>
             <SecondaryButton
-                v-if="moment.is_owner"
                 variant="ghost"
                 full-width
                 class="text-destructive! hover:bg-destructive/10!"

@@ -124,7 +124,7 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 ### 4. Favourite, like, calendar, print
 - Favourite: toggles the viewer's row in `date_night_plan_favourites`. Nothing is sent to the partner.
 - Like: `LikeDateNightPlanAction` attaches or detaches the user in `date_night_plan_likes`; on attach the partner gets a notification.
-- Add to calendar: validates `date` (required, today or later), `time` (`H:i`, optional), `location` (max 255, optional); creates a calendar event owned by the acting user with the plan's theme, summary and emoji; notifies the partner. See `calendar.md`.
+- Add to calendar: validates `date` (required, today or later), `time` (`H:i`, optional), `location` (max 255, optional); creates a calendar event owned by the acting user with the plan's theme, summary and emoji, and `date_night_plan_id` so the calendar can link back to the plan; notifies the partner. See `calendar.md`.
 - Print: renders `pdf.date-night-plan` as HTML (`Content-Type: text/html`). The page has a Print button; no PDF is generated on the server. It shows the location and local suggestions when the plan has them, and for a solo plan it leaves out the score and the second name.
 
 ### 5. How you matched (couple plans)
@@ -188,4 +188,5 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - 2026-11-26 — Roadmap Phase 4: removed `EnhanceDateNightPlanWithAIJob`, `PlanResource` and `config/datenight.php`.
 - 2026-11-26 — Plan page (`date-night/Show.vue`) redesigned: theme emoji and an animated compatibility ring in the hero, the plan sections as a swipeable step-by-step deck with dots and arrows, the romantic challenge sealed behind a reveal button, local ideas as a swipe row. Presentation only; props are unchanged.
 - 2026-11-25 — Roadmap Phase 5.2 and 5.3: "We did it" (per-person ratings, linked moments, Done badge) and regenerate with a steer (three changes per plan, `requested_change` in the prompt context).
+- 2026-11-25 — Calendar events added from a plan store `date_night_plan_id`; the calendar links back to the plan.
 - 2026-11-25 — Roadmap Phase 5.12: plans can be hidden per person (`date_night_plan_hidden`, `notHiddenFor()`); partner notices use `activePartner()` and stop while a connection is paused.

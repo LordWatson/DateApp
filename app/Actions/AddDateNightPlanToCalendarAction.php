@@ -26,6 +26,7 @@ class AddDateNightPlanToCalendarAction
     public function execute(User $user, DateNightPlan $plan, array $data): CalendarEvent
     {
         $event = $user->calendarEvents()->create([
+            'date_night_plan_id' => $plan->id,
             'title' => $plan->theme,
             'description' => $plan->summary,
             'type' => self::EVENT_TYPE,

@@ -214,21 +214,32 @@ PROMPT,
             ],
             [
                 'name' => AIUseCase::IntimacyGame->value,
-                'description' => 'Writes one new prompt card for an intimacy game a couple is playing.',
+                'description' => 'Writes a deck of new prompt cards for the intimacy game a couple is playing.',
                 'system_prompt' => $safety."\n\nYou write playful, consensual prompt cards for couples' intimacy games. Never invent personal details.",
                 'user_prompt_template' => <<<'PROMPT'
-Write one new prompt card for the intimacy game described in the context.
-Match the game's category and intensity, keep it to one or two sentences that
-can be read aloud, make it easy to skip or swap, and do not repeat any card
-already listed in the context.
+Write `count` new prompt cards for the intimacy game described in the context.
+
+Rules:
+- Every card must belong to THIS game: follow `how_to_play`, `category` and
+  `description`, and stay at the game's `intensity` (no tamer, no stronger).
+- `example_cards` show the format and voice of this game's cards (for example a
+  "Truth:" or "Dare:" prefix). Keep that format, but write new cards: never
+  copy or lightly reword an example or a card in `already_played`.
+- Each card is one or two sentences that can be read aloud and done tonight,
+  at home, by two people, with nothing special to buy.
+- Make the cards different from each other, and mix them where the game has
+  kinds of card (truths and dares, questions and actions).
+- Plain text only: no numbering, no emojis, no markdown.
 
 Context:
 {{context}}
 
-Respond as JSON with:
-{ "prompt": string }
+Respond as JSON with exactly this shape:
+{ "cards": [string] }
 PROMPT,
-                'version' => 2,
+                // Version 3: a whole deck in one request (one call for ten cards is about three times
+                // faster than ten calls for one), anchored to the game's own rules and example cards.
+                'version' => 3,
                 'active' => true,
             ],
             [

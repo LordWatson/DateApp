@@ -24,7 +24,7 @@ final class MoveUploadsCommand extends Command
             return self::SUCCESS;
         }
 
-        foreach (Moment::whereNotNull('photo')->pluck('photo') as $path) {
+        foreach (Moment::pluck('photos')->flatten()->filter() as $path) {
             if (! $from->exists($path)) {
                 continue;
             }
