@@ -19,10 +19,6 @@ class DemoCoupleSeeder extends Seeder
 {
     public function run(): void
     {
-        if (app()->isProduction()) {
-            throw new RuntimeException('DemoCoupleSeeder creates accounts with a known password and must not run in production.');
-        }
-
         $alex = User::firstOrCreate(['email' => 'squatty.watson@gmail.com'], [
             'name' => 'Alex',
             'email_verified_at' => now(),
