@@ -62,6 +62,9 @@ function typeEmoji(type: string): string {
         calendar_reminder: '🗓️',
         invitation_expired: '⌛',
         data_export_ready: '📦',
+        partner_nudge: '⏳',
+        love_note_reaction: '💗',
+        connection_anniversary: '💞',
     };
 
     return map[type] ?? '🔔';
@@ -72,6 +75,7 @@ function destination(notification: NotificationItem): string | null {
 
     switch (notification.type) {
         case 'partner_completed':
+        case 'partner_nudge':
         case 'plan_failed':
             return data.questionnaire_slug
                 ? `/questionnaires/${data.questionnaire_slug}`
@@ -90,6 +94,7 @@ function destination(notification: NotificationItem): string | null {
                 ? `/calendar/${data.calendar_event_id}`
                 : '/calendar';
         case 'love_note_received':
+        case 'love_note_reaction':
             return data.love_note_id
                 ? `/love-notes/${data.love_note_id}`
                 : '/love-notes';
@@ -100,6 +105,7 @@ function destination(notification: NotificationItem): string | null {
         case 'daily_challenge':
             return '/dashboard';
         case 'partner_connected':
+        case 'connection_anniversary':
         case 'partner_left':
         case 'invitation_declined':
         case 'invitation_expired':

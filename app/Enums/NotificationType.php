@@ -22,4 +22,7 @@ enum NotificationType: string
     case CalendarReminder = 'calendar_reminder';
     case InvitationExpired = 'invitation_expired';
     case DataExportReady = 'data_export_ready';
+    case PartnerNudge = 'partner_nudge';
+    case LoveNoteReaction = 'love_note_reaction';
+    case ConnectionAnniversary = 'connection_anniversary';
 }

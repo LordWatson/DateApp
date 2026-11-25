@@ -180,6 +180,16 @@ class AchievementSeeder extends Seeder
                 'unlock_condition' => 'challenges_completed',
                 'unlock_value' => 10,
             ],
+            [
+                'name' => 'One Year Together',
+                'description' => 'Stay connected with your partner for a year.',
+                'emoji' => '💞',
+                'category' => 'milestones',
+                'points' => 100,
+                'hidden' => false,
+                'unlock_condition' => 'days_connected',
+                'unlock_value' => 365,
+            ],
         ];
 
         foreach ($achievements as $achievement) {

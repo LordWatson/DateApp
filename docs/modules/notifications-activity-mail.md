@@ -1,5 +1,5 @@
 # Notifications, Activity Log and Mail
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 Three ways the app records or announces that something happened: in-app notifications (bell icon + `/notifications` list), an append-only activity log (written, never read by any UI), and outbound email. All three are driven almost entirely by domain events; see [events-jobs.md](events-jobs.md) for the full event/listener/job catalog.
@@ -55,6 +55,9 @@ Three ways the app records or announces that something happened: in-app notifica
 | `partner_viewed_plan` | `NotificationService::notifyPartnerViewedPlan` from `DateNightPlanController@show` (line 39) | Partner | Every time the plan page is opened, if the partner can view the plan |
 | `partner_liked_plan` | `NotificationService::notifyPartnerLikedPlan` from `LikeDateNightPlanAction` (line 36) | Partner | Like added (not on unlike) |
 | `partner_added_date_night_to_calendar` | `NotificationService::notifyPartnerAddedDateNightToCalendar` from `AddDateNightPlanToCalendarAction` (line 42) | Partner | Plan added to calendar. `data`: `plan_id`, `calendar_event_id` |
+| `partner_nudge` | `NudgePartnerAction` (button on the waiting screen, or `datenight:nudge-partners`) | Partner | A couple attempt has been waiting for their answers. `data`: `questionnaire_id`, `questionnaire_slug` |
+| `love_note_reaction` | `LoveNoteController@react` | Note sender | The recipient's first reaction to a note (not on change or clear). `data`: `love_note_id` |
+| `connection_anniversary` | `ConnectionAnniversariesCommand` | Both partners | Daily 09:00, on the anniversary of `users.connected_at`. `data`: `years` |
 | `compatibility_ready` | nothing | - | Never created |
 | `daily_challenge` | nothing | - | Never created |
 
@@ -141,3 +144,4 @@ There are no routes for the activity log. Email template admin routes live in `r
 - 2026-11-24 — Roadmap Phase 2 (2.3, 2.4): new type `calendar_reminder` (hourly `SendCalendarRemindersCommand`, links to the event); `daily_challenge` is now sent to the partner when a daily challenge is completed.
 - 2026-11-24 — Roadmap Phase 2 (2.6, 2.12, 2.14): love note, moment and questionnaire-completed emails honour `email_notifications` (settable in settings); new types `invitation_expired` and `data_export_ready`; `partner_left` is also sent on disconnect.
 - 2026-11-26 — Roadmap Phase 4: removed `NotificationResource`, `NotificationCreated`, the three uncalled `NotificationService` methods and the unregistered invitation listener.
+- 2026-11-25 — Roadmap Phase 5A: new types `partner_nudge`, `love_note_reaction`, `connection_anniversary`, each with a link and emoji in `notifications/Index.vue`. The nudge reuses `QuestionnaireCompletedMail`.

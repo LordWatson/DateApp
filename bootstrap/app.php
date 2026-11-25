@@ -1,8 +1,10 @@
 <?php
 
 use App\Console\Commands\CleanTemporaryExportsCommand;
+use App\Console\Commands\ConnectionAnniversariesCommand;
 use App\Console\Commands\EvaluateStreaksCommand;
 use App\Console\Commands\ExpireInvitationsCommand;
+use App\Console\Commands\NudgePartnersCommand;
 use App\Console\Commands\SelectDailyChallengeCommand;
 use App\Console\Commands\SendCalendarRemindersCommand;
 use App\Console\Commands\SendRemindersCommand;
@@ -60,6 +62,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ExpireInvitationsCommand::class)->dailyAt('00:10');
         $schedule->command(SendRemindersCommand::class)->dailyAt('09:00');
         $schedule->command(SendCalendarRemindersCommand::class)->hourly();
+        $schedule->command(NudgePartnersCommand::class)->hourly();
+        $schedule->command(ConnectionAnniversariesCommand::class)->dailyAt('09:00');
         $schedule->command(CleanTemporaryExportsCommand::class)->dailyAt('02:00');
     })
     ->withExceptions(function (Exceptions $exceptions): void {

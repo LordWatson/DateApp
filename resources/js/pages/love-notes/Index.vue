@@ -10,6 +10,7 @@ import PrimaryButton from '@/components/PrimaryButton.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import SegmentedTabs from '@/components/SegmentedTabs.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { markRead, react, store } from '@/routes/love-notes';
 
 defineOptions({ layout: MobileLayout });
 
@@ -18,6 +19,7 @@ interface NoteItem {
     message: string;
     person_name: string | null;
     person_avatar: string | null;
+    reaction: string | null;
     read_at: string | null;
     created_at: string;
 }
@@ -33,6 +35,7 @@ const props = defineProps<{
     received: NoteItem[];
     partner: Partner | null;
     default_messages: string[];
+    reactions: string[];
 }>();
 
 type Tab = 'send' | 'received' | 'sent';
@@ -51,7 +54,7 @@ const tabs = computed<{ key: Tab; label: string; count?: number }[]>(() => [
 watch(activeTab, (tab) => {
     if (tab === 'received' && unread.value > 0) {
         unread.value = 0;
-        void axios.post('/love-notes/mark-read').catch(() => undefined);
+        void axios.post(markRead().url).catch(() => undefined);
     }
 });
 const customMessage = ref('');
@@ -64,7 +67,7 @@ function selectMessage(msg: string): void {
 }
 
 function sendNote(): void {
-    form.post('/love-notes', {
+    form.post(store().url, {
         preserveScroll: true,
         onSuccess: () => {
             form.reset();
@@ -72,6 +75,15 @@ function sendNote(): void {
             activeTab.value = 'sent';
         },
     });
+}
+
+// Tapping the reaction already chosen removes it.
+function toggleReaction(note: NoteItem, emoji: string): void {
+    router.post(
+        react(note.id).url,
+        { reaction: note.reaction === emoji ? null : emoji },
+        { preserveScroll: true, preserveState: true },
+    );
 }
 
 function formatTime(iso: string): string {
@@ -199,6 +211,27 @@ function formatTime(iso: string): string {
                             From {{ note.person_name }} ·
                             {{ formatTime(note.created_at) }}
                         </p>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <button
+                                v-for="emoji in reactions"
+                                :key="emoji"
+                                type="button"
+                                class="chip px-2.5 py-1 text-base"
+                                :aria-pressed="note.reaction === emoji"
+                                :aria-label="`React with ${emoji}`"
+                                @click="toggleReaction(note, emoji)"
+                            >
+                                {{ emoji }}
+                            </button>
+                            <button
+                                v-if="partner"
+                                type="button"
+                                class="ml-auto min-h-8 rounded-full px-3 text-[13px] font-medium text-primary transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                                @click="activeTab = 'send'"
+                            >
+                                Reply
+                            </button>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -236,6 +269,10 @@ function formatTime(iso: string): string {
                         >
                             <Check class="size-3.5" aria-hidden="true" />
                             Seen
+                        </span>
+                        <span v-if="note.reaction" class="text-sm">
+                            <span class="sr-only">Reaction:</span>
+                            {{ note.reaction }}
                         </span>
                     </p>
                 </div>

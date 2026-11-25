@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Actions\SendLoveNoteAction;
+use App\Enums\NotificationType;
+use App\Http\Requests\LoveNote\ReactToLoveNoteRequest;
 use App\Http\Requests\LoveNote\SendLoveNoteRequest;
+use App\Models\AppNotification;
 use App\Models\LoveNote;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -42,6 +45,7 @@ class LoveNoteController extends Controller
                 'avatar' => $user->partner->avatar,
             ] : null,
             'default_messages' => $this->defaultMessages(),
+            'reactions' => LoveNote::REACTIONS,
         ]);
     }
 
@@ -73,7 +77,35 @@ class LoveNoteController extends Controller
 
         return Inertia::render('love-notes/Show', [
             'note' => $this->formatNote($loveNote, $loveNote->sender_id === $user->id ? 'sent' : 'received'),
+            'reactions' => LoveNote::REACTIONS,
         ]);
+    }
+
+    public function react(ReactToLoveNoteRequest $request, LoveNote $loveNote): RedirectResponse
+    {
+        $reaction = $request->validated('reaction');
+        $isFirstReaction = $loveNote->reaction === null && $reaction !== null;
+
+        $loveNote->update([
+            'reaction' => $reaction,
+            'reacted_at' => $reaction === null ? null : now(),
+        ]);
+
+        // Changing or clearing a reaction is not news; only the first one is announced.
+        if ($isFirstReaction) {
+            $user = $request->user();
+            $name = $user->display_name ?? $user->name;
+
+            AppNotification::create([
+                'user_id' => $loveNote->sender_id,
+                'type' => NotificationType::LoveNoteReaction,
+                'title' => "{$name} reacted {$reaction} to your love note",
+                'body' => $loveNote->message,
+                'data' => ['love_note_id' => $loveNote->id],
+            ]);
+        }
+
+        return back();
     }
 
     /**
@@ -109,6 +141,8 @@ class LoveNoteController extends Controller
             'message' => $note->message,
             'person_name' => $person->display_name ?? $person?->name,
             'person_avatar' => $person?->avatar,
+            'direction' => $direction,
+            'reaction' => $note->reaction,
             'read_at' => $note->read_at?->toISOString(),
             'created_at' => $note->created_at?->toISOString(),
         ];

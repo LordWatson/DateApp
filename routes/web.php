@@ -60,6 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{questionnaire:slug}/question/{order}', [QuestionnaireController::class, 'question'])->whereNumber('order')->name('question');
             Route::post('/{questionnaire:slug}/question/{order}/answer', [QuestionnaireController::class, 'answer'])->whereNumber('order')->name('answer');
             Route::get('/{questionnaire:slug}/complete', [QuestionnaireController::class, 'complete'])->name('complete');
+            Route::post('/{questionnaire:slug}/nudge', [QuestionnaireController::class, 'nudge'])->name('nudge');
             Route::get('/{questionnaire:slug}/plan-status', [QuestionnaireController::class, 'planStatus'])->name('plan-status');
             Route::post('/{questionnaire:slug}/finish', [QuestionnaireController::class, 'finish'])->middleware('throttle:ai')->name('finish');
             Route::get('/{questionnaire:slug}/summary', [QuestionnaireController::class, 'summary'])->name('summary');
@@ -88,6 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/unread-count', [LoveNoteController::class, 'unreadCount'])->name('unread-count');
             Route::post('/mark-read', [LoveNoteController::class, 'markRead'])->name('mark-read');
             Route::get('/{loveNote}', [LoveNoteController::class, 'show'])->name('show');
+            Route::post('/{loveNote}/react', [LoveNoteController::class, 'react'])->name('react');
         });
 
         // Notifications

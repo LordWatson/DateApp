@@ -6,7 +6,6 @@ use App\Actions\SendPartnerInvitationAction;
 use App\Events\PartnerDisconnected;
 use App\Http\Requests\Onboarding\SendInvitationRequest;
 use App\Jobs\SendInvitationEmailJob;
-use App\Models\PartnerInvitation;
 use App\Services\PartnerInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,13 +31,7 @@ class PartnerController extends Controller
                 'expires_at' => $pendingInvitation->expires_at->toISOString(),
             ] : null,
             // When the two connected, not when the partner signed up.
-            'connectedSince' => $user->partner
-                ? PartnerInvitation::query()
-                    ->whereNotNull('accepted_at')
-                    ->whereIn('sender_id', [$user->id, $user->partner->id])
-                    ->latest('accepted_at')
-                    ->value('accepted_at')?->toISOString()
-                : null,
+            'connectedSince' => $user->partner ? $user->connected_at?->toISOString() : null,
         ]);
     }
 

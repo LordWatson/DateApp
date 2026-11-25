@@ -1,10 +1,10 @@
 # Love Notes
 
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-25
 
 ## Purpose
 
-Short (max 200 characters) one-way messages from a user to their connected partner. The sender picks a preset message or types their own; the partner gets an in-app notification and an email, and reads the note in the app. Notes cannot be edited, deleted or replied to.
+Short (max 200 characters) one-way messages from a user to their connected partner. The sender picks a preset message or types their own; the partner gets an in-app notification and an email, and reads the note in the app. Notes cannot be edited or deleted. The recipient can leave one emoji reaction; "Reply" just opens the Send tab.
 
 ## Key files
 
@@ -30,7 +30,7 @@ Short (max 200 characters) one-way messages from a user to their connected partn
 
 ## Data model
 
-`love_notes`: `sender_id` (FK users, cascade), `recipient_id` (FK users, cascade), `message` (string 200), `read_at?` (cast `datetime`), timestamps. Indexes: `(recipient_id, read_at)`, `sender_id`.
+`love_notes`: `sender_id` (FK users, cascade), `recipient_id` (FK users, cascade), `message` (string 200), `read_at?` (cast `datetime`), `reaction?` (string 16, one of `LoveNote::REACTIONS`), `reacted_at?` (cast `datetime`), timestamps. Indexes: `(recipient_id, read_at)`, `sender_id`.
 
 There is no relation defined on `User`; code queries `LoveNote` by `sender_id` / `recipient_id` directly.
 
@@ -44,6 +44,7 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 | `love-notes.store` | POST `/love-notes` | `LoveNoteController@store` | `SendLoveNoteRequest` |
 | `love-notes.unread-count` | GET `/love-notes/unread-count` | `LoveNoteController@unreadCount` | JSON `{count}`; declared before `/{loveNote}` on purpose |
 | `love-notes.show` | GET `/love-notes/{loveNote}` | `LoveNoteController@show` | 403 unless sender or recipient; marks read for recipient |
+| `love-notes.react` | POST `/love-notes/{loveNote}/react` | `LoveNoteController@react` | `ReactToLoveNoteRequest`: 403 unless the recipient; `reaction` must be present, null (clears) or one of `LoveNote::REACTIONS` |
 
 ## Flows
 
@@ -63,6 +64,12 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 1. Opening `love-notes.index` marks the loaded received notes (latest 50) as read.
 2. Opening `love-notes.show` as the recipient marks that note as read. The sender viewing it does not.
 
+### React
+
+1. The Received tab and `Show.vue` (for a received note) show the emoji from the `reactions` prop; tapping one posts it to `love-notes.react`, tapping the chosen one again posts `null`.
+2. The first reaction on a note creates a `love_note_reaction` notification for the sender (no email). Changing or clearing it notifies nobody.
+3. The note payload carries `direction` (`sent` / `received`) and `reaction`; the sender sees the reaction on the Sent tab and on the note page.
+
 ## Rules and gotchas
 
 - **Who can see**: only the sender and the recipient of each note.
@@ -79,7 +86,7 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 - Suspected issue: sending a note does not trigger achievement evaluation (no `EvaluateAchievements...` listener on `LoveNoteSent`), so `love_notes_sent` achievements unlock only on the next questionnaire completion or moment creation. See challenges-achievements-streaks.md.
 - Suspected issue: `index` marks notes read with one `UPDATE` per unread note (`$received->each->markAsRead()`, `LoveNoteController.php:36`), and a GET request mutates state, so any prefetch of the page clears unread status.
 - Suspected issue: received notes beyond the latest 50 are never listed and therefore never marked read via `index`, so `unreadCount` could stay above zero.
-- The frontend posts to hard-coded URLs (`'/love-notes'`, `'/partner'`) instead of Wayfinder route helpers.
+- `love-notes/Index.vue` and `Show.vue` use the Wayfinder helpers from `@/routes/love-notes`; the link to `/partner` is still a literal.
 
 ## Related modules
 
@@ -92,7 +99,7 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 
 ## Tests
 
-- `tests/Feature/LoveNoteTest.php` - page loads, send, notification created, required / max 200 validation, mark-as-read on index, no-partner error, sent/received tabs.
+- `tests/Feature/LoveNoteTest.php` - page loads, send, notification created, required / max 200 validation, mark-as-read on index, no-partner error, sent/received tabs, reactions (set, change without a second notification, clear, recipient only, emoji outside the list rejected).
 
 Run: `php artisan test --filter=LoveNoteTest`
 
@@ -102,3 +109,4 @@ Not covered: `show` authorisation (403 for third parties), `unreadCount`, mail c
 
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Roadmap Phase 1: notes are marked read by `POST /love-notes/mark-read` when the Received tab opens (not on page load); the tab shows the unread count.
+- 2026-11-25 — Roadmap Phase 5.6: emoji reactions (`reaction`, `reacted_at`, `love-notes.react`, `love_note_reaction` notification) and a Reply shortcut.

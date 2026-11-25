@@ -281,6 +281,12 @@ class QuestionnaireService
             $previous->delete();
         }
 
+        // Answering is what a reminder asked for, so the user's own reminders are done with.
+        AppNotification::where('user_id', $user->id)
+            ->where('type', NotificationType::PartnerNudge)
+            ->whereJsonContains('data->questionnaire_id', $questionnaire->id)
+            ->delete();
+
         $partner = $user->partner;
 
         if (! $partner) {
@@ -288,7 +294,7 @@ class QuestionnaireService
         }
 
         AppNotification::where('user_id', $partner->id)
-            ->where('type', NotificationType::PartnerCompleted)
+            ->whereIn('type', [NotificationType::PartnerCompleted, NotificationType::PartnerNudge])
             ->whereJsonContains('data->questionnaire_id', $questionnaire->id)
             ->delete();
     }

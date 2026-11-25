@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\NudgePartnerAction;
 use App\Enums\CompletionStatus;
 use App\Enums\QuestionnaireStatus;
 use App\Http\Presenters\QuestionnairePresenter;
@@ -232,9 +233,26 @@ class QuestionnaireController extends Controller
             'completed_at' => $response->completed_at?->toISOString(),
             'current_streak' => $user->current_streak,
             'partner_completed' => $partnerCompleted,
+            'can_nudge' => app(NudgePartnerAction::class)->canNudge($response),
             // Solo always produces a plan; otherwise wait until the partner has also completed.
             'awaiting_plan' => $isSolo || $partnerCompleted,
         ]);
+    }
+
+    /**
+     * Remind the partner that this couple attempt is waiting for them.
+     */
+    public function nudge(Request $request, Questionnaire $questionnaire, NudgePartnerAction $nudge): RedirectResponse
+    {
+        $user = $request->user();
+        $response = $this->questionnaireService->getLatestCompletedResponse($user, $questionnaire, false);
+        $partnerName = $user->partner->display_name ?? $user->partner->name ?? 'your partner';
+
+        if ($response && $nudge->execute($response)) {
+            return back()->with('success', "We've reminded {$partnerName}.");
+        }
+
+        return back()->with('error', "You can remind {$partnerName} once a day while you are waiting for their answers.");
     }
 
     public function planStatus(Request $request, Questionnaire $questionnaire): JsonResponse

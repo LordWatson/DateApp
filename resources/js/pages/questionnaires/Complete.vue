@@ -6,6 +6,7 @@ import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import SuccessAnimation from '@/components/SuccessAnimation.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { nudge } from '@/routes/questionnaires';
 
 defineOptions({ layout: MobileLayout });
 
@@ -24,9 +25,25 @@ interface Props {
     partner_name?: string | null;
     has_partner?: boolean;
     awaiting_plan: boolean;
+    can_nudge?: boolean;
 }
 
 const props = defineProps<Props>();
+
+const nudging = ref(false);
+
+// The server answers with a toast and `can_nudge: false`, which hides the button.
+function nudgePartner(): void {
+    router.post(
+        nudge(props.questionnaire.slug).url,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => (nudging.value = true),
+            onFinish: () => (nudging.value = false),
+        },
+    );
+}
 
 const completedTime = props.completed_at
     ? new Date(props.completed_at).toLocaleTimeString([], {
@@ -302,6 +319,16 @@ onBeforeUnmount(() => {
                 >
                     View summary
                 </PrimaryButton>
+
+                <SecondaryButton
+                    v-if="can_nudge"
+                    variant="outline"
+                    full-width
+                    :disabled="nudging"
+                    @click="nudgePartner"
+                >
+                    Remind {{ partner_name ?? 'your partner' }}
+                </SecondaryButton>
 
                 <SecondaryButton
                     variant="ghost"

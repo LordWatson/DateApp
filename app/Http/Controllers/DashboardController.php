@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Enums\CompletionStatus;
 use App\Models\DailyChallenge;
 use App\Models\DateNightPlan;
+use App\Models\Moment;
 use App\Models\Response as QuestionnaireResponse;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -89,6 +91,7 @@ class DashboardController extends Controller
                 'completed_by_me' => $challengeDoneBy->contains($user->id),
                 'completed_by_partner' => $user->partner_id ? $challengeDoneBy->contains($user->partner_id) : null,
             ] : null,
+            'onThisDay' => $this->onThisDay($user),
             'recentQuestionnaires' => $recentQuestionnaires,
             'recentDateNights' => $recentDateNights,
             'savedProfiles' => $user->savedProfiles->map(fn ($p) => [
@@ -98,5 +101,52 @@ class DashboardController extends Controller
                 'colour' => $p->colour ?? '#EC4899',
             ]),
         ]);
+    }
+
+    /**
+     * Moments and date nights from today's date in earlier years, newest first.
+     *
+     * @return array<int, array{type: string, id: int, title: string, emoji: string, years_ago: int, url: string}>
+     */
+    private function onThisDay(User $user): array
+    {
+        $today = $user->today();
+
+        $moments = Moment::query()
+            ->whereIn('user_id', array_filter([$user->id, $user->partner_id]))
+            ->whereMonth('date', $today->month)
+            ->whereDay('date', $today->day)
+            ->whereYear('date', '<', $today->year)
+            ->latest('date')
+            ->take(3)
+            ->get()
+            ->map(fn (Moment $moment): array => [
+                'type' => 'moment',
+                'id' => $moment->id,
+                'title' => $moment->title,
+                'emoji' => $moment->mood ?: '📸',
+                'years_ago' => $today->year - $moment->date->year,
+                'url' => route('moments.show', $moment),
+            ]);
+
+        // shortcut: plans are matched on their UTC creation date, so one made around midnight can be a day out.
+        $plans = DateNightPlan::query()
+            ->visibleTo($user)
+            ->whereMonth('created_at', $today->month)
+            ->whereDay('created_at', $today->day)
+            ->whereYear('created_at', '<', $today->year)
+            ->latest()
+            ->take(3)
+            ->get()
+            ->map(fn (DateNightPlan $plan): array => [
+                'type' => 'plan',
+                'id' => $plan->id,
+                'title' => $plan->theme ?: 'Date night',
+                'emoji' => $plan->theme_emoji ?: '💖',
+                'years_ago' => $today->year - $plan->created_at->year,
+                'url' => route('date-night.show', $plan),
+            ]);
+
+        return $moments->concat($plans)->sortBy('years_ago')->take(3)->values()->all();
     }
 }

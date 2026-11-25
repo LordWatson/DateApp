@@ -29,6 +29,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $password
  * @property Gender|null $gender
  * @property int|null $partner_id
+ * @property Carbon|null $connected_at
  * @property Carbon|null $date_of_birth
  * @property string|null $avatar
  * @property string $timezone
@@ -63,6 +64,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'password',
     'gender',
     'partner_id',
+    'connected_at',
     'date_of_birth',
     'avatar',
     'timezone',
@@ -95,6 +97,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'two_factor_confirmed_at' => 'datetime',
             'gender' => Gender::class,
             'date_of_birth' => 'date',
+            'connected_at' => 'datetime',
             'last_completed_questionnaire_at' => 'datetime',
             'email_notifications' => 'boolean',
             'push_notifications' => 'boolean',

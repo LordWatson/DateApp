@@ -61,8 +61,8 @@ class AdminCoupleController extends AdminController
         $user = User::whereKey($validated['user_id'])->firstOrFail();
         $partner = User::whereKey($validated['partner_id'])->firstOrFail();
 
-        $user->update(['partner_id' => $partner->id]);
-        $partner->update(['partner_id' => $user->id]);
+        $user->update(['partner_id' => $partner->id, 'connected_at' => now()]);
+        $partner->update(['partner_id' => $user->id, 'connected_at' => now()]);
 
         $this->audit->log('couple.reconnected', User::class, $user->id, null, [
             'user_id' => $user->id,

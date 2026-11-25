@@ -1,6 +1,6 @@
 # Onboarding and Partner Linking
 
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 
@@ -45,6 +45,7 @@ After registering, a user walks through a short wizard: fill in a profile (displ
 | Column | Notes |
 |---|---|
 | `partner_id` | nullable FK -> `users.id`, `nullOnDelete` (deleting a user un-partners the other side) |
+| `connected_at` | nullable datetime: when the current couple connected. Written with `partner_id`, on both rows: set by `acceptInvitation()` and the admin reconnect, cleared by `disconnectPartner()` and `DeleteAccountAction`. The partner page's `connectedSince` reads it |
 | `onboarding_completed` | boolean, default `false`; gate for every route under the `onboarding` middleware |
 | `display_name` | nullable; set in the profile step (max 50) |
 | `gender` | cast `App\Enums\Gender`: `male`, `female`, `other`, `prefer_not_to_say` |
@@ -140,7 +141,7 @@ There is no status column: pending = `accepted_at IS NULL AND expires_at > now()
 - `PartnerController@index` sends the pending invitation `token` and the full partner `User` model (including `email`) to the browser.
 - Suspected issue: the sender is never checked for an existing partner. `partner.send-invite` / `onboarding.send-invite` work while connected, and `PartnerInvitationService::acceptInvitation()` (`app/Services/PartnerInvitationService.php:44`) overwrites `sender.partner_id`; the sender's previous partner keeps pointing at the sender, leaving a one-sided link. Only the recipient is guarded (`OnboardingController.php:64`).
 - Suspected issue: `PartnerInvitationMail` subject uses `sender->display_name` without the `?? name` fallback (`app/Mail/PartnerInvitationMail.php:23`), producing a subject with an empty name for senders who have no display name; the body does use the fallback.
-- Suspected issue: `PartnerController@index` sets `connectedSince` to the partner's `created_at` (`app/Http/Controllers/PartnerController.php:34-36`), i.e. when the partner registered, not when the couple connected. No connection timestamp is stored on users; the accepted invitation's `accepted_at` is the closest record.
+- **Connection anniversary**: `datenight:connection-anniversaries` (daily 09:00) gives both partners a `connection_anniversary` notification when today's month and day match `connected_at` in an earlier year, then re-evaluates achievements (`days_connected`, see `challenges-achievements-streaks.md`). The day is the UTC day. Existing couples were backfilled from the newest invitation either had accepted; a couple an admin connected before this column existed has no date.
 - Suspected issue: session `error` flashes from `acceptInvite` are effectively never shown. `Dashboard.vue` and `MobileLayout.vue` do not render `flash`, and `onboarding/Index.vue` only renders `flashError` inside the "invite" sub-panel, which is closed on page load (`OnboardingController.php:65,70`).
 - Suspected issue: the "I Have an Invite" step says "Paste the invitation link or token" but `submitJoin()` builds `/invite/${token}` from the raw input (`resources/js/pages/onboarding/Index.vue:73-75`), so pasting a full link produces a broken URL; only a bare token works.
 - Suspected issue: `partner.resend-invite` always flashes "Invitation resent!" even when there is no pending invitation (`PartnerController.php:47-56`), and has no throttle.
@@ -170,6 +171,8 @@ php artisan test --filter=PartnerRelationshipTest
 php artisan test --filter=PartnerConnectedEventTest
 ```
 
+`tests/Feature/ConnectionAnniversaryTest.php` covers `connected_at` on accept, disconnect and admin reconnect, the partner page, the anniversary command and the achievement.
+
 Not covered by tests: acceptance during registration (`CreateNewUser`), resend, the `PartnerConnected` listeners, inviting while already partnered. `UserFactory` defaults to `onboarding_completed = true` and `partner_id = null`; there is no `PartnerInvitation` factory (tests create rows directly).
 
 ## Change log
@@ -180,3 +183,4 @@ Not covered by tests: acceptance during registration (`CreateNewUser`), resend, 
 - 2026-11-24 — Roadmap Phase 2 (2.14): an invitation opened while logged out survives logging in; senders can revoke and are told once when an invitation expires; the other partner is notified of a disconnect and the confirmation says what each person keeps; avatar limit matches the column.
 - 2026-11-24 — Roadmap Phase 2 (2.13): invitation lifetime comes from the system setting `invitation_expiry_days` (default 7, minimum 1) through `RuntimeSettings`.
 - 2026-11-26 — Roadmap Phase 4: removed `PartnerInvitationCreated` and its unregistered listener, `UserRegistered`, `ProfileCompleted`, `PartnerResource` and the two cache-forgetting `PartnerConnected` listeners.
+- 2026-11-25 — Roadmap Phase 5.9: `users.connected_at` replaces the invitation lookup for "Since"; yearly `connection_anniversary` notification.

@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import PageHeader from '@/components/PageHeader.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import { index, react } from '@/routes/love-notes';
 
 defineOptions({ layout: MobileLayout });
 
@@ -11,11 +12,22 @@ interface NoteItem {
     message: string;
     person_name: string | null;
     person_avatar: string | null;
+    direction: 'sent' | 'received';
+    reaction: string | null;
     read_at: string | null;
     created_at: string;
 }
 
-defineProps<{ note: NoteItem }>();
+const props = defineProps<{ note: NoteItem; reactions: string[] }>();
+
+// Tapping the reaction already chosen removes it.
+function toggleReaction(emoji: string): void {
+    router.post(
+        react(props.note.id).url,
+        { reaction: props.note.reaction === emoji ? null : emoji },
+        { preserveScroll: true },
+    );
+}
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString([], {
@@ -33,7 +45,7 @@ function formatDate(iso: string): string {
     <div class="space-y-8 px-4 pt-6 pb-28">
         <PageHeader
             title="Love note"
-            back-href="/love-notes"
+            :back-href="index().url"
             back-label="Love notes"
         />
 
@@ -62,13 +74,37 @@ function formatDate(iso: string): string {
                 <p class="min-w-0 truncate font-medium">
                     {{ note.person_name ?? 'Your partner' }}
                 </p>
+                <span
+                    v-if="note.direction === 'sent' && note.reaction"
+                    class="ml-auto text-2xl"
+                >
+                    <span class="sr-only">Reaction:</span>
+                    {{ note.reaction }}
+                </span>
             </div>
         </article>
+
+        <div
+            v-if="note.direction === 'received'"
+            class="flex flex-wrap justify-center gap-2"
+        >
+            <button
+                v-for="emoji in reactions"
+                :key="emoji"
+                type="button"
+                class="chip px-3 py-1.5 text-xl"
+                :aria-pressed="note.reaction === emoji"
+                :aria-label="`React with ${emoji}`"
+                @click="toggleReaction(emoji)"
+            >
+                {{ emoji }}
+            </button>
+        </div>
 
         <SecondaryButton
             variant="outline"
             full-width
-            @click="router.visit('/love-notes')"
+            @click="router.visit(index().url)"
         >
             Back to love notes
         </SecondaryButton>

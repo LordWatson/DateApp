@@ -426,6 +426,8 @@ Do this after Phases 1 and 2, because several of these are things those phases w
 
 Ordered by how much they add for the effort. The first five reuse data and code that already exist.
 
+**Step-by-step build instructions for each feature are in [PHASE-5.md](PHASE-5.md).**
+
 | # | Feature | Why it earns its place | Builds on | Size |
 |---|---|---|---|---|
 | 5.1 | **Nudge your partner**: a reminder button on the waiting screen, and one automatic reminder after 24 hours | The couple flow stalls completely on the second partner | Notification and mail pipeline | S |

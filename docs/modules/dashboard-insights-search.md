@@ -1,5 +1,5 @@
 # Dashboard, Relationship Hub, Insights and Search
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 The read-only "overview" screens. The Dashboard is the post-login home (partner status, streak stats, a challenge, recent date nights, saved profiles). The Relationship Hub is a card menu into the other modules with a few live numbers. Insights shows lifetime statistics computed from the user's data. Search is a site-wide `LIKE` search over the user's own content.
@@ -48,6 +48,8 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 4. `recentQuestionnaires` (only with a partner): user's 5 latest completed responses for questionnaires the partner has also completed. The template section that renders them is commented out (`Dashboard.vue` lines 296-337).
 5. `recentDateNights`: 3 newest plans (rule above). `savedProfiles`: id, name, emoji, colour.
 
+6. `onThisDay`: up to 3 items from today's date (the user's own day) in earlier years, nearest year first: moments of the user and partner (by `date`) and plans from `DateNightPlan::visibleTo()` (by `created_at`, which is UTC, so a plan made around midnight can be a day out). Each item: `type` (`moment` / `plan`), `id`, `title`, `emoji`, `years_ago`, `url`. `components/OnThisDayCard.vue` renders nothing when the list is empty. 29 February only matches in leap years.
+
 **Relationship Hub load**: next 3 calendar events (user + partner), 3 most recent own moments, moment count (user + partner), `AchievementService::getUserProgress()`, rounded average `compatibility_score`, up to 3 seasonal questionnaires.
 
 **Insights load**: `InsightsService::getInsights()` returns `total_questionnaires`, `total_plans`, `average_compatibility`, `love_notes_sent`, `love_notes_received`, `current_streak`, `longest_streak`, `most_completed_month`, `favourite_theme`, `most_selected_atmosphere`, `compatibility_over_time` (up to 12 `{month: 'YYYY-MM', score}` rows), `moments_count`, `calendar_events_count`. Everything is computed per request. The page also links to Weekly Reflection ([weekly-reflection.md](weekly-reflection.md)).
@@ -87,6 +89,7 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 
 ## Tests
 - `tests/Feature/DashboardTest.php` - guest redirect, onboarding redirect, partner prop: `php artisan test --filter=DashboardTest`
+- `tests/Feature/OnThisDayTest.php` - own and partner moments, a plan, other dates and other people left out: `php artisan test --filter=OnThisDayTest`
 - `tests/Feature/InsightsTest.php` - insights keys and hub page load: `php artisan test --filter=InsightsTest`
 - `tests/Feature/SearchTest.php` - short query returns `[]`, finds moments and calendar events: `php artisan test --filter=SearchTest`
 
@@ -98,3 +101,4 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 - 2026-11-25 — Roadmap Phase 3 (3.14): "this month" on the dashboard and upcoming events on the hub follow the user's timezone.
 - 2026-11-25 — Roadmap Phase 3 (3.6): AI consent card on the dashboard until the user answers.
 - 2026-11-26 — Roadmap Phase 4: removed the cache-forgetting listeners, `RefreshRelationshipStatisticsJob`, `datenight:refresh-statistics` and the two never-dispatched AI insight jobs. Still no caching.
+- 2026-11-25 — Roadmap Phase 5.5: "On this day" card on the dashboard (`onThisDay` prop, `OnThisDayCard.vue`).

@@ -1,6 +1,6 @@
 # Questionnaires
 
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 
@@ -88,6 +88,7 @@ All in `routes/web.php` under `auth`, `verified`, `onboarding`; prefix `question
 | `summary` | GET `/{slug}/summary` | `summary` | Redirects to `show` if no response |
 | `finish` | POST `/{slug}/finish` | `finish` | `FinishQuestionnaireRequest`; redirects to `complete`, or back to `summary` with an `answers` error while a required question has no non-empty answer |
 | `complete` | GET `/{slug}/complete` | `complete` | `awaiting_plan` = solo or partner fresh-completed |
+| `nudge` | POST `/{slug}/nudge` | `nudge` | Reminds the partner about the user's latest completed couple attempt; flashes `success` or `error` |
 | `plan-status` | GET `/{slug}/plan-status` | `planStatus` | JSON `{ready, plan_id}` |
 | `partner-answers` | GET `/{slug}/partner-answers` | `partnerAnswers` | Redirects to `date-night.answers` once a couple plan exists for the user's latest completed couple attempt; before that needs partner + both completed + partner "fresh" |
 | `compatibility` | GET `/{slug}/compatibility` | `compatibility` | Redirects to `date-night.compatibility` once that plan exists; before that the `compatibility` prop is null unless partner "fresh" |
@@ -114,6 +115,14 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 | `DispatchDateNightPlanOnQuestionnaireCompleted` | `default` | Solo attempt: always dispatches `GenerateDateNightPlanJob(user, null, q)`. Couple: only if partner has a fresh completed response. See `date-night.md` |
 | `EvaluateAchievementsOnQuestionnaireCompleted` | `analytics` | `AchievementEvaluationJob` |
 | `LogActivityOnQuestionnaireCompleted` | sync | Activity log entry `questionnaire_completed` |
+
+**Nudging the partner** (`app/Actions/NudgePartnerAction.php`)
+
+- `canNudge(Response)` is true when the attempt is completed, is a couple attempt, the owner has a partner, no plan references it, the partner has no fresh completed response, and `responses.partner_nudged_at` is null or more than 24 hours old.
+- `execute()` creates a `partner_nudge` notification for the partner, dispatches `SendQuestionnaireCompletedNotificationJob` (the same "is waiting for your answers" email) and sets `partner_nudged_at`.
+- By hand: the "Remind {partner}" button on `Complete.vue`, shown while the `can_nudge` prop is true, posts to `nudge`.
+- Automatically: `datenight:nudge-partners` (hourly) nudges attempts completed 24 to 72 hours ago that were never nudged, so an attempt gets one automatic reminder, and none if the button was already used.
+- `wipeOverhangingPendingResponses` deletes `partner_nudge` notifications for the questionnaire: the completing user's own (they have now answered) and the partner's (a new cycle replaces the old request).
 
 **Couple cycles (the "fresh" rule)**
 
@@ -197,6 +206,7 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 | `tests/Feature/Events/QuestionnaireCompletedEventTest.php` | Event dispatch |
 | `tests/Feature/Listeners/QuestionnaireCompletedListenersTest.php` | Listener registration, plan dispatch rules, partner notification |
 | `tests/Feature/AnswerValidationTest.php` | Accepted and rejected values per question type; `finish` refusing unanswered required questions |
+| `tests/Feature/NudgePartnerTest.php` | Manual nudge once a day, refusals (solo, no partner, already planned), the hourly command, clean-up when the partner answers |
 | `tests/Feature/DateOutPlanningModeTest.php` | Solo vs couple attempts of a `partner_optional` questionnaire: immediate solo plan, partner request then shared plan, no cross-mode pairing, couple refused without a partner, intro props |
 
 ```
@@ -216,3 +226,4 @@ No dedicated tests for: `restart`, `pastAttempt`, `planStatus`, solo location sa
 - 2026-11-24 — Roadmap Phase 1: only `start`/`restart` create an attempt; completed summary is read-only; completion screen redirects to an existing plan, handles no partner and stops polling after 90s; saved profiles apply via axios and only to their own questionnaire; slider emits its starting value; no invented location; `whereNumber('order')`.
 - 2026-11-24 — Roadmap Phase 2 (2.7, 2.10, 2.11): `question_options.signals`; per-type answer validation; `finish` refuses unanswered required questions; comparison pages are driven from the plan and the old routes redirect to them.
 - 2026-11-26 — Roadmap Phase 4: removed `QuestionnaireStarted`, `QuestionAnswered`, `CompatibilityCalculated`, `GenerateCompatibilityJob`, `GenerateCompatibilitySummaryJob`, `SummariseCoupleAnswersAction`, the three `*Resource` classes, `ResponsePolicy` and the two cache-forgetting `QuestionnaireCompleted` listeners.
+- 2026-11-25 — Roadmap Phase 5.1: partner nudge (`NudgePartnerAction`, `questionnaires.nudge`, `responses.partner_nudged_at`, hourly `datenight:nudge-partners`).

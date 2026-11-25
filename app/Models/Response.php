@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property CompletionStatus $status
  * @property Carbon|null $started_at
  * @property Carbon|null $completed_at
+ * @property Carbon|null $partner_nudged_at
  * @property int|null $compatibility_score
  * @property string|null $location_label
  * @property string|null $location_city
@@ -41,6 +42,7 @@ class Response extends Model
         'is_solo',
         'started_at',
         'completed_at',
+        'partner_nudged_at',
         'compatibility_score',
         'location_label',
         'location_city',
@@ -58,6 +60,7 @@ class Response extends Model
             'is_solo' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'partner_nudged_at' => 'datetime',
             'location_latitude' => 'float',
             'location_longitude' => 'float',
             'travel_radius_minutes' => 'integer',

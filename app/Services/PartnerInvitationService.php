@@ -49,8 +49,8 @@ class PartnerInvitationService
         \DB::transaction(function () use ($invitation, $sender, $recipient): void {
             $invitation->update(['accepted_at' => now()]);
 
-            $sender->update(['partner_id' => $recipient->id]);
-            $recipient->update(['partner_id' => $sender->id]);
+            $sender->update(['partner_id' => $recipient->id, 'connected_at' => now()]);
+            $recipient->update(['partner_id' => $sender->id, 'connected_at' => now()]);
         });
     }
 
@@ -67,10 +67,10 @@ class PartnerInvitationService
         $partner = $user->partner;
 
         \DB::transaction(function () use ($user, $partner): void {
-            $user->update(['partner_id' => null]);
+            $user->update(['partner_id' => null, 'connected_at' => null]);
 
             if ($partner) {
-                $partner->update(['partner_id' => null]);
+                $partner->update(['partner_id' => null, 'connected_at' => null]);
             }
         });
     }

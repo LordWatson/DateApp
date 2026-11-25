@@ -1,6 +1,6 @@
 # Challenges, Achievements and Streaks
 
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 
@@ -31,7 +31,7 @@ Three small gamification features. **Challenges** are a pool of short couple act
 | `app/Events/ChallengeCompleted.php` | Dispatched on a user's first completion of the day |
 | `bootstrap/app.php` (`withSchedule`) | Scheduling of both commands (`routes/console.php` has no schedule) |
 | `app/Http/Controllers/DashboardController.php` | Sends today's challenge with `completed_by_me` / `completed_by_partner`; exposes streak stats |
-| `database/seeders/ChallengeSeeder.php`, `database/seeders/AchievementSeeder.php` | 100 challenges, 17 achievements |
+| `database/seeders/ChallengeSeeder.php`, `database/seeders/AchievementSeeder.php` | 100 challenges, 18 achievements |
 | `database/factories/{Challenge,DailyChallenge,Achievement}Factory.php` | Factories |
 | **Frontend** | |
 | `resources/js/components/ChallengeCard.vue` | "Today's challenge" card: difficulty, who has done it, Done button |
@@ -81,6 +81,7 @@ Scheduled (in `bootstrap/app.php`): `datenight:select-daily-challenge` daily at 
 | `calendar_events_created` | `$user->calendarEvents()->count()` >= value |
 | `moments_created` | `$user->moments()->count()` >= value |
 | `challenges_completed` | rows in `daily_challenge_completions` for the user >= value |
+| `days_connected` | the user has a partner and `users.connected_at` is at least value days ago |
 | `perfect_compatibility` | any `DateNightPlan` linked to the user's responses has `compatibility_score = 100` (value ignored) |
 | `average_compatibility` | average `compatibility_score` over those plans >= value |
 | `questionnaire_slug` | user completed the questionnaire with slug `anniversary` (slug is hard-coded; value ignored) |
@@ -157,3 +158,4 @@ Run: `php artisan test --filter="AchievementTest|ChallengeTest|DailyChallengeTes
 - 2026-11-24 — Roadmap Phase 2 (2.4): the dashboard shows today's `DailyChallenge` (lazy, active and non-archived only); completion table, `daily-challenge.complete` route and Done control with partner state; `ChallengeCompleted` notifies the partner and unlocks the new `challenges_completed` achievements.
 - 2026-11-25 — Roadmap Phase 3 (3.14): streak days are counted in the user's timezone.
 - 2026-11-26 — Roadmap Phase 4: removed the unused `ChallengeResource`.
+- 2026-11-25 — Roadmap Phase 5.9: `days_connected` condition and the seeded "One Year Together" (365); also evaluated by the daily anniversary command.

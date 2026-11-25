@@ -6,6 +6,8 @@ import PartnerController from '@/actions/App/Http/Controllers/PartnerController'
 import AiConsentCard from '@/components/AiConsentCard.vue';
 import ChallengeCard from '@/components/ChallengeCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import OnThisDayCard from '@/components/OnThisDayCard.vue';
+import type { OnThisDayItem } from '@/components/OnThisDayCard.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import StatCard from '@/components/StatCard.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
@@ -71,6 +73,7 @@ interface Props {
     stats: Stats;
     todayChallenge: TodayChallenge | null;
     savedProfiles: SavedProfile[];
+    onThisDay: OnThisDayItem[];
     recentQuestionnaires: RecentQuestionnaire[];
     recentDateNights: RecentDateNight[];
 }
@@ -221,6 +224,8 @@ function invitePartner(): void {
                 description="Check back soon for your daily romantic challenge."
             />
         </div>
+
+        <OnThisDayCard :items="onThisDay" />
 
         <!-- Love notes -->
         <Link

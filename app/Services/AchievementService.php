@@ -43,6 +43,8 @@ class AchievementService
             'calendar_events_created' => $user->calendarEvents()->count() >= $achievement->unlock_value,
             'moments_created' => $user->moments()->count() >= $achievement->unlock_value,
             'challenges_completed' => DB::table('daily_challenge_completions')->where('user_id', $user->id)->count() >= $achievement->unlock_value,
+            'days_connected' => $user->partner_id !== null && $user->connected_at !== null
+                && $user->connected_at->diffInDays(now()) >= $achievement->unlock_value,
             'perfect_compatibility' => $this->hasPerfectCompatibility($user),
             'average_compatibility' => $this->averageCompatibility($user) >= $achievement->unlock_value,
             'questionnaire_slug' => $this->hasCompletedSlug($user, 'anniversary'),

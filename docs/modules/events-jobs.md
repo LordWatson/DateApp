@@ -1,5 +1,5 @@
 # Events, Listeners and Jobs (catalog)
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 Reference for every domain event, listener and queued job in the app: where each is dispatched, what is wired to it, and which queue it runs on. Read this before adding a side effect to a user action, and before debugging "the notification/email/plan never arrived".
@@ -85,6 +85,8 @@ All jobs set `$tries = 3`, set their queue with `onQueue()` in the constructor, 
 | 02:00 | `CleanTemporaryExportsCommand` (`datenight:clean-exports`) | none |
 | 09:00 | `SendRemindersCommand` (`datenight:send-reminders`) | none (creates notifications inline) |
 | hourly | `SendCalendarRemindersCommand` (`datenight:send-calendar-reminders`) | none (creates notifications inline) |
+| hourly | `NudgePartnersCommand` (`datenight:nudge-partners`) | dispatches `SendQuestionnaireCompletedNotificationJob` per reminder |
+| 09:00 | `ConnectionAnniversariesCommand` (`datenight:connection-anniversaries`) | dispatches `AchievementEvaluationJob` per notified user |
 
 ### Queue configuration and local running
 - Default connection: `database` (`config/queue.php`, `.env.example`). Jobs live in the `jobs` table; failures in `failed_jobs`.
@@ -123,3 +125,4 @@ Run: `php artisan test tests/Feature/Events tests/Feature/Listeners tests/Featur
 - 2026-11-24 — Roadmap Phase 2 (2.3, 2.4): hourly `SendCalendarRemindersCommand`; `ChallengeCompleted` is dispatched and has two listeners.
 - 2026-11-24 — Roadmap Phase 2 (2.6, 2.12, 2.14): `PartnerDisconnected` has a listener; `ExportUserDataJob` is dispatched from settings; the three notification mail jobs honour `email_notifications`; `ExpireInvitationsCommand` notifies senders.
 - 2026-11-26 — Roadmap Phase 4: removed 10 events nothing dispatched or listened to, the unregistered invitation listener, the four cache-forgetting listeners with `RefreshRelationshipStatisticsJob` and `datenight:refresh-statistics`, and the five jobs nothing dispatched. Every event left is dispatched; every job left has a dispatcher.
+- 2026-11-25 — Roadmap Phase 5A: scheduled `datenight:nudge-partners` (hourly) and `datenight:connection-anniversaries` (09:00).

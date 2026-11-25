@@ -14,6 +14,8 @@ use Illuminate\Support\Carbon;
  * @property int $recipient_id
  * @property string $message
  * @property Carbon|null $read_at
+ * @property string|null $reaction
+ * @property Carbon|null $reacted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -22,17 +24,23 @@ class LoveNote extends Model
     /** @use HasFactory<LoveNoteFactory> */
     use HasFactory;
 
+    /** The reactions a recipient can leave on a note. */
+    public const REACTIONS = ['❤️', '🥰', '😂', '😘', '🔥'];
+
     protected $fillable = [
         'sender_id',
         'recipient_id',
         'message',
         'read_at',
+        'reaction',
+        'reacted_at',
     ];
 
     protected function casts(): array
     {
         return [
             'read_at' => 'datetime',
+            'reacted_at' => 'datetime',
         ];
     }
 
