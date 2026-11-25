@@ -12,7 +12,7 @@ interface PlanSummary {
     id: number;
     theme: string;
     theme_emoji: string | null;
-    compatibility_score: number;
+    compatibility_score: number | null;
     is_favourite: boolean;
     created_at: string;
     questionnaire_title: string | null;
@@ -36,7 +36,7 @@ function formatDate(iso: string): string {
         <PageHeader
             eyebrow="Date nights"
             title="Favourites"
-            description="Your saved date night plans"
+            description="Plans you have saved. Your partner keeps their own list."
         />
 
         <div class="card-premium p-2">
@@ -65,6 +65,7 @@ function formatDate(iso: string): string {
                         </p>
                     </div>
                     <span
+                        v-if="plan.compatibility_score !== null"
                         class="font-display text-xl font-medium text-foreground tabular-nums"
                     >
                         {{ plan.compatibility_score }}%

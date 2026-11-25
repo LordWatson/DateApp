@@ -1,12 +1,29 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { CalendarPlus, Check, Heart, Printer, Star, X } from '@lucide/vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import {
+    CalendarPlus,
+    Check,
+    ChevronRight,
+    Heart,
+    Printer,
+    Sparkles,
+    Star,
+    X,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
 import InputError from '@/components/InputError.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import {
+    answers,
+    compatibility,
+    exportMethod,
+    retryAi,
+    toggleFavourite as toggleFavouriteRoute,
+} from '@/routes/date-night';
+import { edit as editProfile } from '@/routes/profile';
 
 defineOptions({ layout: MobileLayout });
 
@@ -37,6 +54,8 @@ interface Plan {
     location_label: string | null;
     local_suggestions: LocalSuggestion[];
     is_favourite: boolean;
+    ai_enhanced: boolean;
+    fallback_used: boolean;
     is_liked: boolean;
     likes_count: number;
     created_at: string;
@@ -92,7 +111,7 @@ const actionChipClass =
 
 function toggleFavourite(): void {
     router.post(
-        `/date-night/${props.plan.id}/favourite`,
+        toggleFavouriteRoute(props.plan.id).url,
         {},
         {
             preserveScroll: true,
@@ -103,8 +122,27 @@ function toggleFavourite(): void {
     );
 }
 
-function exportPlan(): void {
-    window.open(`/date-night/${props.plan.id}/export`, '_blank');
+function printPlan(): void {
+    window.open(exportMethod(props.plan.id).url, '_blank');
+}
+
+const retryingAi = ref(false);
+
+// The outcome comes back as a flash, which the layout shows as a toast.
+function retryWithAi(): void {
+    router.post(
+        retryAi(props.plan.id).url,
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => {
+                retryingAi.value = true;
+            },
+            onFinish: () => {
+                retryingAi.value = false;
+            },
+        },
+    );
 }
 
 function toggleLike(): void {
@@ -284,7 +322,7 @@ function submitCalendar(): void {
                     </p>
                 </div>
 
-                <!-- Local ideas (solo plans only) -->
+                <!-- Local ideas (plans built around a place) -->
                 <div
                     v-if="plan.local_suggestions.length > 0"
                     class="space-y-4 card-premium p-5"
@@ -334,6 +372,79 @@ function submitCalendar(): void {
                         </li>
                     </ul>
                 </div>
+            </section>
+
+            <!-- How you matched (couple plans only) -->
+            <section v-if="!plan.is_solo" class="space-y-3">
+                <p class="eyebrow">How you matched</p>
+                <div class="card-premium p-2">
+                    <Link :href="compatibility(plan.id).url" class="list-row">
+                        <span class="icon-tile h-11 w-11" aria-hidden="true">
+                            <Heart class="size-5 text-primary" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium text-foreground">
+                                Where you matched
+                            </p>
+                            <p class="truncate text-xs text-muted-foreground">
+                                Your score and what you agreed on
+                            </p>
+                        </div>
+                        <ChevronRight
+                            class="size-4 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    </Link>
+                    <Link :href="answers(plan.id).url" class="list-row">
+                        <span class="icon-tile h-11 w-11" aria-hidden="true">
+                            <Check class="size-5 text-primary" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium text-foreground">
+                                Compare your answers
+                            </p>
+                            <p class="truncate text-xs text-muted-foreground">
+                                Every question, side by side
+                            </p>
+                        </div>
+                        <ChevronRight
+                            class="size-4 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    </Link>
+                </div>
+            </section>
+
+            <!-- Written without AI: offer another go -->
+            <section
+                v-if="plan.fallback_used"
+                class="space-y-3 card-premium p-5"
+            >
+                <div class="space-y-1">
+                    <p class="font-medium text-foreground">
+                        This plan uses our standard suggestions
+                    </p>
+                    <p class="text-sm leading-relaxed text-muted-foreground">
+                        The AI that personalises plans was not available when
+                        this one was made. You can ask it again. AI is only used
+                        once everyone whose answers are in the plan has turned
+                        it on in
+                        <Link
+                            :href="editProfile()"
+                            class="font-medium text-primary underline underline-offset-4"
+                            >Settings</Link
+                        >.
+                    </p>
+                </div>
+                <SecondaryButton
+                    variant="outline"
+                    full-width
+                    :loading="retryingAi"
+                    @click="retryWithAi"
+                >
+                    <Sparkles class="size-4" aria-hidden="true" />
+                    Try again with AI
+                </SecondaryButton>
             </section>
 
             <!-- Actions -->
@@ -388,18 +499,18 @@ function submitCalendar(): void {
                         />
                         {{
                             isFavourite
-                                ? 'Saved to favourites'
-                                : 'Save to favourites'
+                                ? 'In your favourites'
+                                : 'Save to my favourites'
                         }}
                     </button>
 
                     <button
                         type="button"
                         :class="actionChipClass"
-                        @click="exportPlan"
+                        @click="printPlan"
                     >
                         <Printer class="size-4" aria-hidden="true" />
-                        Export plan
+                        Print
                     </button>
                 </div>
             </section>

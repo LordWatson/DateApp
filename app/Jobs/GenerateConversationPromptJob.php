@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\AI\AIUseCase;
+use App\Models\User;
 use App\Services\AI\AIService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,10 +49,17 @@ final class GenerateConversationPromptJob implements ShouldQueue
             return;
         }
 
+        // "Couple id" is a user id here; the prompt is about that person and their partner.
+        $people = array_values(User::query()->whereKey($this->coupleId)->orWhere('partner_id', $this->coupleId)->get()->all());
+        if ($people === []) {
+            return;
+        }
+
         try {
             $response = $ai->generate(
                 useCase: AIUseCase::ConversationPrompt,
                 context: ['couple_id' => $this->coupleId],
+                people: $people,
             );
         } catch (Throwable $e) {
             Log::warning('GenerateConversationPromptJob: AI call threw.', [

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import { ChevronLeft, Lock, Moon, Star, Trash2 } from '@lucide/vue';
-import { route } from 'ziggy-js';
+import { ref } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import momentRoutes from '@/routes/moments';
 import { index } from '@/routes/moments';
 
 defineOptions({ layout: MobileLayout });
@@ -34,11 +36,13 @@ function formatDate(dateStr: string): string {
 }
 
 function toggleFavourite(): void {
-    router.post(route('moments.toggle-favourite', props.moment.id));
+    router.post(momentRoutes.toggleFavourite(props.moment.id).url);
 }
 
+const confirmingDelete = ref(false);
+
 function deleteMoment(): void {
-    router.delete(route('moments.destroy', props.moment.id));
+    router.delete(momentRoutes.destroy(props.moment.id).url);
 }
 
 const focusClass =
@@ -56,7 +60,7 @@ const focusClass =
                     'mb-4 -ml-1.5 inline-flex min-h-9 items-center gap-1 rounded-full pr-3 pl-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
                     focusClass,
                 ]"
-                @click="router.visit(route('moments.index'))"
+                @click="router.visit(momentRoutes.index().url)"
             >
                 <ChevronLeft class="size-4" aria-hidden="true" />
                 Back
@@ -180,11 +184,17 @@ const focusClass =
                 variant="ghost"
                 full-width
                 class="text-destructive! hover:bg-destructive/10!"
-                @click="deleteMoment"
+                @click="confirmingDelete = true"
             >
                 <Trash2 class="size-4" aria-hidden="true" />
                 Delete
             </SecondaryButton>
         </div>
+        <ConfirmDialog
+            v-model:open="confirmingDelete"
+            title="Delete this moment?"
+            description="It is removed for both of you and cannot be brought back."
+            @confirm="deleteMoment"
+        />
     </div>
 </template>

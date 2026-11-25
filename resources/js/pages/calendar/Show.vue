@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import { Bell, MapPin, Trash2 } from '@lucide/vue';
+import { ref } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
@@ -36,6 +38,8 @@ function formatDate(dateStr: string): string {
         year: 'numeric',
     });
 }
+
+const confirmingDelete = ref(false);
 
 function deleteEvent(): void {
     router.delete(destroy.url({ calendarEvent: props.event.id }));
@@ -127,11 +131,17 @@ function deleteEvent(): void {
                 variant="ghost"
                 full-width
                 class="text-destructive! hover:bg-destructive/10!"
-                @click="deleteEvent"
+                @click="confirmingDelete = true"
             >
                 <Trash2 class="size-4" aria-hidden="true" />
                 Delete
             </SecondaryButton>
         </div>
+        <ConfirmDialog
+            v-model:open="confirmingDelete"
+            title="Delete this event?"
+            description="It is removed from your shared calendar and cannot be brought back."
+            @confirm="deleteEvent"
+        />
     </div>
 </template>

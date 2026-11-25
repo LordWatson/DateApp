@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_solo
  * @property array<int, array<string, string>>|null $local_suggestions
  * @property string|null $location_label
- * @property bool $is_favourite
+ * @property-read bool|null $is_favourite Per viewer; only set by scopeWithFavouriteFor or loadExists.
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -56,7 +56,6 @@ class DateNightPlan extends Model
         'is_solo',
         'local_suggestions',
         'location_label',
-        'is_favourite',
         'ai_enhanced',
         'fallback_used',
     ];
@@ -64,7 +63,6 @@ class DateNightPlan extends Model
     protected function casts(): array
     {
         return [
-            'is_favourite' => 'boolean',
             'ai_enhanced' => 'boolean',
             'fallback_used' => 'boolean',
             'is_solo' => 'boolean',
@@ -73,36 +71,82 @@ class DateNightPlan extends Model
         ];
     }
 
+    /** @return BelongsTo<Questionnaire, $this> */
     public function questionnaire(): BelongsTo
     {
         return $this->belongsTo(Questionnaire::class);
     }
 
+    /** @return BelongsTo<Response, $this> */
     public function partnerOneResponse(): BelongsTo
     {
         return $this->belongsTo(Response::class, 'partner_one_response_id');
     }
 
+    /** @return BelongsTo<Response, $this> */
     public function partnerTwoResponse(): BelongsTo
     {
         return $this->belongsTo(Response::class, 'partner_two_response_id');
     }
 
+    /** @return BelongsTo<DateNightTheme, $this> */
     public function dateNightTheme(): BelongsTo
     {
         return $this->belongsTo(DateNightTheme::class, 'date_night_theme_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function partnerUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'partner_user_id');
     }
 
-    public function scopeFavourites(Builder $query): Builder
+    /** @return BelongsToMany<User, $this> */
+    public function favouritedBy(): BelongsToMany
     {
-        return $query->where('is_favourite', true);
+        return $this->belongsToMany(User::class, 'date_night_plan_favourites')
+            ->withTimestamps();
     }
 
+    /**
+     * Favourites are per person: only plans this user saved.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeFavouritedBy(Builder $query, User $user): Builder
+    {
+        return $query->whereHas('favouritedBy', fn (Builder $q) => $q->whereKey($user->id));
+    }
+
+    /**
+     * Adds a boolean `is_favourite` attribute for this viewer.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithFavouriteFor(Builder $query, User $user): Builder
+    {
+        return $query->withExists(['favouritedBy as is_favourite' => fn (Builder $q) => $q->whereKey($user->id)]);
+    }
+
+    /**
+     * Plans this user took part in: one of the two responses is theirs, or a solo plan was shared with them.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        $responseIds = Response::where('user_id', $user->id)->select('id');
+
+        return $query->where(fn (Builder $q) => $q
+            ->whereIn('partner_one_response_id', $responseIds)
+            ->orWhereIn('partner_two_response_id', $responseIds)
+            ->orWhere('partner_user_id', $user->id));
+    }
+
+    /** @return BelongsToMany<User, $this> */
     public function likedBy(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'date_night_plan_likes')

@@ -108,7 +108,7 @@ defineProps<{
         <div class="h-px bg-border" />
 
         <div class="space-y-2 text-center text-sm text-muted-foreground">
-            <p>
+            <p v-if="$page.props.registrationOpen">
                 Don't have an account?
                 <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
             </p>

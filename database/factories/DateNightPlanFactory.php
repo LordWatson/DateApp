@@ -30,12 +30,6 @@ class DateNightPlanFactory extends Factory
             'activity' => $this->faker->sentence(),
             'conversation_prompt' => $this->faker->sentence().'?',
             'romantic_challenge' => $this->faker->sentence(),
-            'is_favourite' => false,
         ];
-    }
-
-    public function favourite(): static
-    {
-        return $this->state(['is_favourite' => true]);
     }
 }

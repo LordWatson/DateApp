@@ -35,13 +35,18 @@ class IntimacyQuestionnaireSeeder extends Seeder
                 );
 
                 foreach ($options as $optionData) {
-                    QuestionOption::firstOrCreate(
+                    $option = QuestionOption::firstOrCreate(
                         [
                             'question_id' => $question->id,
                             'value' => $optionData['value'],
                         ],
                         array_merge($optionData, ['question_id' => $question->id])
                     );
+
+                    // Options seeded before signals existed get them now; tagged ones are left alone.
+                    if ($option->signals === null && isset($optionData['signals'])) {
+                        $option->update(['signals' => $optionData['signals']]);
+                    }
                 }
             }
         }
@@ -74,10 +79,10 @@ class IntimacyQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '💋', 'title' => 'Slow and sensual', 'value' => 'sensual', 'display_order' => 1],
+                            ['emoji' => '💋', 'title' => 'Slow and sensual', 'value' => 'sensual', 'signals' => ['romance', 'relaxing'], 'display_order' => 1],
                             ['emoji' => '😈', 'title' => 'Playful and teasing', 'value' => 'playful', 'display_order' => 2],
                             ['emoji' => '🔥', 'title' => 'Passionate and intense', 'value' => 'passionate', 'display_order' => 3],
-                            ['emoji' => '🕯️', 'title' => 'Romantic and cosy', 'value' => 'romantic', 'display_order' => 4],
+                            ['emoji' => '🕯️', 'title' => 'Romantic and cosy', 'value' => 'romantic', 'signals' => ['romance', 'relaxing'], 'display_order' => 4],
                         ],
                     ],
                     [
@@ -98,7 +103,7 @@ class IntimacyQuestionnaireSeeder extends Seeder
                         'display_order' => 3,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🛁', 'title' => 'A long, warm bath together', 'value' => 'bath', 'display_order' => 1],
+                            ['emoji' => '🛁', 'title' => 'A long, warm bath together', 'value' => 'bath', 'signals' => ['relaxing'], 'display_order' => 1],
                             ['emoji' => '🛏️', 'title' => 'Straight to bed', 'value' => 'bed', 'display_order' => 2],
                             ['emoji' => '🛋️', 'title' => 'On the sofa with wine', 'value' => 'sofa', 'display_order' => 3],
                             ['emoji' => '🌙', 'title' => 'Somewhere unexpected', 'value' => 'unexpected', 'display_order' => 4],
@@ -112,9 +117,9 @@ class IntimacyQuestionnaireSeeder extends Seeder
                         'display_order' => 4,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🎷', 'title' => 'Smooth jazz & candles', 'value' => 'jazz', 'display_order' => 1],
-                            ['emoji' => '🎧', 'title' => 'Slow R&B', 'value' => 'rnb', 'display_order' => 2],
-                            ['emoji' => '🥁', 'title' => 'Deep house beats', 'value' => 'house', 'display_order' => 3],
+                            ['emoji' => '🎷', 'title' => 'Smooth jazz & candles', 'value' => 'jazz', 'signals' => ['music', 'romance'], 'display_order' => 1],
+                            ['emoji' => '🎧', 'title' => 'Slow R&B', 'value' => 'rnb', 'signals' => ['music'], 'display_order' => 2],
+                            ['emoji' => '🥁', 'title' => 'Deep house beats', 'value' => 'house', 'signals' => ['music'], 'display_order' => 3],
                             ['emoji' => '🤫', 'title' => 'Just us, no music', 'value' => 'silence', 'display_order' => 4],
                         ],
                     ],
@@ -149,12 +154,12 @@ class IntimacyQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '💆', 'title' => 'Full body massage', 'value' => 'massage', 'display_order' => 1],
+                            ['emoji' => '💆', 'title' => 'Full body massage', 'value' => 'massage', 'signals' => ['relaxing'], 'display_order' => 1],
                             ['emoji' => '👀', 'title' => 'Eye contact & slow kissing', 'value' => 'eye_contact', 'display_order' => 2],
                             ['emoji' => '🎭', 'title' => 'Trying a little roleplay', 'value' => 'roleplay', 'display_order' => 3],
                             ['emoji' => '🪶', 'title' => 'Teasing with textures', 'value' => 'textures', 'display_order' => 4],
-                            ['emoji' => '🕯️', 'title' => 'Candlelit slow build-up', 'value' => 'slow_build', 'display_order' => 5],
-                            ['emoji' => '🎲', 'title' => 'Let a game decide', 'value' => 'game', 'display_order' => 6],
+                            ['emoji' => '🕯️', 'title' => 'Candlelit slow build-up', 'value' => 'slow_build', 'signals' => ['romance'], 'display_order' => 5],
+                            ['emoji' => '🎲', 'title' => 'Let a game decide', 'value' => 'game', 'signals' => ['games'], 'display_order' => 6],
                         ],
                     ],
                     [
@@ -221,7 +226,7 @@ class IntimacyQuestionnaireSeeder extends Seeder
                         'required' => true,
                         'options' => [
                             ['emoji' => '🌑', 'title' => 'Pitch dark', 'value' => 'dark', 'display_order' => 1],
-                            ['emoji' => '🕯️', 'title' => 'Candlelight only', 'value' => 'candles', 'display_order' => 2],
+                            ['emoji' => '🕯️', 'title' => 'Candlelight only', 'value' => 'candles', 'signals' => ['romance'], 'display_order' => 2],
                             ['emoji' => '💡', 'title' => 'Soft warm lamps', 'value' => 'lamps', 'display_order' => 3],
                             ['emoji' => '🌈', 'title' => 'Colourful mood lights', 'value' => 'colour', 'display_order' => 4],
                         ],
@@ -234,7 +239,7 @@ class IntimacyQuestionnaireSeeder extends Seeder
                         'display_order' => 2,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🐢', 'title' => 'Slow and unhurried', 'value' => 'slow', 'display_order' => 1],
+                            ['emoji' => '🐢', 'title' => 'Slow and unhurried', 'value' => 'slow', 'signals' => ['relaxing'], 'display_order' => 1],
                             ['emoji' => '🌊', 'title' => 'Waves — slow then fast', 'value' => 'waves', 'display_order' => 2],
                             ['emoji' => '⚡', 'title' => 'Fast and hungry', 'value' => 'fast', 'display_order' => 3],
                             ['emoji' => '🎲', 'title' => 'Whatever you decide', 'value' => 'surprise', 'display_order' => 4],
@@ -262,8 +267,8 @@ class IntimacyQuestionnaireSeeder extends Seeder
                         'display_order' => 4,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🤗', 'title' => 'Cuddle for hours', 'value' => 'cuddle', 'display_order' => 1],
-                            ['emoji' => '🛁', 'title' => 'Share a bath', 'value' => 'bath', 'display_order' => 2],
+                            ['emoji' => '🤗', 'title' => 'Cuddle for hours', 'value' => 'cuddle', 'signals' => ['relaxing'], 'display_order' => 1],
+                            ['emoji' => '🛁', 'title' => 'Share a bath', 'value' => 'bath', 'signals' => ['relaxing'], 'display_order' => 2],
                             ['emoji' => '🍫', 'title' => 'Snack in bed', 'value' => 'snack', 'display_order' => 3],
                             ['emoji' => '😴', 'title' => 'Fall asleep tangled up', 'value' => 'sleep', 'display_order' => 4],
                         ],

@@ -30,7 +30,7 @@ Reference for every domain event, listener and queued job in the app: where each
 | `MomentCreated` | `app/Http/Controllers/MomentController.php:59` | `SendMomentNotificationOnMomentCreated`, `LogActivityOnMomentCreated`, `EvaluateAchievementsOnMomentCreated` | |
 | `AchievementUnlocked` | `app/Jobs/AchievementEvaluationJob.php:34` | `NotifyOnAchievementUnlocked`, `LogActivityOnAchievementUnlocked` | |
 | `PartnerInvitationAccepted` | `app/Actions/AcceptPartnerInvitationAction.php:24` | none | No listeners |
-| `PartnerDisconnected` | `app/Http/Controllers/PartnerController.php:66` | none | No listeners |
+| `PartnerDisconnected` | `app/Http/Controllers/PartnerController.php` (`disconnect`) | `NotifyFormerPartnerOnPartnerDisconnected` | Tells the other partner (in-app, `partner_left`) |
 | `CompatibilityCalculated` | `app/Jobs/GenerateCompatibilityJob.php:45` | none | No listeners; the job itself is never dispatched |
 | `UserRegistered` | - | none | Never dispatched, no listeners |
 | `ProfileCompleted` | - | none | Never dispatched, no listeners |
@@ -40,7 +40,7 @@ Reference for every domain event, listener and queued job in the app: where each
 | `SavedProfileCreated` | - | none | Never dispatched, no listeners |
 | `SavedProfileApplied` | - | none | Never dispatched, no listeners |
 | `ExportRequested` | - | none | Never dispatched, no listeners |
-| `ChallengeCompleted` | - | not in provider | Never dispatched, not registered |
+| `ChallengeCompleted` | `app/Actions/CompleteDailyChallengeAction.php` | `NotifyPartnerOnChallengeCompleted`, `EvaluateAchievementsOnActivity` | |
 | `NotificationCreated` | - | not in provider | Never dispatched, not registered |
 | `PartnerInvitationCreated` | - | not in provider | Never dispatched; `SendInvitationEmailOnPartnerInvitationCreated` exists for it but is not registered |
 
@@ -70,6 +70,7 @@ Queued listeners set the queue with `public string $queue = '...'`. Sync listene
 | `EvaluateAchievementsOnMomentCreated` | `MomentCreated` | queued (`analytics`) | Dispatches `AchievementEvaluationJob` |
 | `NotifyOnAchievementUnlocked` | `AchievementUnlocked` | queued (`notifications`) | Creates an `AppNotification` for the user |
 | `LogActivityOnAchievementUnlocked` | `AchievementUnlocked` | sync | Writes `activity_log` row |
+| `NotifyPartnerOnChallengeCompleted` | `ChallengeCompleted` | queued (`notifications`) | Creates a `daily_challenge` `AppNotification` for the partner, if any |
 | `SendInvitationEmailOnPartnerInvitationCreated` | `PartnerInvitationCreated` | queued (`emails`) | Would dispatch `SendInvitationEmailJob`; **not registered, never runs** |
 
 ## Jobs
@@ -80,29 +81,30 @@ All jobs set `$tries = 3`, set their queue with `onQueue()` in the constructor, 
 | `GenerateDateNightPlanJob` | `default` | 120s | `DispatchDateNightPlanOnQuestionnaireCompleted.php:23`, `:38` | Finds latest completed responses, skips if a plan already exists for them, runs `GenerateDateNightPlanAction` (which fires `DateNightPlanGenerated`) |
 | `AchievementEvaluationJob` | `analytics` | 60s | `EvaluateAchievementsOnMomentCreated.php:15`, `EvaluateAchievementsOnQuestionnaireCompleted.php:15` | `AchievementService::checkAndAward()`, fires `AchievementUnlocked` per new achievement |
 | `RefreshRelationshipStatisticsJob` | `analytics` | 60s | `RefreshDashboardOnPartnerConnected.php:15-16`, `RefreshDashboardOnQuestionnaireCompleted.php:15`, `app/Console/Commands/RefreshStatisticsCommand.php:20` | Only forgets `dashboard:*` / `compatibility:*` cache keys and logs |
-| `DailyChallengeSelectionJob` | `default` | 60s | `app/Console/Commands/SelectDailyChallengeCommand.php:16` | Creates today's `DailyChallenge` from a random `Challenge` if none exists |
+| `DailyChallengeSelectionJob` | `default` | 60s | `app/Console/Commands/SelectDailyChallengeCommand.php:16` | Calls `DailyChallenge::forToday()` (random active, non-archived challenge if none exists) |
 | `SendInvitationEmailJob` | `emails` | 30s | `app/Actions/SendPartnerInvitationAction.php:20`, `app/Http/Controllers/PartnerController.php:52` | Skips accepted/expired invitations; sends `PartnerInvitationMail` synchronously |
 | `SendPartnerConnectedEmailJob` | `emails` | 30s | `SendPartnerConnectedEmailsOnPartnerConnected.php:15-16` | Sends `PartnerConnectedMail` if `email_notifications` |
 | `SendSummaryEmailJob` | `emails` | 30s | `SendPlanEmailsOnDateNightPlanGenerated.php:15`, `:18` | Sends `DateNightReadyMail` if `email_notifications` |
-| `SendLoveNoteNotificationJob` | `notifications` | 30s | `SendLoveNoteNotificationOnLoveNoteSent.php:15` | Creates `AppNotification` + queues `LoveNoteReceivedMail` |
-| `SendMomentNotificationJob` | `notifications` | 30s | `SendMomentNotificationOnMomentCreated.php:21` | Creates `AppNotification` + queues `MomentCreatedMail` |
-| `SendQuestionnaireCompletedNotificationJob` | `notifications` | 30s | `NotifyPartnerOnQuestionnaireCompleted.php:40` | Queues `QuestionnaireCompletedMail` |
+| `SendLoveNoteNotificationJob` | `notifications` | 30s | `SendLoveNoteNotificationOnLoveNoteSent.php:15` | Creates `AppNotification`; queues `LoveNoteReceivedMail` only if the recipient has `email_notifications` on |
+| `SendMomentNotificationJob` | `notifications` | 30s | `SendMomentNotificationOnMomentCreated.php:21` | Creates `AppNotification`; queues `MomentCreatedMail` only if the recipient has `email_notifications` on |
+| `SendQuestionnaireCompletedNotificationJob` | `notifications` | 30s | `NotifyPartnerOnQuestionnaireCompleted.php:40` | Queues `QuestionnaireCompletedMail` only if the recipient has `email_notifications` on |
 | `EnhanceDateNightPlanWithAIJob` | `ai` | 60s / `[10,30,60]` | **nowhere** (tests only) | Rewrites plan wording via `AIService`; sets `ai_enhanced` or `fallback_used` |
 | `GenerateCompatibilitySummaryJob` | `ai` | 45s / `[10,30,60]` | **nowhere** (tests only) | Caches AI prose under `ai:compat_summary:plan:{id}` for 7 days |
 | `GenerateConversationPromptJob` | `ai` | 45s / `[10,30,60]` | **nowhere** (tests only) | Caches an AI conversation prompt under a caller-supplied key for 1 day |
 | `GenerateRelationshipInsightJob` | `ai` | 60s / `[15,45,120]` | **nowhere** (tests only) | Caches an AI insight under a caller-supplied key for 7 days |
 | `GenerateCompatibilityJob` | `analytics` | 60s | **nowhere** | Runs `CompatibilityService::calculate()` and fires `CompatibilityCalculated` |
-| `ExportUserDataJob` | `exports` | 300s | **nowhere** | Writes a JSON dump to `exports/user-{id}-{date}.{format}` on the default disk |
+| `ExportUserDataJob` | `exports` | 300s | `Settings/DataExportController@store` (once an hour per user) | Writes the user's data to `exports/user-{id}.json` on the private `local` disk and creates a `data_export_ready` notification |
 
 ### Scheduler (`bootstrap/app.php`)
 | Time | Command | Queue work |
 |---|---|---|
 | 00:01 | `SelectDailyChallengeCommand` | dispatches `DailyChallengeSelectionJob` |
 | 00:05 | `EvaluateStreaksCommand` | none |
-| 00:10 | `ExpireInvitationsCommand` | none |
+| 00:10 | `ExpireInvitationsCommand` | none (creates `invitation_expired` notifications directly) |
 | 02:00 | `CleanTemporaryExportsCommand` (`datenight:clean-exports`) | none |
 | 03:00 | `RefreshStatisticsCommand` (`datenight:refresh-statistics`) | dispatches `RefreshRelationshipStatisticsJob` per partnered user |
 | 09:00 | `SendRemindersCommand` (`datenight:send-reminders`) | none (creates notifications inline) |
+| hourly | `SendCalendarRemindersCommand` (`datenight:send-calendar-reminders`) | none (creates notifications inline) |
 
 ### Queue configuration and local running
 - Default connection: `database` (`config/queue.php`, `.env.example`). Jobs live in the `jobs` table; failures in `failed_jobs`.
@@ -117,8 +119,8 @@ All jobs set `$tries = 3`, set their queue with `onQueue()` in the constructor, 
 - Events use `SerializesModels`; queued listeners re-fetch models, so a model deleted before the worker runs makes the listener fail with `ModelNotFoundException`.
 - `QuestionnaireCompletedListenersTest::test_questionnaire_completed_has_correct_listeners_registered` asserts on the listener list; check it when changing `QuestionnaireCompleted` wiring.
 - **Refresh/InvalidateCache listeners do no real work.** `InvalidateCacheOnPartnerConnected`, `InvalidateCacheOnQuestionnaireCompleted`, `RefreshDashboardOn*` and `RefreshRelationshipStatisticsJob` only call `Cache::forget()` on `dashboard:{userId}` / `compatibility:{userId}`. No code writes those keys (the only other `Cache::` use in `app/` is the health check and the AI jobs' own keys), so they are no-ops. See [dashboard-insights-search.md](dashboard-insights-search.md).
-- Suspected issue / dead code: 11 of 20 events are never dispatched; `PartnerInvitationAccepted`, `PartnerDisconnected` and `CompatibilityCalculated` are dispatched with no listeners; `ChallengeCompleted`, `NotificationCreated`, `PartnerInvitationCreated` are not even in the provider.
-- Suspected issue / dead code: 6 jobs are never dispatched by application code (`EnhanceDateNightPlanWithAIJob`, `GenerateCompatibilitySummaryJob`, `GenerateConversationPromptJob`, `GenerateRelationshipInsightJob`, `GenerateCompatibilityJob`, `ExportUserDataJob`). The four AI jobs are exercised only by `tests/Feature/AI/AIIntegrationTest.php`.
+- Suspected issue / dead code: 11 of 20 events are never dispatched; `PartnerInvitationAccepted` and `CompatibilityCalculated` are dispatched with no listeners; `ChallengeCompleted`, `NotificationCreated`, `PartnerInvitationCreated` are not even in the provider.
+- Suspected issue / dead code: 5 jobs are never dispatched by application code (`EnhanceDateNightPlanWithAIJob`, `GenerateCompatibilitySummaryJob`, `GenerateConversationPromptJob`, `GenerateRelationshipInsightJob`, `GenerateCompatibilityJob`). The four AI jobs are exercised only by `tests/Feature/AI/AIIntegrationTest.php`.
 - Suspected issue: `app/Listeners/SendInvitationEmailOnPartnerInvitationCreated.php` is unregistered; invitation mail is dispatched directly from the action and controller instead.
 - Jobs take Eloquent models in the constructor except the AI jobs, which take ids (`planId`, `coupleId`) and are idempotent via a flag or cache key.
 
@@ -144,3 +146,5 @@ Run: `php artisan test tests/Feature/Events tests/Feature/Listeners tests/Featur
 ## Change log
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Dev queue worker now listens to all six queues (re-registered in `AppServiceProvider`).
+- 2026-11-24 — Roadmap Phase 2 (2.3, 2.4): hourly `SendCalendarRemindersCommand`; `ChallengeCompleted` is dispatched and has two listeners.
+- 2026-11-24 — Roadmap Phase 2 (2.6, 2.12, 2.14): `PartnerDisconnected` has a listener; `ExportUserDataJob` is dispatched from settings; the three notification mail jobs honour `email_notifications`; `ExpireInvitationsCommand` notifies senders.

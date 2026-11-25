@@ -1,6 +1,6 @@
 # Calendar
 
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-25
 
 ## Purpose
 
@@ -18,6 +18,7 @@ A simple shared event list for a couple: date nights, anniversaries, birthdays, 
 | `app/Enums/CalendarEventType.php` | 8 types with `label()` / `emoji()` - not referenced by any code (see gotchas) |
 | `app/Events/CalendarEventCreated.php` | Defined, registered with no listeners, never dispatched |
 | `app/Actions/AddDateNightPlanToCalendarAction.php` | Creates an event from a plan - owned by date-night.md |
+| `app/Console/Commands/SendCalendarRemindersCommand.php` | `datenight:send-calendar-reminders` - sends due reminders (hourly) |
 | `database/migrations/2026_07_14_000001_create_calendar_events_table.php` | Schema |
 | `database/factories/CalendarEventFactory.php` | Factory |
 | **Frontend** | |
@@ -56,6 +57,13 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 2. Request class validates; the event is created via `$request->user()->calendarEvents()->create()`.
 3. Redirect to `calendar.index` with flash `success`. No event is dispatched, no notification is sent, no activity is logged.
 
+### Reminders
+
+1. `bootstrap/app.php` runs `datenight:send-calendar-reminders` hourly.
+2. The command loads events with a `reminder`, `reminder_sent = false` and a date from yesterday (UTC) onwards. A reminder is due when the owner's local date (`users.timezone`) is on or after `date` minus the option's days (`same_day` 0, `1_day` 1, `3_days` 3, `1_week` 7) and not after `date`.
+3. It creates one `calendar_reminder` `AppNotification` for the owner and one for their partner (`data.calendar_event_id`, linking to `/calendar/{id}`), then sets `reminder_sent = true`.
+4. `CalendarEventController@update` sets `reminder_sent = false` when `date` or `reminder` changes, so a moved event is reminded again.
+
 ### Add a date night plan to the calendar
 
 1. `DateNightPlanController@addToCalendar` authorises `addToCalendar` on the plan, then calls `AddDateNightPlanToCalendarAction::execute($user, $plan, $data)`.
@@ -72,7 +80,8 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 - Validation: `title` required max 255; `type` required and in the list above; `date` required; `time` must be `H:i`; `description` max 1000; `notes` max 2000; `location` max 255; `emoji` max 10; `colour` max 20 (not validated as a colour); `reminder` nullable and in the list above.
 - The type list is duplicated in three places that must be kept in sync: the two request classes (`in:` rule), `CalendarEventController::eventTypes()` and `CalendarEventType`.
 - Upcoming vs past is split in the browser using the client's date (`calendar/Index.vue:57-69`).
-- Suspected issue: reminders are stored but never sent. `reminder` and `reminder_sent` are not read by any command or job (`SendRemindersCommand` only handles questionnaire reminders).
+- **Today is the user's own day**: `calendar.index` sends `today` (`User::today()`, from `users.timezone`); the page uses it for the upcoming/past split and as the default date of a new event. The relationship hub's upcoming events and the timeline's calendar entries use the same date. Event dates stay plain dates.
+- Reminders are whole-day: `time` is never used to decide when to send (it is nullable and has no timezone), only shown in the text. The reminder appears within an hour of the due day starting in the owner's timezone; the partner gets it at the same moment. An event created after its due day has started is reminded on the next hourly run; a past event never is. In-app only, no email.
 - Suspected issue: `CalendarEventCreated` is never dispatched (not in `store`, not in `AddDateNightPlanToCalendarAction`) and has an empty listener list in `app/Providers/EventServiceProvider.php:96`. As a result `calendar_events_created` achievements are only awarded on the next questionnaire completion or moment creation (see challenges-achievements-streaks.md).
 - Suspected issue: `time` is validated as `H:i`, but the column is `TIME` and is not cast, so on databases that return `HH:MM:SS` the edit form would send back a value that fails validation. Not verified against the production database driver.
 - Dead code: `App\Enums\CalendarEventType` (the model does not cast `type`), `App\Events\CalendarEventCreated`.
@@ -92,10 +101,15 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 
 - `tests/Feature/CalendarEventTest.php` - index, create, update own, cannot update other's, delete own, cannot delete other's.
 
-Run: `php artisan test --filter=CalendarEventTest`
+- `tests/Feature/Commands/SendCalendarRemindersCommandTest.php` - sent once to owner and partner, not before due, not without a reminder or for a past event, owner timezone, re-armed when the date changes.
+
+Run: `php artisan test --filter="CalendarEventTest|SendCalendarRemindersCommandTest"`
 
 Not covered: partner visibility on index/show, validation limits.
 
 ## Change log
 
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Roadmap Phase 1: delete asks first; `CalendarEventCreated` is dispatched on create and re-evaluates achievements.
+- 2026-11-24 — Roadmap Phase 2 (2.3): reminders are sent. New hourly `datenight:send-calendar-reminders` notifies the owner and partner (`calendar_reminder`) and sets `reminder_sent`; changing the date or reminder re-arms it.
+- 2026-11-25 — Roadmap Phase 3 (3.14): the upcoming/past split and the default date use the user's timezone (`today` prop).

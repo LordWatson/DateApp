@@ -38,16 +38,19 @@ class Answer extends Model
         ];
     }
 
+    /** @return BelongsTo<Response, $this> */
     public function response(): BelongsTo
     {
         return $this->belongsTo(Response::class);
     }
 
+    /** @return BelongsTo<Question, $this> */
     public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class);
     }
 
+    /** @return BelongsTo<QuestionOption, $this> */
     public function questionOption(): BelongsTo
     {
         return $this->belongsTo(QuestionOption::class);

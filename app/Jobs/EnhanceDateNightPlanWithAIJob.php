@@ -97,7 +97,7 @@ final class EnhanceDateNightPlanWithAIJob implements ShouldQueue
                 // {{context}} placeholder in the prompt template resolves to
                 // the complete structured context (questionnaire + answers).
                 'context' => $contextPayload,
-            ]);
+            ], array_values(array_filter([$plan->partnerOneResponse?->user, $plan->partnerTwoResponse?->user])));
         } catch (Throwable $e) {
             Log::warning('EnhanceDateNightPlanWithAIJob: AI call threw; fallback recorded.', [
                 'plan_id' => $plan->id,

@@ -32,6 +32,11 @@ final readonly class AIResponse
         public ?string $errorMessage = null,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $usage
+     * @param  array<string, mixed>  $raw
+     */
     public static function success(
         AIUseCase $useCase,
         array $data,
@@ -49,6 +54,9 @@ final readonly class AIResponse
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $raw
+     */
     public static function failure(
         AIUseCase $useCase,
         string $errorCode,

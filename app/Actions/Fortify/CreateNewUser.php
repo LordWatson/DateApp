@@ -7,7 +7,9 @@ use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Models\User;
 use App\Services\PartnerInvitationService;
+use App\Services\RuntimeSettings;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
@@ -26,15 +28,25 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        if (! app(RuntimeSettings::class)->flag('registration')) {
+            throw ValidationException::withMessages([
+                'email' => 'Registration is closed at the moment. Please try again later.',
+            ]);
+        }
+
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
+            'terms' => ['accepted'],
+        ], [
+            'terms.accepted' => 'Please agree to the Terms and Privacy Policy to create an account.',
         ])->validate();
 
         $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
+            'terms_accepted_at' => now(),
         ]);
 
         $this->acceptPendingInvitation($user);

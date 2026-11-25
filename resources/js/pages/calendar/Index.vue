@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ChevronRight, MapPin, Pencil, Plus, Trash2, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
@@ -39,6 +40,8 @@ interface EventType {
 const props = defineProps<{
     events: CalendarEvent[];
     eventTypes: EventType[];
+    /** Today's date (YYYY-MM-DD) in the user's own timezone. */
+    today: string;
 }>();
 
 const showForm = ref(false);
@@ -49,7 +52,7 @@ const form = useForm({
     description: '',
     type: 'custom',
     emoji: '',
-    date: new Date().toISOString().split('T')[0],
+    date: props.today,
     time: '',
     location: '',
     notes: '',
@@ -57,24 +60,22 @@ const form = useForm({
     reminder: '',
 });
 
-const today = new Date().toISOString().split('T')[0];
-
 const upcomingEvents = computed(() =>
     props.events
-        .filter((e) => e.date >= today)
+        .filter((e) => e.date >= props.today)
         .sort((a, b) => a.date.localeCompare(b.date)),
 );
 
 const pastEvents = computed(() =>
     props.events
-        .filter((e) => e.date < today)
+        .filter((e) => e.date < props.today)
         .sort((a, b) => b.date.localeCompare(a.date)),
 );
 
 function openCreate(): void {
     editingEvent.value = null;
     form.reset();
-    form.date = today;
+    form.date = props.today;
     showForm.value = true;
 }
 
@@ -111,8 +112,12 @@ function submit(): void {
     }
 }
 
-function deleteEvent(event: CalendarEvent): void {
-    router.delete(destroy.url({ calendarEvent: event.id }));
+const eventToDelete = ref<CalendarEvent | null>(null);
+
+function deleteEvent(): void {
+    if (eventToDelete.value) {
+        router.delete(destroy.url({ calendarEvent: eventToDelete.value.id }));
+    }
 }
 
 function truncateDescription(description: string): string {
@@ -240,7 +245,7 @@ const iconButtonClass =
                                 'text-destructive hover:bg-destructive/10',
                             ]"
                             :aria-label="`Delete ${event.title}`"
-                            @click.stop="deleteEvent(event)"
+                            @click.stop="eventToDelete = event"
                         >
                             <Trash2 class="size-4" aria-hidden="true" />
                         </button>
@@ -490,6 +495,13 @@ const iconButtonClass =
             </div>
         </Transition>
     </Teleport>
+    <ConfirmDialog
+        :open="eventToDelete !== null"
+        title="Delete this event?"
+        description="It is removed from your shared calendar and cannot be brought back."
+        @update:open="eventToDelete = null"
+        @confirm="deleteEvent"
+    />
 </template>
 
 <style scoped>

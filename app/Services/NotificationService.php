@@ -46,6 +46,15 @@ class NotificationService
 
     public function notifyPartnerViewedPlan(User $recipient, DateNightPlan $plan): void
     {
+        $alreadyTold = AppNotification::where('user_id', $recipient->id)
+            ->where('type', NotificationType::PartnerViewedPlan)
+            ->where('data->plan_id', $plan->id)
+            ->exists();
+
+        if ($alreadyTold) {
+            return;
+        }
+
         AppNotification::create([
             'user_id' => $recipient->id,
             'type' => NotificationType::PartnerViewedPlan,

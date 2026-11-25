@@ -4,6 +4,7 @@ import {
     Bell,
     BookHeart,
     LayoutGrid,
+    Search,
     Sparkles,
     Trophy,
     User,
@@ -16,6 +17,7 @@ import QuestionnaireController from '@/actions/App/Http/Controllers/Questionnair
 import RelationshipHubController from '@/actions/App/Http/Controllers/RelationshipHubController';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Toaster } from '@/components/ui/sonner';
+import { index as searchIndex } from '@/routes/search';
 
 interface NavItem {
     label: string;
@@ -41,11 +43,7 @@ const navItems: NavItem[] = [
 
 const page = usePage();
 
-const unreadCount = computed(
-    () =>
-        ((page.props as Record<string, unknown>)
-            .unreadNotificationsCount as number) ?? 0,
-);
+const unreadCount = computed(() => page.props.unreadNotificationsCount ?? 0);
 
 function isActive(href: string): boolean {
     return page.url === href || page.url.startsWith(href + '/');
@@ -77,6 +75,13 @@ function isActive(href: string): boolean {
 
                 <slot name="header-actions">
                     <div class="flex items-center gap-1">
+                        <Link
+                            :href="searchIndex().url"
+                            class="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-primary active:scale-95"
+                            aria-label="Search"
+                        >
+                            <Search class="size-5" aria-hidden="true" />
+                        </Link>
                         <Link
                             :href="NotificationController.index().url"
                             class="relative flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-primary active:scale-95"

@@ -38,7 +38,10 @@ final class DateNightPlanPresenter
             'is_solo' => $plan->is_solo,
             'location_label' => $plan->location_label,
             'local_suggestions' => $plan->local_suggestions ?? [],
-            'is_favourite' => $plan->is_favourite,
+            // Per viewer: set by DateNightPlan::scopeWithFavouriteFor or loadExists.
+            'is_favourite' => (bool) $plan->is_favourite,
+            'ai_enhanced' => (bool) $plan->ai_enhanced,
+            'fallback_used' => (bool) $plan->fallback_used,
             'is_liked' => $isLiked,
             'likes_count' => (int) ($plan->liked_by_count ?? 0),
             'created_at' => $plan->created_at?->toISOString(),
@@ -61,8 +64,10 @@ final class DateNightPlanPresenter
             'id' => $plan->id,
             'theme' => $plan->theme,
             'theme_emoji' => $plan->theme_emoji,
-            'compatibility_score' => $plan->compatibility_score,
-            'is_favourite' => $plan->is_favourite,
+            // One person answered, so there is nothing to compare.
+            'compatibility_score' => $plan->is_solo ? null : $plan->compatibility_score,
+            'is_solo' => $plan->is_solo,
+            'is_favourite' => (bool) $plan->is_favourite,
             'created_at' => $plan->created_at?->toISOString(),
             'questionnaire_title' => $plan->questionnaire?->title,
         ];

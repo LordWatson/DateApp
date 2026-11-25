@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $description
  * @property string|null $emoji
  * @property string $value
+ * @property list<string>|null $signals
  * @property int $display_order
  */
 class QuestionOption extends Model
@@ -28,14 +29,24 @@ class QuestionOption extends Model
         'description',
         'emoji',
         'value',
+        'signals',
         'display_order',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'signals' => 'array',
+        ];
+    }
+
+    /** @return BelongsTo<Question, $this> */
     public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class);
     }
 
+    /** @return HasMany<Answer, $this> */
     public function answers(): HasMany
     {
         return $this->hasMany(Answer::class);

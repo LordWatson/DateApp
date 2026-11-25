@@ -2,11 +2,11 @@
 import { router } from '@inertiajs/vue3';
 import { X, Flame } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -32,7 +32,7 @@ const search = ref('');
 
 const applyFilters = () => {
     router.get(
-        route('admin.couples.index'),
+        admin.couples.index().url,
         { search: search.value },
         { preserveState: true },
     );
@@ -42,7 +42,7 @@ const confirmDisconnect = ref<number | null>(null);
 
 const doDisconnect = (id: number) => {
     router.post(
-        route('admin.couples.disconnect', id),
+        admin.couples.disconnect(id).url,
         {},
         {
             onSuccess: () => {

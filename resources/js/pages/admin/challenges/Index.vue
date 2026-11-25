@@ -2,11 +2,11 @@
 import { router, useForm } from '@inertiajs/vue3';
 import { Plus, X } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -34,7 +34,7 @@ const difficulty = ref('');
 
 const applyFilters = () => {
     router.get(
-        route('admin.challenges.index'),
+        admin.challenges.index().url,
         { search: search.value, difficulty: difficulty.value },
         { preserveState: true },
     );
@@ -89,7 +89,7 @@ const startEdit = (challenge: {
 };
 
 const saveEdit = () => {
-    editForm.put(route('admin.challenges.update', editingId.value!), {
+    editForm.put(admin.challenges.update(editingId.value!).url, {
         onSuccess: () => {
             editingId.value = null;
         },
@@ -97,7 +97,7 @@ const saveEdit = () => {
 };
 
 const doCreate = () => {
-    createForm.post(route('admin.challenges.store'), {
+    createForm.post(admin.challenges.store().url, {
         onSuccess: () => {
             showCreate.value = false;
             createForm.reset();
@@ -106,7 +106,7 @@ const doCreate = () => {
 };
 
 const doDelete = (id: number) => {
-    router.delete(route('admin.challenges.destroy', id), {
+    router.delete(admin.challenges.destroy(id).url, {
         onSuccess: () => {
             confirmDelete.value = null;
         },
@@ -114,7 +114,7 @@ const doDelete = (id: number) => {
 };
 
 const doArchive = (id: number) => {
-    router.post(route('admin.challenges.archive', id));
+    router.post(admin.challenges.archive(id).url);
 };
 
 const columns = [

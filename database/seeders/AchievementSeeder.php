@@ -160,6 +160,26 @@ class AchievementSeeder extends Seeder
                 'unlock_condition' => 'love_notes_sent',
                 'unlock_value' => 50,
             ],
+            [
+                'name' => 'First Challenge',
+                'description' => 'Complete your first daily challenge.',
+                'emoji' => '✨',
+                'category' => 'challenges',
+                'points' => 10,
+                'hidden' => false,
+                'unlock_condition' => 'challenges_completed',
+                'unlock_value' => 1,
+            ],
+            [
+                'name' => 'Challenge Champion',
+                'description' => 'Complete 10 daily challenges.',
+                'emoji' => '🏅',
+                'category' => 'challenges',
+                'points' => 50,
+                'hidden' => false,
+                'unlock_condition' => 'challenges_completed',
+                'unlock_value' => 10,
+            ],
         ];
 
         foreach ($achievements as $achievement) {

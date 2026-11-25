@@ -121,7 +121,7 @@ class AIInfrastructureTest extends TestCase
         $response = $service->generateConversationPrompt([
             'name' => 'Alex',
             'payload' => ['mood' => 'calm'],
-        ]);
+        ], []);
 
         $this->assertTrue($response->successful);
         $this->assertSame(['ok' => true], $response->data);
@@ -143,7 +143,7 @@ class AIInfrastructureTest extends TestCase
 
         $this->expectException(RuntimeException::class);
 
-        $this->app->make(AIService::class)->generateMomentCaption();
+        $this->app->make(AIService::class)->generateMomentCaption([], []);
     }
 
     public function test_ai_service_uses_highest_active_version(): void
@@ -175,7 +175,7 @@ class AIInfrastructureTest extends TestCase
             }
         });
 
-        $this->app->make(AIService::class)->enhanceThemeDescription();
+        $this->app->make(AIService::class)->enhanceThemeDescription([], []);
 
         $this->assertSame('v3', $captured->userPrompt);
     }
@@ -194,7 +194,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertTrue($response->successful);
         $this->assertSame(['prompt' => 'Hi'], $response->data);
@@ -215,7 +215,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('invalid_json', $response->errorCode);
@@ -242,7 +242,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('response_truncated', $response->errorCode);
@@ -261,7 +261,7 @@ class AIInfrastructureTest extends TestCase
             'max_tokens' => 3000,
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt();
+        $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         Http::assertSent(static fn ($request): bool => $request->data()['max_tokens'] === 3000);
     }
@@ -278,7 +278,7 @@ class AIInfrastructureTest extends TestCase
             'max_tokens' => null,
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt();
+        $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         Http::assertSent(static fn ($request): bool => $request->data()['max_tokens'] === 1200);
     }
@@ -291,7 +291,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('invalid_payload', $response->errorCode);
@@ -307,7 +307,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('http_error', $response->errorCode);
@@ -320,7 +320,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('missing_api_key', $response->errorCode);
@@ -340,7 +340,7 @@ class AIInfrastructureTest extends TestCase
             'user_prompt_template' => 'usr',
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt();
+        $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         Http::assertSent(function ($request): bool {
             $body = $request->data();
@@ -362,11 +362,11 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateDateNightPlan(['x' => 1]);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan(['x' => 1], []);
 
         $this->assertTrue($response->successful);
         $this->assertSame('null', $response->model);
-        $this->assertArrayHasKey('title', $response->data);
+        $this->assertArrayHasKey('summary', $response->data);
     }
 
     public function test_ai_request_dto_is_immutable_and_typed(): void
@@ -418,7 +418,7 @@ class AIInfrastructureTest extends TestCase
             'user_prompt_template' => 'usr',
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt();
+        $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         Http::assertSent(function ($request): bool {
             $body = $request->data();
@@ -454,7 +454,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertTrue($response->successful);
         $this->assertSame(['prompt' => 'Hi'], $response->data);
@@ -479,7 +479,7 @@ class AIInfrastructureTest extends TestCase
         $service = $this->app->make(AIService::class);
 
         foreach (['response_truncated', 'refused', 'invalid_json', 'invalid_payload', 'http_error'] as $expected) {
-            $response = $service->generateConversationPrompt();
+            $response = $service->generateConversationPrompt([], []);
 
             $this->assertFalse($response->successful);
             $this->assertSame($expected, $response->errorCode);
@@ -494,7 +494,7 @@ class AIInfrastructureTest extends TestCase
 
         AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt();
+        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $this->assertSame('missing_api_key', $response->errorCode);
         Http::assertNothingSent();

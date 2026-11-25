@@ -23,26 +23,29 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Dashboard
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-    // Users
+    // Users: any admin can look, only user managers can change anything
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [AdminUserController::class, 'index'])->name('index');
         Route::get('/{user}', [AdminUserController::class, 'show'])->name('show');
-        Route::put('/{user}', [AdminUserController::class, 'update'])->name('update');
-        Route::post('/{user}/suspend', [AdminUserController::class, 'suspend'])->name('suspend');
-        Route::post('/{user}/unsuspend', [AdminUserController::class, 'unsuspend'])->name('unsuspend');
-        Route::post('/{user}/disconnect', [AdminUserController::class, 'disconnect'])->name('disconnect');
-        Route::delete('/{user}', [AdminUserController::class, 'destroy'])->name('destroy');
+
+        Route::middleware('can:manage-users')->group(function () {
+            Route::put('/{user}', [AdminUserController::class, 'update'])->name('update');
+            Route::post('/{user}/suspend', [AdminUserController::class, 'suspend'])->name('suspend');
+            Route::post('/{user}/unsuspend', [AdminUserController::class, 'unsuspend'])->name('unsuspend');
+            Route::post('/{user}/disconnect', [AdminUserController::class, 'disconnect'])->name('disconnect');
+            Route::delete('/{user}', [AdminUserController::class, 'destroy'])->name('destroy');
+        });
     });
 
     // Couples
-    Route::prefix('couples')->name('couples.')->group(function () {
+    Route::prefix('couples')->name('couples.')->middleware('can:manage-users')->group(function () {
         Route::get('/', [AdminCoupleController::class, 'index'])->name('index');
         Route::post('/{user}/disconnect', [AdminCoupleController::class, 'disconnect'])->name('disconnect');
         Route::post('/reconnect', [AdminCoupleController::class, 'reconnect'])->name('reconnect');
     });
 
     // Questionnaires
-    Route::prefix('questionnaires')->name('questionnaires.')->group(function () {
+    Route::prefix('questionnaires')->name('questionnaires.')->middleware('can:manage-content')->group(function () {
         Route::get('/', [AdminQuestionnaireController::class, 'index'])->name('index');
         Route::get('/create', [AdminQuestionnaireController::class, 'create'])->name('create');
         Route::post('/', [AdminQuestionnaireController::class, 'store'])->name('store');
@@ -54,26 +57,26 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     });
 
     // Questions
-    Route::prefix('questionnaires/{questionnaire}/questions')->name('questions.')->group(function () {
+    Route::prefix('questionnaires/{questionnaire}/questions')->name('questions.')->middleware('can:manage-content')->group(function () {
         Route::post('/', [AdminQuestionController::class, 'store'])->name('store');
     });
-    Route::prefix('questions')->name('questions.')->group(function () {
+    Route::prefix('questions')->name('questions.')->middleware('can:manage-content')->group(function () {
         Route::put('/{question}', [AdminQuestionController::class, 'update'])->name('update');
         Route::delete('/{question}', [AdminQuestionController::class, 'destroy'])->name('destroy');
     });
 
     // Options
-    Route::prefix('questions/{question}/options')->name('options.')->group(function () {
+    Route::prefix('questions/{question}/options')->name('options.')->middleware('can:manage-content')->group(function () {
         Route::post('/', [AdminOptionController::class, 'store'])->name('store');
     });
-    Route::prefix('options')->name('options.')->group(function () {
+    Route::prefix('options')->name('options.')->middleware('can:manage-content')->group(function () {
         Route::put('/{option}', [AdminOptionController::class, 'update'])->name('update');
         Route::delete('/{option}', [AdminOptionController::class, 'destroy'])->name('destroy');
         Route::post('/{option}/duplicate', [AdminOptionController::class, 'duplicate'])->name('duplicate');
     });
 
     // Challenges
-    Route::prefix('challenges')->name('challenges.')->group(function () {
+    Route::prefix('challenges')->name('challenges.')->middleware('can:manage-content')->group(function () {
         Route::get('/', [AdminChallengeController::class, 'index'])->name('index');
         Route::post('/', [AdminChallengeController::class, 'store'])->name('store');
         Route::put('/{challenge}', [AdminChallengeController::class, 'update'])->name('update');
@@ -83,7 +86,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     });
 
     // Achievements
-    Route::prefix('achievements')->name('achievements.')->group(function () {
+    Route::prefix('achievements')->name('achievements.')->middleware('can:manage-content')->group(function () {
         Route::get('/', [AdminAchievementController::class, 'index'])->name('index');
         Route::post('/', [AdminAchievementController::class, 'store'])->name('store');
         Route::put('/{achievement}', [AdminAchievementController::class, 'update'])->name('update');
@@ -91,7 +94,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     });
 
     // Feature Flags
-    Route::prefix('feature-flags')->name('feature-flags.')->group(function () {
+    Route::prefix('feature-flags')->name('feature-flags.')->middleware('can:super-admin')->group(function () {
         Route::get('/', [AdminFeatureFlagController::class, 'index'])->name('index');
         Route::post('/', [AdminFeatureFlagController::class, 'store'])->name('store');
         Route::put('/{featureFlag}', [AdminFeatureFlagController::class, 'update'])->name('update');
@@ -99,21 +102,21 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     });
 
     // System Settings
-    Route::prefix('settings')->name('settings.')->group(function () {
+    Route::prefix('settings')->name('settings.')->middleware('can:super-admin')->group(function () {
         Route::get('/', [AdminSystemSettingController::class, 'index'])->name('index');
         Route::put('/{systemSetting}', [AdminSystemSettingController::class, 'update'])->name('update');
         Route::post('/bulk', [AdminSystemSettingController::class, 'bulkUpdate'])->name('bulk-update');
     });
 
     // Email Templates
-    Route::prefix('email-templates')->name('email-templates.')->group(function () {
+    Route::prefix('email-templates')->name('email-templates.')->middleware('can:manage-content')->group(function () {
         Route::get('/', [AdminEmailTemplateController::class, 'index'])->name('index');
         Route::get('/{emailTemplate}/edit', [AdminEmailTemplateController::class, 'edit'])->name('edit');
         Route::put('/{emailTemplate}', [AdminEmailTemplateController::class, 'update'])->name('update');
     });
 
     // AI Prompt Templates
-    Route::prefix('ai-prompts')->name('ai-prompts.')->group(function () {
+    Route::prefix('ai-prompts')->name('ai-prompts.')->middleware('can:manage-content')->group(function () {
         Route::get('/', [AdminAiPromptController::class, 'index'])->name('index');
         Route::post('/', [AdminAiPromptController::class, 'store'])->name('store');
         Route::put('/{aiPromptTemplate}', [AdminAiPromptController::class, 'update'])->name('update');
@@ -121,25 +124,26 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     });
 
     // AI Settings (provider, model, tokens, retries, plus test/preview + analytics)
-    Route::prefix('ai-settings')->name('ai-settings.')->group(function () {
+    Route::prefix('ai-settings')->name('ai-settings.')->middleware('can:super-admin')->group(function () {
         Route::get('/', [AdminAiSettingController::class, 'index'])->name('index');
         Route::put('/', [AdminAiSettingController::class, 'update'])->name('update');
-        Route::post('/test-connection', [AdminAiSettingController::class, 'testConnection'])->name('test-connection');
+        Route::post('/test-connection', [AdminAiSettingController::class, 'testConnection'])->middleware('throttle:ai')->name('test-connection');
         Route::get('/preview-prompt', [AdminAiSettingController::class, 'previewPrompt'])->name('preview-prompt');
-        Route::post('/preview-response', [AdminAiSettingController::class, 'previewResponse'])->name('preview-response');
+        Route::post('/preview-response', [AdminAiSettingController::class, 'previewResponse'])->middleware('throttle:ai')->name('preview-response');
     });
 
     // Media Library
-    Route::prefix('media')->name('media.')->group(function () {
+    Route::prefix('media')->name('media.')->middleware('can:manage-content')->group(function () {
         Route::get('/', [AdminMediaController::class, 'index'])->name('index');
         Route::post('/', [AdminMediaController::class, 'store'])->name('store');
+        Route::get('/{mediaLibrary}', [AdminMediaController::class, 'show'])->name('show');
         Route::put('/{mediaLibrary}', [AdminMediaController::class, 'update'])->name('update');
         Route::delete('/{mediaLibrary}', [AdminMediaController::class, 'destroy'])->name('destroy');
     });
 
     // Audit Logs
-    Route::get('audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('audit-logs', [AdminAuditLogController::class, 'index'])->middleware('can:manage-users')->name('audit-logs.index');
 
     // Analytics
-    Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics.index');
+    Route::get('analytics', [AdminAnalyticsController::class, 'index'])->middleware('can:view-analytics')->name('analytics.index');
 });

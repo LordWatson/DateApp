@@ -2,11 +2,11 @@
 import { Link, router } from '@inertiajs/vue3';
 import { Plus, X } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 import { create } from '@/routes/admin/questionnaires';
 import { edit } from '@/routes/admin/questionnaires';
 
@@ -36,7 +36,7 @@ const status = ref('');
 
 const applyFilters = () => {
     router.get(
-        route('admin.questionnaires.index'),
+        admin.questionnaires.index().url,
         { search: search.value, status: status.value },
         { preserveState: true },
     );
@@ -45,7 +45,7 @@ const applyFilters = () => {
 const confirmDelete = ref<number | null>(null);
 
 const doDelete = (id: number) => {
-    router.delete(route('admin.questionnaires.destroy', id), {
+    router.delete(admin.questionnaires.destroy(id).url, {
         onSuccess: () => {
             confirmDelete.value = null;
         },
@@ -53,7 +53,7 @@ const doDelete = (id: number) => {
 };
 
 const doDuplicate = (id: number) => {
-    router.post(route('admin.questionnaires.duplicate', id));
+    router.post(admin.questionnaires.duplicate(id).url);
 };
 
 const columns = [

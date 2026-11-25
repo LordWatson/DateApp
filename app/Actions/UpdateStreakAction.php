@@ -12,8 +12,12 @@ class UpdateStreakAction
         $now = Carbon::now();
         $last = $user->last_completed_questionnaire_at;
 
-        $isConsecutiveDay = $last && $last->isYesterday();
-        $isSameDay = $last && $last->isToday();
+        // A day is a day where the user lives, not a UTC day.
+        $today = $user->today();
+        $lastDay = $last?->toImmutable()->setTimezone($today->timezone)->toDateString();
+
+        $isConsecutiveDay = $lastDay === $today->subDay()->toDateString();
+        $isSameDay = $lastDay === $today->toDateString();
 
         $newStreak = match (true) {
             $isSameDay => $user->current_streak,

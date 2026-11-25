@@ -10,6 +10,11 @@ class ChallengeSeeder extends Seeder
 {
     public function run(): void
     {
+        // Already seeded: running again would duplicate every challenge.
+        if (Challenge::query()->exists()) {
+            return;
+        }
+
         $challenges = [
             ['Cook a meal together', '🍳', ChallengeDifficulty::Medium],
             ['Watch the sunset', '🌅', ChallengeDifficulty::Easy],

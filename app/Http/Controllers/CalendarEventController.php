@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\CalendarEventCreated;
 use App\Http\Requests\CalendarEvent\StoreCalendarEventRequest;
 use App\Http\Requests\CalendarEvent\UpdateCalendarEventRequest;
 use App\Models\CalendarEvent;
@@ -35,6 +36,8 @@ class CalendarEventController extends Controller
 
         return Inertia::render('calendar/Index', [
             'events' => $events,
+            // The user's own "today": it splits upcoming from past and is the default date.
+            'today' => $user->today()->toDateString(),
             'eventTypes' => $this->eventTypes(),
         ]);
     }
@@ -53,7 +56,9 @@ class CalendarEventController extends Controller
 
     public function store(StoreCalendarEventRequest $request): RedirectResponse
     {
-        $request->user()->calendarEvents()->create($request->validated());
+        $event = $request->user()->calendarEvents()->create($request->validated());
+
+        CalendarEventCreated::dispatch($request->user(), $event);
 
         return redirect()->route('calendar.index')->with('success', 'Event created!');
     }
@@ -61,7 +66,14 @@ class CalendarEventController extends Controller
     public function update(UpdateCalendarEventRequest $request, CalendarEvent $calendarEvent): RedirectResponse
     {
         $this->authorize('update', $calendarEvent);
-        $calendarEvent->update($request->validated());
+        $calendarEvent->fill($request->validated());
+
+        // A moved event or a changed reminder is due again.
+        if ($calendarEvent->isDirty(['date', 'reminder'])) {
+            $calendarEvent->reminder_sent = false;
+        }
+
+        $calendarEvent->save();
 
         return redirect()->route('calendar.index')->with('success', 'Event updated!');
     }
@@ -74,6 +86,7 @@ class CalendarEventController extends Controller
         return redirect()->route('calendar.index')->with('success', 'Event deleted!');
     }
 
+    /** @return array<string, mixed> */
     private function formatEvent(CalendarEvent $event, string $ownerName, bool $isMine): array
     {
         return [
@@ -93,6 +106,7 @@ class CalendarEventController extends Controller
         ];
     }
 
+    /** @return list<array{value: string, label: string, emoji: string}> */
     private function eventTypes(): array
     {
         return [

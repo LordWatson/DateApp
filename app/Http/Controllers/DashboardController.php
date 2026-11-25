@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CompletionStatus;
-use App\Models\Challenge;
+use App\Models\DailyChallenge;
 use App\Models\DateNightPlan;
 use App\Models\Response as QuestionnaireResponse;
 use Illuminate\Http\Request;
@@ -59,12 +59,14 @@ class DashboardController extends Controller
                 'created_at' => $plan->created_at?->toISOString(),
             ]);
 
-        $todayChallenge = Challenge::inRandomOrder()->first();
+        $dailyChallenge = DailyChallenge::forToday();
+        $todayChallenge = $dailyChallenge?->challenge;
+        $challengeDoneBy = $dailyChallenge?->completedUserIds() ?? collect();
 
         $pendingInvitation = $user->pendingInvitation();
 
         return Inertia::render('Dashboard', [
-            'partner' => $user->partner,
+            'partner' => $user->partner?->only(['id', 'name', 'display_name', 'avatar']),
             'pendingInvitation' => $pendingInvitation ? [
                 'email' => $pendingInvitation->email,
                 'expires_at' => $pendingInvitation->expires_at->toISOString(),
@@ -72,7 +74,11 @@ class DashboardController extends Controller
             'stats' => [
                 'current_streak' => $user->current_streak,
                 'longest_streak' => $user->longest_streak,
-                'monthly_completions' => $user->monthly_completion_count,
+                // Counted here: the stored counter only ever goes up.
+                'monthly_completions' => $user->responses()
+                    ->where('status', CompletionStatus::Completed)
+                    ->where('completed_at', '>=', $user->today()->startOfMonth()->utc())
+                    ->count(),
             ],
             'todayChallenge' => $todayChallenge ? [
                 'id' => $todayChallenge->id,
@@ -80,6 +86,8 @@ class DashboardController extends Controller
                 'description' => $todayChallenge->description,
                 'emoji' => $todayChallenge->emoji ?? '✨',
                 'difficulty' => $todayChallenge->difficulty->value,
+                'completed_by_me' => $challengeDoneBy->contains($user->id),
+                'completed_by_partner' => $user->partner_id ? $challengeDoneBy->contains($user->partner_id) : null,
             ] : null,
             'recentQuestionnaires' => $recentQuestionnaires,
             'recentDateNights' => $recentDateNights,

@@ -42,8 +42,11 @@ final class SendMomentNotificationJob implements ShouldQueue
             'data' => ['moment_id' => $this->moment->id],
         ]);
 
-        Mail::to($this->recipient->email)
-            ->queue(new MomentCreatedMail($this->recipient, $creator, $this->moment));
+        // The in-app notification above is always created; only the email is optional.
+        if ($this->recipient->email_notifications) {
+            Mail::to($this->recipient->email)
+                ->queue(new MomentCreatedMail($this->recipient, $creator, $this->moment));
+        }
     }
 
     public function failed(\Throwable $e): void

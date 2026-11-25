@@ -27,11 +27,13 @@ class SavedProfile extends Model
         'colour',
     ];
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return HasMany<SavedProfileAnswer, $this> */
     public function answers(): HasMany
     {
         return $this->hasMany(SavedProfileAnswer::class);

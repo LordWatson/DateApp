@@ -17,6 +17,7 @@ class OnboardingTest extends TestCase
             'email' => 'alex@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'terms' => true,
         ]);
 
         $user = User::where('email', 'alex@example.com')->first();

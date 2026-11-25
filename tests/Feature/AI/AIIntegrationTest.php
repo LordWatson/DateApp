@@ -71,7 +71,7 @@ final class AIIntegrationTest extends TestCase
             }
         });
 
-        $this->app->make(AIService::class)->generateConversationPrompt(['x' => 1]);
+        $this->app->make(AIService::class)->generateConversationPrompt(['x' => 1], []);
 
         $this->assertDatabaseCount('ai_generations', 1);
         $row = AiGeneration::first();
@@ -100,7 +100,7 @@ final class AIIntegrationTest extends TestCase
             }
         });
 
-        $this->app->make(AIService::class)->generateConversationPrompt();
+        $this->app->make(AIService::class)->generateConversationPrompt([], []);
 
         $row = AiGeneration::first();
         $this->assertNotNull($row);
@@ -209,8 +209,8 @@ final class AIIntegrationTest extends TestCase
         });
 
         $key = 'ai:convprompt:test';
-        (new GenerateConversationPromptJob(1, $key))->handle($this->app->make(AIService::class));
-        (new GenerateConversationPromptJob(1, $key))->handle($this->app->make(AIService::class));
+        (new GenerateConversationPromptJob(User::factory()->create()->id, $key))->handle($this->app->make(AIService::class));
+        (new GenerateConversationPromptJob(User::factory()->create()->id, $key))->handle($this->app->make(AIService::class));
 
         $this->assertSame(1, $calls, 'AI provider must only be called once when the cache is warm.');
         $this->assertSame(['prompt' => 'Hello!'], Cache::get($key));
@@ -234,14 +234,14 @@ final class AIIntegrationTest extends TestCase
         });
 
         $key = 'ai:convprompt:fail';
-        (new GenerateConversationPromptJob(1, $key))->handle($this->app->make(AIService::class));
+        (new GenerateConversationPromptJob(User::factory()->create()->id, $key))->handle($this->app->make(AIService::class));
 
         $this->assertFalse(Cache::has($key));
     }
 
     public function test_admin_can_view_ai_settings_page(): void
     {
-        $role = Role::factory()->create(['name' => UserRole::Administrator->value, 'label' => 'Admin']);
+        $role = Role::factory()->create(['name' => UserRole::SuperAdministrator->value, 'label' => 'Super admin']);
         $admin = User::factory()->create(['role_id' => $role->id]);
 
         $response = $this->actingAs($admin)->get('/admin/ai-settings');
@@ -251,7 +251,7 @@ final class AIIntegrationTest extends TestCase
 
     public function test_admin_can_update_ai_settings(): void
     {
-        $role = Role::factory()->create(['name' => UserRole::Administrator->value, 'label' => 'Admin']);
+        $role = Role::factory()->create(['name' => UserRole::SuperAdministrator->value, 'label' => 'Super admin']);
         $admin = User::factory()->create(['role_id' => $role->id]);
 
         $this->actingAs($admin)->put('/admin/ai-settings', [
@@ -269,7 +269,7 @@ final class AIIntegrationTest extends TestCase
 
     public function test_admin_test_connection_uses_provider_and_returns_ok(): void
     {
-        $role = Role::factory()->create(['name' => UserRole::Administrator->value, 'label' => 'Admin']);
+        $role = Role::factory()->create(['name' => UserRole::SuperAdministrator->value, 'label' => 'Super admin']);
         $admin = User::factory()->create(['role_id' => $role->id]);
 
         Http::fake([

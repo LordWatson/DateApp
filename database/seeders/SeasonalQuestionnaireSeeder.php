@@ -32,8 +32,8 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🍽️', 'title' => 'Romantic dinner', 'value' => 'dinner', 'display_order' => 1],
-                            ['emoji' => '🏠', 'title' => 'Cosy night in', 'value' => 'home', 'display_order' => 2],
+                            ['emoji' => '🍽️', 'title' => 'Romantic dinner', 'value' => 'dinner', 'signals' => ['food', 'romance'], 'display_order' => 1],
+                            ['emoji' => '🏠', 'title' => 'Cosy night in', 'value' => 'home', 'signals' => ['relaxing'], 'display_order' => 2],
                             ['emoji' => '🌹', 'title' => 'Surprise me', 'value' => 'surprise', 'display_order' => 3],
                             ['emoji' => '🎭', 'title' => 'Experience or show', 'value' => 'experience', 'display_order' => 4],
                         ],
@@ -46,9 +46,9 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 2,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '💐', 'title' => 'Flowers & chocolates', 'value' => 'classic', 'display_order' => 1],
+                            ['emoji' => '💐', 'title' => 'Flowers & chocolates', 'value' => 'classic', 'signals' => ['romance'], 'display_order' => 1],
                             ['emoji' => '💎', 'title' => 'Jewellery', 'value' => 'jewellery', 'display_order' => 2],
-                            ['emoji' => '✉️', 'title' => 'Heartfelt letter', 'value' => 'letter', 'display_order' => 3],
+                            ['emoji' => '✉️', 'title' => 'Heartfelt letter', 'value' => 'letter', 'signals' => ['romance'], 'display_order' => 3],
                             ['emoji' => '🎟️', 'title' => 'Experience gift', 'value' => 'experience', 'display_order' => 4],
                         ],
                     ],
@@ -60,10 +60,10 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 3,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🕯️', 'title' => 'Deeply romantic', 'value' => 'romantic', 'display_order' => 1],
+                            ['emoji' => '🕯️', 'title' => 'Deeply romantic', 'value' => 'romantic', 'signals' => ['romance'], 'display_order' => 1],
                             ['emoji' => '😂', 'title' => 'Fun and playful', 'value' => 'playful', 'display_order' => 2],
-                            ['emoji' => '🔥', 'title' => 'Passionate', 'value' => 'passionate', 'display_order' => 3],
-                            ['emoji' => '😌', 'title' => 'Relaxed and easy', 'value' => 'relaxed', 'display_order' => 4],
+                            ['emoji' => '🔥', 'title' => 'Passionate', 'value' => 'passionate', 'signals' => ['romance'], 'display_order' => 3],
+                            ['emoji' => '😌', 'title' => 'Relaxed and easy', 'value' => 'relaxed', 'signals' => ['relaxing'], 'display_order' => 4],
                         ],
                     ],
                 ],
@@ -88,9 +88,9 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🍾', 'title' => 'Champagne & fine dining', 'value' => 'fine_dining', 'display_order' => 1],
-                            ['emoji' => '🌍', 'title' => 'Weekend getaway', 'value' => 'getaway', 'display_order' => 2],
-                            ['emoji' => '🏠', 'title' => 'Recreate our first date', 'value' => 'first_date', 'display_order' => 3],
+                            ['emoji' => '🍾', 'title' => 'Champagne & fine dining', 'value' => 'fine_dining', 'signals' => ['food', 'romance'], 'display_order' => 1],
+                            ['emoji' => '🌍', 'title' => 'Weekend getaway', 'value' => 'getaway', 'signals' => ['adventure'], 'display_order' => 2],
+                            ['emoji' => '🏠', 'title' => 'Recreate our first date', 'value' => 'first_date', 'signals' => ['romance'], 'display_order' => 3],
                             ['emoji' => '🎁', 'title' => 'Surprise experience', 'value' => 'surprise', 'display_order' => 4],
                         ],
                     ],
@@ -131,9 +131,9 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'required' => true,
                         'options' => [
                             ['emoji' => '🎊', 'title' => 'Big surprise party', 'value' => 'party', 'display_order' => 1],
-                            ['emoji' => '🍰', 'title' => 'Intimate dinner for two', 'value' => 'intimate', 'display_order' => 2],
-                            ['emoji' => '🎢', 'title' => 'Fun day out', 'value' => 'day_out', 'display_order' => 3],
-                            ['emoji' => '🛁', 'title' => 'Pamper day at home', 'value' => 'pamper', 'display_order' => 4],
+                            ['emoji' => '🍰', 'title' => 'Intimate dinner for two', 'value' => 'intimate', 'signals' => ['food', 'romance'], 'display_order' => 2],
+                            ['emoji' => '🎢', 'title' => 'Fun day out', 'value' => 'day_out', 'signals' => ['adventure'], 'display_order' => 3],
+                            ['emoji' => '🛁', 'title' => 'Pamper day at home', 'value' => 'pamper', 'signals' => ['relaxing'], 'display_order' => 4],
                         ],
                     ],
                     [
@@ -172,10 +172,10 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🏖️', 'title' => 'Beach & coast', 'value' => 'beach', 'display_order' => 1],
-                            ['emoji' => '🏔️', 'title' => 'Mountains & nature', 'value' => 'mountains', 'display_order' => 2],
+                            ['emoji' => '🏖️', 'title' => 'Beach & coast', 'value' => 'beach', 'signals' => ['outdoors'], 'display_order' => 1],
+                            ['emoji' => '🏔️', 'title' => 'Mountains & nature', 'value' => 'mountains', 'signals' => ['outdoors', 'adventure'], 'display_order' => 2],
                             ['emoji' => '🏙️', 'title' => 'City break', 'value' => 'city', 'display_order' => 3],
-                            ['emoji' => '🌿', 'title' => 'Countryside retreat', 'value' => 'countryside', 'display_order' => 4],
+                            ['emoji' => '🌿', 'title' => 'Countryside retreat', 'value' => 'countryside', 'signals' => ['outdoors', 'relaxing'], 'display_order' => 4],
                         ],
                     ],
                     [
@@ -186,9 +186,9 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 2,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🧘', 'title' => 'Relaxation & spa', 'value' => 'relax', 'display_order' => 1],
-                            ['emoji' => '🎒', 'title' => 'Adventure & explore', 'value' => 'adventure', 'display_order' => 2],
-                            ['emoji' => '🍷', 'title' => 'Food & wine', 'value' => 'food', 'display_order' => 3],
+                            ['emoji' => '🧘', 'title' => 'Relaxation & spa', 'value' => 'relax', 'signals' => ['relaxing'], 'display_order' => 1],
+                            ['emoji' => '🎒', 'title' => 'Adventure & explore', 'value' => 'adventure', 'signals' => ['adventure'], 'display_order' => 2],
+                            ['emoji' => '🍷', 'title' => 'Food & wine', 'value' => 'food', 'signals' => ['food'], 'display_order' => 3],
                             ['emoji' => '🎭', 'title' => 'Culture & arts', 'value' => 'culture', 'display_order' => 4],
                         ],
                     ],
@@ -214,10 +214,10 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🏠', 'title' => 'Cosy at home', 'value' => 'home', 'display_order' => 1],
+                            ['emoji' => '🏠', 'title' => 'Cosy at home', 'value' => 'home', 'signals' => ['relaxing'], 'display_order' => 1],
                             ['emoji' => '✈️', 'title' => 'Travel somewhere new', 'value' => 'travel', 'display_order' => 2],
                             ['emoji' => '👨‍👩‍👧', 'title' => 'With family', 'value' => 'family', 'display_order' => 3],
-                            ['emoji' => '🎿', 'title' => 'Winter adventure', 'value' => 'adventure', 'display_order' => 4],
+                            ['emoji' => '🎿', 'title' => 'Winter adventure', 'value' => 'adventure', 'signals' => ['adventure', 'outdoors'], 'display_order' => 4],
                         ],
                     ],
                     [
@@ -229,8 +229,8 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'required' => true,
                         'options' => [
                             ['emoji' => '🎁', 'title' => 'Exchanging gifts', 'value' => 'gifts', 'display_order' => 1],
-                            ['emoji' => '🍽️', 'title' => 'Christmas dinner', 'value' => 'dinner', 'display_order' => 2],
-                            ['emoji' => '🎬', 'title' => 'Christmas movies', 'value' => 'movies', 'display_order' => 3],
+                            ['emoji' => '🍽️', 'title' => 'Christmas dinner', 'value' => 'dinner', 'signals' => ['food'], 'display_order' => 2],
+                            ['emoji' => '🎬', 'title' => 'Christmas movies', 'value' => 'movies', 'signals' => ['movies'], 'display_order' => 3],
                             ['emoji' => '🌟', 'title' => 'Decorating together', 'value' => 'decorating', 'display_order' => 4],
                         ],
                     ],
@@ -257,9 +257,9 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'required' => true,
                         'options' => [
                             ['emoji' => '🎉', 'title' => 'Party with friends', 'value' => 'party', 'display_order' => 1],
-                            ['emoji' => '🥂', 'title' => 'Intimate dinner for two', 'value' => 'intimate', 'display_order' => 2],
-                            ['emoji' => '🏠', 'title' => 'Cosy night in', 'value' => 'home', 'display_order' => 3],
-                            ['emoji' => '🌃', 'title' => 'Watch the fireworks', 'value' => 'fireworks', 'display_order' => 4],
+                            ['emoji' => '🥂', 'title' => 'Intimate dinner for two', 'value' => 'intimate', 'signals' => ['food', 'romance'], 'display_order' => 2],
+                            ['emoji' => '🏠', 'title' => 'Cosy night in', 'value' => 'home', 'signals' => ['relaxing'], 'display_order' => 3],
+                            ['emoji' => '🌃', 'title' => 'Watch the fireworks', 'value' => 'fireworks', 'signals' => ['outdoors'], 'display_order' => 4],
                         ],
                     ],
                     [
@@ -298,10 +298,10 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🛁', 'title' => 'Spa & pamper day', 'value' => 'spa', 'display_order' => 1],
-                            ['emoji' => '🎬', 'title' => 'Movie marathon', 'value' => 'movies', 'display_order' => 2],
-                            ['emoji' => '🍳', 'title' => 'Cook together all day', 'value' => 'cooking', 'display_order' => 3],
-                            ['emoji' => '🎮', 'title' => 'Games & fun', 'value' => 'games', 'display_order' => 4],
+                            ['emoji' => '🛁', 'title' => 'Spa & pamper day', 'value' => 'spa', 'signals' => ['relaxing'], 'display_order' => 1],
+                            ['emoji' => '🎬', 'title' => 'Movie marathon', 'value' => 'movies', 'signals' => ['movies'], 'display_order' => 2],
+                            ['emoji' => '🍳', 'title' => 'Cook together all day', 'value' => 'cooking', 'signals' => ['food'], 'display_order' => 3],
+                            ['emoji' => '🎮', 'title' => 'Games & fun', 'value' => 'games', 'signals' => ['games'], 'display_order' => 4],
                         ],
                     ],
                     [
@@ -312,10 +312,10 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 2,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🍣', 'title' => 'Takeaway feast', 'value' => 'takeaway', 'display_order' => 1],
-                            ['emoji' => '👨‍🍳', 'title' => 'Cook a fancy meal', 'value' => 'cook', 'display_order' => 2],
-                            ['emoji' => '🧇', 'title' => 'Brunch all day', 'value' => 'brunch', 'display_order' => 3],
-                            ['emoji' => '🍿', 'title' => 'Snacks & grazing', 'value' => 'snacks', 'display_order' => 4],
+                            ['emoji' => '🍣', 'title' => 'Takeaway feast', 'value' => 'takeaway', 'signals' => ['food'], 'display_order' => 1],
+                            ['emoji' => '👨‍🍳', 'title' => 'Cook a fancy meal', 'value' => 'cook', 'signals' => ['food'], 'display_order' => 2],
+                            ['emoji' => '🧇', 'title' => 'Brunch all day', 'value' => 'brunch', 'signals' => ['food'], 'display_order' => 3],
+                            ['emoji' => '🍿', 'title' => 'Snacks & grazing', 'value' => 'snacks', 'signals' => ['food'], 'display_order' => 4],
                         ],
                     ],
                 ],
@@ -340,10 +340,10 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 1,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '📚', 'title' => 'Read together', 'value' => 'reading', 'display_order' => 1],
-                            ['emoji' => '🎬', 'title' => 'Movie day', 'value' => 'movies', 'display_order' => 2],
-                            ['emoji' => '🎲', 'title' => 'Board games', 'value' => 'games', 'display_order' => 3],
-                            ['emoji' => '🍵', 'title' => 'Tea & conversation', 'value' => 'conversation', 'display_order' => 4],
+                            ['emoji' => '📚', 'title' => 'Read together', 'value' => 'reading', 'signals' => ['relaxing'], 'display_order' => 1],
+                            ['emoji' => '🎬', 'title' => 'Movie day', 'value' => 'movies', 'signals' => ['movies'], 'display_order' => 2],
+                            ['emoji' => '🎲', 'title' => 'Board games', 'value' => 'games', 'signals' => ['games'], 'display_order' => 3],
+                            ['emoji' => '🍵', 'title' => 'Tea & conversation', 'value' => 'conversation', 'signals' => ['relaxing'], 'display_order' => 4],
                         ],
                     ],
                     [
@@ -354,10 +354,10 @@ class SeasonalQuestionnaireSeeder extends Seeder
                         'display_order' => 2,
                         'required' => true,
                         'options' => [
-                            ['emoji' => '🍜', 'title' => 'Soup & bread', 'value' => 'soup', 'display_order' => 1],
-                            ['emoji' => '🍕', 'title' => 'Pizza', 'value' => 'pizza', 'display_order' => 2],
-                            ['emoji' => '🍫', 'title' => 'Hot chocolate & cake', 'value' => 'chocolate', 'display_order' => 3],
-                            ['emoji' => '🥘', 'title' => 'Slow-cooked comfort food', 'value' => 'comfort', 'display_order' => 4],
+                            ['emoji' => '🍜', 'title' => 'Soup & bread', 'value' => 'soup', 'signals' => ['food'], 'display_order' => 1],
+                            ['emoji' => '🍕', 'title' => 'Pizza', 'value' => 'pizza', 'signals' => ['food'], 'display_order' => 2],
+                            ['emoji' => '🍫', 'title' => 'Hot chocolate & cake', 'value' => 'chocolate', 'signals' => ['food'], 'display_order' => 3],
+                            ['emoji' => '🥘', 'title' => 'Slow-cooked comfort food', 'value' => 'comfort', 'signals' => ['food'], 'display_order' => 4],
                         ],
                     ],
                 ],
@@ -385,14 +385,19 @@ class SeasonalQuestionnaireSeeder extends Seeder
                     array_merge($questionData, ['questionnaire_id' => $questionnaire->id])
                 );
 
-                foreach ($options as $optionData) {
-                    QuestionOption::firstOrCreate(
+                foreach (is_array($options) ? $options : [] as $optionData) {
+                    $option = QuestionOption::firstOrCreate(
                         [
                             'question_id' => $question->id,
                             'value' => $optionData['value'],
                         ],
                         array_merge($optionData, ['question_id' => $question->id])
                     );
+
+                    // Options seeded before signals existed get them now; tagged ones are left alone.
+                    if ($option->signals === null && isset($optionData['signals'])) {
+                        $option->update(['signals' => $optionData['signals']]);
+                    }
                 }
             }
         }

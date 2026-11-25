@@ -15,7 +15,8 @@ class QuestionnaireFactory extends Factory
 {
     public function definition(): array
     {
-        $title = fake()->unique()->words(3, true);
+        $words = fake()->unique()->words(3);
+        $title = is_array($words) ? implode(' ', $words) : $words;
 
         return [
             'title' => ucwords($title),

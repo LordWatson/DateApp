@@ -86,7 +86,12 @@ class PartnerInvitationTest extends TestCase
 
         $this->actingAs($recipient);
 
-        $response = $this->get(route('onboarding.accept-invite', ['token' => $invitation->token]));
+        // Opening the link only asks; nothing is connected until the recipient confirms.
+        $this->get(route('onboarding.accept-invite', ['token' => $invitation->token]))
+            ->assertInertia(fn ($page) => $page->component('onboarding/AcceptInvite')->where('sender.name', $sender->display_name ?? $sender->name));
+        $this->assertNull($sender->fresh()->partner_id);
+
+        $response = $this->post(route('onboarding.confirm-invite', ['token' => $invitation->token]));
 
         $response->assertRedirect(route('onboarding.index'));
         $this->assertEquals($recipient->id, $sender->fresh()->partner_id);

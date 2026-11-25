@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Check, Send } from '@lucide/vue';
-import { ref } from 'vue';
+import axios from 'axios';
+import { computed, ref, watch } from 'vue';
 import EmptyState from '@/components/EmptyState.vue';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -27,7 +28,7 @@ interface Partner {
     avatar?: string;
 }
 
-defineProps<{
+const props = defineProps<{
     sent: NoteItem[];
     received: NoteItem[];
     partner: Partner | null;
@@ -36,13 +37,23 @@ defineProps<{
 
 type Tab = 'send' | 'received' | 'sent';
 
-const tabs: { key: Tab; label: string }[] = [
-    { key: 'send', label: 'Send' },
-    { key: 'received', label: 'Received' },
-    { key: 'sent', label: 'Sent' },
-];
-
 const activeTab = ref<Tab>('send');
+
+// Notes count as read once the Received tab has actually been opened.
+const unread = ref(props.received.filter((note) => !note.read_at).length);
+
+const tabs = computed<{ key: Tab; label: string; count?: number }[]>(() => [
+    { key: 'send', label: 'Send' },
+    { key: 'received', label: 'Received', count: unread.value },
+    { key: 'sent', label: 'Sent' },
+]);
+
+watch(activeTab, (tab) => {
+    if (tab === 'received' && unread.value > 0) {
+        unread.value = 0;
+        void axios.post('/love-notes/mark-read').catch(() => undefined);
+    }
+});
 const customMessage = ref('');
 
 const form = useForm({ message: '' });

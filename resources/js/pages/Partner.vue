@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { CircleAlert, CircleCheck, Clock, TriangleAlert } from '@lucide/vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { Clock } from '@lucide/vue';
 import { ref } from 'vue';
 import PartnerController from '@/actions/App/Http/Controllers/PartnerController';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
-import type { Auth } from '@/types';
 
 defineOptions({ layout: MobileLayout });
 
@@ -23,7 +23,6 @@ interface Partner {
 interface PendingInvitation {
     email: string;
     expires_at: string;
-    token: string;
 }
 
 interface Props {
@@ -33,17 +32,13 @@ interface Props {
 }
 
 defineProps<Props>();
-const page = usePage<{
-    auth: Auth;
-    flash?: { success?: string; error?: string };
-}>();
 
 const showDisconnectConfirm = ref(false);
+const showRevokeConfirm = ref(false);
 const inviteForm = useForm({ email: '' });
 const disconnectForm = useForm({});
 const resendForm = useForm({});
-
-const flash = page.props.flash;
+const revokeForm = useForm({});
 
 function sendInvite(): void {
     inviteForm.post(PartnerController.sendInvite().url, {
@@ -57,12 +52,12 @@ function resendInvite(): void {
     resendForm.post(PartnerController.resendInvite().url);
 }
 
+function revokeInvite(): void {
+    revokeForm.delete(PartnerController.revokeInvite().url);
+}
+
 function disconnect(): void {
-    disconnectForm.delete(PartnerController.disconnect().url, {
-        onSuccess: () => {
-            showDisconnectConfirm.value = false;
-        },
-    });
+    disconnectForm.delete(PartnerController.disconnect().url);
 }
 
 function formatDate(dateStr: string): string {
@@ -85,32 +80,6 @@ const labelClass = 'mb-1.5 block text-[13px] font-medium text-foreground/80';
             title="Partner"
             description="Manage your connection"
         />
-
-        <!-- Flash messages -->
-        <div v-if="flash?.success || flash?.error" class="space-y-3">
-            <div
-                v-if="flash?.success"
-                class="flex items-start gap-2.5 rounded-2xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-success"
-                role="status"
-            >
-                <CircleCheck
-                    class="mt-0.5 size-4 shrink-0"
-                    aria-hidden="true"
-                />
-                {{ flash.success }}
-            </div>
-            <div
-                v-if="flash?.error"
-                class="flex items-start gap-2.5 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                role="alert"
-            >
-                <CircleAlert
-                    class="mt-0.5 size-4 shrink-0"
-                    aria-hidden="true"
-                />
-                {{ flash.error }}
-            </div>
-        </div>
 
         <!-- Connected partner -->
         <template v-if="partner">
@@ -154,13 +123,33 @@ const labelClass = 'mb-1.5 block text-[13px] font-medium text-foreground/80';
                         Disconnect partner
                     </h3>
                     <p class="text-sm leading-relaxed text-muted-foreground">
-                        This will remove your connection. You can reconnect at
-                        any time by sending a new invitation.
+                        This ends the connection for both of you, and
+                        {{ partner.display_name ?? partner.name }} is told.
+                        Nothing is deleted:
+                    </p>
+                    <ul
+                        class="list-disc space-y-1 pl-5 text-sm leading-relaxed text-muted-foreground"
+                    >
+                        <li>
+                            Date nights you planned together stay in both your
+                            histories.
+                        </li>
+                        <li>
+                            Love notes stay with both of you, but you can no
+                            longer send new ones.
+                        </li>
+                        <li>
+                            Moments and calendar events stay with whoever added
+                            them. You will no longer see each other's.
+                        </li>
+                    </ul>
+                    <p class="text-sm leading-relaxed text-muted-foreground">
+                        You can reconnect by sending a new invitation, and you
+                        will see each other's moments and events again.
                     </p>
                 </div>
 
                 <SecondaryButton
-                    v-if="!showDisconnectConfirm"
                     variant="outline"
                     size="sm"
                     full-width
@@ -170,39 +159,13 @@ const labelClass = 'mb-1.5 block text-[13px] font-medium text-foreground/80';
                     Disconnect partner
                 </SecondaryButton>
 
-                <div v-else class="space-y-3">
-                    <p
-                        class="flex items-start gap-2.5 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                        role="alert"
-                    >
-                        <TriangleAlert
-                            class="mt-0.5 size-4 shrink-0"
-                            aria-hidden="true"
-                        />
-                        Are you sure? This will disconnect both of you.
-                    </p>
-                    <div class="flex gap-3">
-                        <SecondaryButton
-                            variant="outline"
-                            size="sm"
-                            class="flex-1"
-                            @click="showDisconnectConfirm = false"
-                        >
-                            Cancel
-                        </SecondaryButton>
-                        <button
-                            class="min-h-10 flex-1 rounded-full bg-destructive px-5 text-sm font-semibold text-white transition-all hover:brightness-110 focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                            :disabled="disconnectForm.processing"
-                            @click="disconnect"
-                        >
-                            {{
-                                disconnectForm.processing
-                                    ? 'Disconnecting...'
-                                    : 'Yes, disconnect'
-                            }}
-                        </button>
-                    </div>
-                </div>
+                <ConfirmDialog
+                    v-model:open="showDisconnectConfirm"
+                    title="Disconnect from your partner?"
+                    description="You both keep the date nights you planned together and your love notes. You each keep your own moments and calendar events, and stop seeing each other's. Your partner will be told."
+                    confirm-label="Disconnect"
+                    @confirm="disconnect"
+                />
             </section>
         </template>
 
@@ -236,6 +199,24 @@ const labelClass = 'mb-1.5 block text-[13px] font-medium text-foreground/80';
                             : 'Resend invitation'
                     }}
                 </PrimaryButton>
+                <SecondaryButton
+                    variant="outline"
+                    size="sm"
+                    full-width
+                    class="border-destructive/30! text-destructive! hover:border-destructive! hover:bg-destructive/10!"
+                    :disabled="revokeForm.processing"
+                    @click="showRevokeConfirm = true"
+                >
+                    Revoke invitation
+                </SecondaryButton>
+
+                <ConfirmDialog
+                    v-model:open="showRevokeConfirm"
+                    title="Revoke this invitation?"
+                    :description="`The link sent to ${pendingInvitation.email} will stop working. You can send a new invitation at any time.`"
+                    confirm-label="Revoke"
+                    @confirm="revokeInvite"
+                />
             </section>
 
             <!-- Send new invite -->

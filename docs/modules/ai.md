@@ -1,5 +1,5 @@
 # AI Layer
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-25
 
 ## Purpose
 A thin, provider-agnostic layer for text generation. Features call `AIService` with a use case and a context array; the service loads the prompt template from the database, calls the configured provider (Anthropic Claude by default; DeepSeek and a no-op provider are kept and selectable), returns a typed `AIResponse` and records one analytics row per call. AI is always optional: every caller has a deterministic fallback.
@@ -54,6 +54,8 @@ None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-setting
 ## Flows
 
 ### 1. One AI call (`AIService::run`)
+0. If the feature flag `ai_generation` is off (`RuntimeSettings`; on by default and when there is no row), return `AIResponse::failure` with code `ai_disabled` (`AIService::DISABLED_ERROR_CODE`). No template is loaded, no provider call is made and no analytics row is written; callers fall back as for any other failure.
+0b. Consent gate: every public `AIService` method takes a required `array $people` (the `User`s whose answers, notes or moments are in the context). If any of them has not agreed to AI processing (`User::hasAiConsent()`), return `AIResponse::failure` with code `ai_consent_missing` (`AIService::NO_CONSENT_ERROR_CODE`): no template, no provider call, no analytics row. Callers fall back as for any other failure.
 1. Load the template: `name` = use case value, `active` = true, highest `version`. If none exists, a `RuntimeException` is thrown (no analytics row is written).
 2. Interpolate: every key in the context array replaces `{{key}}` in `user_prompt_template`. Scalars are cast to string, anything else is JSON encoded. Unknown placeholders are left as literal text.
 3. Build `AIRequest` with `temperature`, `timeout`, `retry_attempts`, `response_format` from `config('ai.defaults.*')` and `max_tokens` from the template, or the config default when the template value is null.
@@ -81,9 +83,9 @@ None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-setting
 
 | Caller | Use case | Dispatched / invoked from |
 |--------|----------|---------------------------|
-| `app/Services/DateNightGeneratorService.php` | `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple` | Inside `GenerateDateNightPlanJob` (see `date-night.md`) |
+| `app/Services/DateNightGeneratorService.php` | `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple` | Inside `GenerateDateNightPlanJob`, and synchronously from the plan page's "Try again with AI" (`date-night.retry-ai`, `throttle:ai`; see `date-night.md`) |
 | `app/Services/WeeklyReflectionService.php` | `weekly_reflection` | Web request (see `weekly-reflection.md`) |
-| `app/Http/Controllers/Admin/AdminAiSettingController.php` | Any (test connection, preview) | Admin UI (see `admin.md`) |
+| `app/Http/Controllers/Admin/AdminAiSettingController.php` | Any (test connection, preview) | Admin UI (see `admin.md`). Exempt from consent: test connection calls the provider directly with a fixed probe, preview passes `people: []` because the admin types the context |
 | `app/Jobs/EnhanceDateNightPlanWithAIJob.php` | `date_night_plan` | Never dispatched in app code (queue `ai`) |
 | `app/Jobs/GenerateCompatibilitySummaryJob.php` | `compatibility_summary` | Never dispatched in app code (queue `ai`, result cached) |
 | `app/Jobs/GenerateConversationPromptJob.php` | `conversation_prompt` | Never dispatched in app code (queue `ai`, result cached) |
@@ -95,7 +97,7 @@ None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-setting
 1. Add a case to `AIUseCase`.
 2. Add a template to `AiPromptTemplateSeeder` whose `name` is the enum value (the test `test_seeder_registers_a_template_for_every_use_case` enforces this). Prefix `system_prompt` with `config('ai.safety.system_rules')` like the others, and tell the model to answer with a JSON object.
 3. Add a branch to `NullAIProvider::stubData()`.
-4. Call `AIService::generate($useCase, $context, $subject, $userId)`. Pass the data under the key your template uses (the seeded templates use `{{context}}`, so pass `['context' => [...]]`).
+4. Call `AIService::generate($useCase, $context, $people, $subject, $userId)`. `$people` is required: list everyone whose content is in the context (both partners for couple content). Pass `[]` only when the context holds no personal data. Pass the data under the key your template uses (the seeded templates use `{{context}}`, so pass `['context' => [...]]`).
 5. Wrap the call in `try/catch (Throwable)` and check `$response->successful`; keep a deterministic fallback.
 
 ### How to switch provider
@@ -108,7 +110,9 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 4. The admin "model" setting follows the selected provider (`ai.providers.<provider>.model`); the new provider needs a `model` key in config.
 
 ## Rules and gotchas
-- **Prompts live in the database**, not in code. The seeder is only the initial source; admins edit templates in the admin UI. The seeder uses `updateOrCreate` on (`name`, `version`), so reseeding overwrites admin edits to a row with the same version. To ship a prompt change, bump `version` in the seeder.
+- **Consent comes first** (`users.ai_consent_at`, `ai_consent_declined_at`; both null = not asked yet). Default is no consent, so existing users get the rule-based results until they agree on the dashboard card or in Settings, Profile (`PUT settings/ai-consent`, see `auth-settings.md`). Who must have agreed: date night plan = the owner of each response in the prompt (one person for a solo plan, both for a couple plan); weekly reflection = the user and their partner; the four undispatched `ai`-queue jobs = the plan's response owners, or the user with id `coupleId` and their partner (an unknown id skips the call). `UserFactory` defaults to agreed so AI tests need no setup; use `->withoutAiConsent()` for the other case.
+- **Prompts live in the database**, not in code. The seeder is only the initial source; admins edit templates in the admin UI. The seeder uses `updateOrCreate` on (`name`, `version`), so reseeding overwrites admin edits to a row with the same version. To ship a prompt change, bump `version` in the seeder and run `php artisan datenight:sync-prompts` on deploy.
+- **`datenight:sync-prompts`** (`app/Console/Commands/SyncPromptTemplatesCommand.php`) reads `AiPromptTemplateSeeder::templates()` and inserts a template only when no row with that name has the same or a higher version. It never updates a row, prints each `Added <name> v<version>`, and is safe on every deploy. "Same or higher" matters because an admin edit raises the row's version in place: an admin-edited v2 is kept when the seeder ships v2, and is superseded (not overwritten) when the seeder ships v3.
 - **Safety rules are baked in at seed time**: `config('ai.safety.system_rules')` is concatenated into `system_prompt` by the seeder. `AIService` does not append it at runtime, so templates created in the admin UI do not get it automatically.
 - **Config defaults** (`config/ai.php`): provider `anthropic`, temperature 0.7, max tokens 5000, timeout 60s, retry attempts 3, retry delay 250ms, response format `json_object`. Env names: `AI_PROVIDER`, `AI_TEMPERATURE`, `AI_MAX_TOKENS`, `AI_TIMEOUT`, `AI_RETRY_ATTEMPTS`, `AI_RETRY_DELAY_MS`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_EFFORT` (default `medium`), `ANTHROPIC_MIN_MAX_TOKENS` (16000), `ANTHROPIC_FALLBACKS` (true), `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`. `.env.example` ships different values (max tokens 2500, timeout 30).
 - **Claude model**: `ANTHROPIC_MODEL`, else the older `AI_MODEL_REASONING` env name, else `claude-opus-5-5`. Use exact model IDs without a date suffix. `ANTHROPIC_FALLBACKS=false` is needed for models without server-side refusal fallback (for example Haiku).
@@ -119,11 +123,9 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 - **Worst-case duration** of one call is roughly `timeout` x `retry_attempts` (180s with defaults) because timeouts are retried. Keep this in mind for job timeouts and web requests.
 - **Tests** set `ai.provider` to `deepseek` (or call the `useAnthropic()` helper in `AIInfrastructureTest`) with a fake key and `Http::fake()`, or swap the contract with an anonymous class via `$this->app->instance(AIProvider::class, ...)`. `phpunit.xml` does not set `AI_PROVIDER`.
 - Suspected issue: placeholder mismatch. Every seeded template uses `{{context}}`, but `GenerateCompatibilitySummaryJob` (line 65), `GenerateConversationPromptJob` (line 54) and `GenerateRelationshipInsightJob` (line 55) do not pass a `context` key. The literal text `{{context}}` is sent to the model and the real data is not.
-- Suspected issue: `NullAIProvider::stubData()` (lines 41-68) has no `match` arm for `DateNightPlanSolo`, `IntimacyGame` or `WeeklyReflection` and throws `UnhandledMatchError` for them. Callers that catch `Throwable` fall back; an uncaught caller would crash.
-- Suspected issue: the null provider's `date_night_plan` stub returns `title`, `summary`, `activities`. Only `summary` is a field the generator accepts, so with `AI_PROVIDER=null` every couple plan gets the canned summary and `ai_enhanced = true`.
+- **Null provider**: `NullAIProvider::stubData()` has an arm for every `AIUseCase` (a test loops over the cases), and the plan stubs return only keys the generator accepts. With `AI_PROVIDER=null` every plan therefore gets the canned summary and `ai_enhanced = true`; that is what the provider is for.
 - Suspected issue: `config('ai.logging.*')` (`AI_LOG_CHANNEL`, `AI_LOG_PROMPTS`) is not read anywhere.
 - Suspected issue: the comment in `AiPromptTemplateSeeder` (line 68) says the schema has 9 fields; it has 7 since drink and music were removed.
-- Suspected issue: the `intimacy_game` template asks for `{ "caption": string }`, apparently copied from `moment_caption`.
 - Dead code: the legacy contract, legacy null provider and its binding; `AiPrompt` and the `ai_prompts` table; the four `ai`-queue jobs listed above (covered by tests but never dispatched); `AIService::generateChallengeVariation()`, `enhanceThemeDescription()`, `generateMomentCaption()`.
 
 ## Related modules
@@ -137,9 +139,15 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 - `php artisan test tests/Feature/AI`
 - `php artisan test --filter=AIInfrastructureTest`
 - `php artisan test --filter=AIIntegrationTest`
+- `php artisan test --filter=SyncPromptTemplatesCommandTest` (the sync command), `--filter=RuntimeSettingsTest` (the `ai_generation` flag)
 
 ## Change log
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Added `AnthropicProvider` and made it the default; DeepSeek kept as a selectable provider. Admin model setting now follows the selected provider.
 - 2026-11-24 — New use case `date_night_plan_out_couple` (compromise date-out plan for two sets of answers). Its template must be seeded: `php artisan db:seed --class=AiPromptTemplateSeeder`.
 - 2026-11-24 — `weekly_reflection` template is now version 2 and `WeeklyReflectionService` passes its data under `context`.
+- 2026-11-24 — Roadmap Phase 2: null provider covers `date_night_plan_solo`, `weekly_reflection` and `intimacy_game`; new synchronous caller "Try again with AI".
+- 2026-11-24 — `intimacy_game` template is now version 2 and asks for `{ "prompt": string }` (still no caller).
+- 2026-11-24 — Roadmap Phase 2 (2.13, 2.16): feature flag `ai_generation` off short-circuits `AIService` with `ai_disabled`; new command `datenight:sync-prompts` adds missing prompt versions without touching existing rows (`AiPromptTemplateSeeder::templates()` is public for it); the admin AI settings page exists.
+- 2026-11-24 — `config/ai.php` turns a null `AI_PROVIDER` back into the provider name `null`: Laravel parses the text "null" in `.env` as a real null, which previously left the provider empty and unresolvable.
+- 2026-11-25 — Roadmap Phase 3 (3.6): per-user AI consent. `AIService` methods require `$people` and refuse with `ai_consent_missing` unless all of them agreed; callers pass the people whose content is sent.

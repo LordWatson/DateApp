@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3';
 import { ChevronLeft } from '@lucide/vue';
-import { route } from 'ziggy-js';
+import QuestionnaireModeFields from '@/components/admin/QuestionnaireModeFields.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -15,13 +16,16 @@ const form = useForm({
     visibility: 'public',
     estimated_minutes: null as number | null,
     display_order: 0,
+    is_solo: false,
+    partner_optional: false,
+    is_intimacy: false,
     is_seasonal: false,
     active_from: '',
     active_until: '',
 });
 
 const submit = () => {
-    form.post(route('admin.questionnaires.store'));
+    form.post(admin.questionnaires.store().url);
 };
 </script>
 
@@ -29,7 +33,7 @@ const submit = () => {
     <div class="max-w-2xl">
         <div class="mb-6 flex items-center gap-4">
             <Link
-                :href="route('admin.questionnaires.index')"
+                :href="admin.questionnaires.index().url"
                 class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                 ><ChevronLeft
                     class="size-4"
@@ -140,6 +144,12 @@ const submit = () => {
                 </div>
             </div>
 
+            <QuestionnaireModeFields
+                v-model:is-solo="form.is_solo"
+                v-model:partner-optional="form.partner_optional"
+                v-model:is-intimacy="form.is_intimacy"
+            />
+
             <div class="flex items-center gap-3">
                 <input
                     id="seasonal"
@@ -175,12 +185,20 @@ const submit = () => {
                 </div>
             </div>
 
+            <p
+                v-if="form.hasErrors && !form.errors.title"
+                role="alert"
+                class="text-xs text-destructive"
+            >
+                {{ Object.values(form.errors)[0] }}
+            </p>
+
             <div class="flex gap-3 pt-2">
                 <Button size="sm" type="submit" :disabled="form.processing">
                     Create questionnaire
                 </Button>
                 <Button as-child variant="outline" size="sm"
-                    ><Link :href="route('admin.questionnaires.index')">
+                    ><Link :href="admin.questionnaires.index().url">
                         Cancel
                     </Link></Button
                 >

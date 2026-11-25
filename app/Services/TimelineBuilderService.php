@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CompletionStatus;
+use App\Models\CalendarEvent;
 use App\Models\DateNightPlan;
 use App\Models\LoveNote;
+use App\Models\Moment;
 use App\Models\Response as QuestionnaireResponse;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -51,7 +54,7 @@ final class TimelineBuilderService
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id: string, type: string, title: string, description: string|null, emoji: string, occurred_at: string|null, link: null}>
      */
     private function questionnaireEntries(User $user, string $filter): Collection
     {
@@ -68,16 +71,16 @@ final class TimelineBuilderService
             ->map(fn (QuestionnaireResponse $response) => [
                 'id' => 'response-'.$response->id,
                 'type' => 'questionnaire',
-                'title' => 'Completed: '.($response->questionnaire?->title ?? 'Questionnaire'),
+                'title' => 'Completed: '.($response->questionnaire->title ?? 'Questionnaire'),
                 'description' => $response->questionnaire?->description,
-                'emoji' => $response->questionnaire?->emoji ?? '📋',
+                'emoji' => $response->questionnaire->emoji ?? '📋',
                 'occurred_at' => $response->updated_at->toISOString(),
                 'link' => null,
             ]);
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id: string, type: string, title: string, description: string, emoji: string, occurred_at: string|null, link: string, compatibility_score: int}>
      */
     private function planEntries(User $user, string $filter): Collection
     {
@@ -95,7 +98,7 @@ final class TimelineBuilderService
             ->map(fn (DateNightPlan $plan) => [
                 'id' => 'plan-'.$plan->id,
                 'type' => 'plan',
-                'title' => 'Date Night Plan: '.$plan->theme,
+                'title' => 'Date night: '.$plan->theme,
                 'description' => $plan->summary,
                 'emoji' => $plan->theme_emoji ?? '🌙',
                 'occurred_at' => $plan->created_at->toISOString(),
@@ -105,7 +108,7 @@ final class TimelineBuilderService
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id: string, type: string, title: string, description: string|null, emoji: string, occurred_at: string|null, link: string, mood: string|null, is_favourite: bool}>
      */
     private function momentEntries(User $user, string $filter): Collection
     {
@@ -113,7 +116,7 @@ final class TimelineBuilderService
             return collect();
         }
 
-        return $user->moments()
+        return Moment::whereIn('user_id', $this->coupleIds($user))
             ->orderByDesc('date')
             ->limit(self::PER_TYPE_LIMIT)
             ->get()
@@ -123,15 +126,15 @@ final class TimelineBuilderService
                 'title' => $moment->title,
                 'description' => $moment->description,
                 'emoji' => '📖',
-                'occurred_at' => $moment->date->toDateString(),
-                'link' => null,
+                'occurred_at' => $moment->date->startOfDay()->toISOString(),
+                'link' => route('moments.show', $moment),
                 'mood' => $moment->mood,
                 'is_favourite' => $moment->is_favourite,
             ]);
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id: string, type: string, title: string, description: string, emoji: string, occurred_at: string|null, link: string}>
      */
     private function loveNoteEntries(User $user, string $filter): Collection
     {
@@ -150,17 +153,17 @@ final class TimelineBuilderService
                 return [
                     'id' => 'note-'.$note->id,
                     'type' => 'love_note',
-                    'title' => $isSender ? 'Love Note Sent 💌' : 'Love Note Received 💌',
+                    'title' => $isSender ? 'Love note sent' : 'Love note received',
                     'description' => $note->message,
                     'emoji' => '💌',
                     'occurred_at' => $note->created_at->toISOString(),
-                    'link' => null,
+                    'link' => route('love-notes.show', $note),
                 ];
             });
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id: string, type: string, title: string, description: string|null, emoji: string, occurred_at: string|null, link: string, colour: string}>
      */
     private function calendarEntries(User $user, string $filter): Collection
     {
@@ -168,7 +171,9 @@ final class TimelineBuilderService
             return collect();
         }
 
-        return $user->calendarEvents()
+        // The timeline is history: what is still to come belongs on the calendar.
+        return CalendarEvent::whereIn('user_id', $this->coupleIds($user))
+            ->whereDate('date', '<=', $user->today()->toDateString())
             ->orderByDesc('date')
             ->limit(self::PER_TYPE_LIMIT)
             ->get()
@@ -178,14 +183,14 @@ final class TimelineBuilderService
                 'title' => $event->title,
                 'description' => $event->description,
                 'emoji' => $event->emoji ?? '📅',
-                'occurred_at' => $event->date->toDateString(),
-                'link' => null,
+                'occurred_at' => $event->date->startOfDay()->toISOString(),
+                'link' => route('calendar.show', $event),
                 'colour' => $event->colour,
             ]);
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{id: string, type: string, title: string, description: string, emoji: string, occurred_at: string|null, link: string, points: int}>
      */
     private function achievementEntries(User $user, string $filter): Collection
     {
@@ -199,13 +204,24 @@ final class TimelineBuilderService
             ->map(fn ($achievement) => [
                 'id' => 'achievement-'.$achievement->id,
                 'type' => 'achievement',
-                'title' => 'Achievement Unlocked: '.$achievement->name,
+                'title' => 'Achievement unlocked: '.$achievement->name,
                 'description' => $achievement->description,
                 'emoji' => $achievement->emoji,
-                'occurred_at' => $achievement->pivot->unlocked_at,
-                'link' => null,
+                // Every entry uses the same ISO format, so sorting the strings sorts by time.
+                'occurred_at' => Carbon::parse($achievement->pivot->getAttribute('unlocked_at'))->toISOString(),
+                'link' => route('achievements.index'),
                 'points' => $achievement->points,
             ]);
+    }
+
+    /**
+     * The user and their partner: moments and calendar events are shared between the two.
+     *
+     * @return list<int>
+     */
+    private function coupleIds(User $user): array
+    {
+        return array_values(array_filter([$user->id, $user->partner_id]));
     }
 
     private function wants(string $filter, string $type): bool

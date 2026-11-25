@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Events\AchievementUnlocked;
 use App\Events\CalendarEventCreated;
+use App\Events\ChallengeCompleted;
 use App\Events\CompatibilityCalculated;
 use App\Events\DateNightPlanGenerated;
 use App\Events\ExportRequested;
@@ -21,6 +22,7 @@ use App\Events\SavedProfileCreated;
 use App\Events\UserRegistered;
 use App\Listeners\CreatePartnerConnectedNotificationOnPartnerConnected;
 use App\Listeners\DispatchDateNightPlanOnQuestionnaireCompleted;
+use App\Listeners\EvaluateAchievementsOnActivity;
 use App\Listeners\EvaluateAchievementsOnMomentCreated;
 use App\Listeners\EvaluateAchievementsOnQuestionnaireCompleted;
 use App\Listeners\InvalidateCacheOnPartnerConnected;
@@ -30,7 +32,9 @@ use App\Listeners\LogActivityOnLoveNoteSent;
 use App\Listeners\LogActivityOnMomentCreated;
 use App\Listeners\LogActivityOnPartnerConnected;
 use App\Listeners\LogActivityOnQuestionnaireCompleted;
+use App\Listeners\NotifyFormerPartnerOnPartnerDisconnected;
 use App\Listeners\NotifyOnAchievementUnlocked;
+use App\Listeners\NotifyPartnerOnChallengeCompleted;
 use App\Listeners\NotifyPartnerOnQuestionnaireCompleted;
 use App\Listeners\NotifyPlanReadyOnDateNightPlanGenerated;
 use App\Listeners\RefreshDashboardOnPartnerConnected;
@@ -59,7 +63,9 @@ class EventServiceProvider extends ServiceProvider
             InvalidateCacheOnPartnerConnected::class,
         ],
 
-        PartnerDisconnected::class => [],
+        PartnerDisconnected::class => [
+            NotifyFormerPartnerOnPartnerDisconnected::class,
+        ],
 
         QuestionnaireStarted::class => [],
 
@@ -85,6 +91,7 @@ class EventServiceProvider extends ServiceProvider
         LoveNoteSent::class => [
             SendLoveNoteNotificationOnLoveNoteSent::class,
             LogActivityOnLoveNoteSent::class,
+            EvaluateAchievementsOnActivity::class,
         ],
 
         MomentCreated::class => [
@@ -93,7 +100,14 @@ class EventServiceProvider extends ServiceProvider
             EvaluateAchievementsOnMomentCreated::class,
         ],
 
-        CalendarEventCreated::class => [],
+        CalendarEventCreated::class => [
+            EvaluateAchievementsOnActivity::class,
+        ],
+
+        ChallengeCompleted::class => [
+            NotifyPartnerOnChallengeCompleted::class,
+            EvaluateAchievementsOnActivity::class,
+        ],
 
         AchievementUnlocked::class => [
             NotifyOnAchievementUnlocked::class,

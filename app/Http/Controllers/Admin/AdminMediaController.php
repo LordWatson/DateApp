@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminMediaController extends AdminController
 {
@@ -38,25 +39,41 @@ class AdminMediaController extends AdminController
         ]);
     }
 
+    /**
+     * Media sits on a private disk; admins read a file through this route.
+     */
+    public function show(MediaLibrary $mediaLibrary): StreamedResponse
+    {
+        $disk = Storage::disk($mediaLibrary->disk);
+
+        abort_unless($disk->exists($mediaLibrary->path), 404);
+
+        return $disk->response($mediaLibrary->path);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'max:10240'],
+            // `image` checks the content, not the name, and does not accept SVG.
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:10240'],
             'folder' => ['nullable', 'string', 'max:100'],
             'alt' => ['nullable', 'string', 'max:255'],
         ]);
 
         $file = $request->file('file');
         $folder = $request->input('folder', 'uploads');
-        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
-        $path = $file->storeAs($folder, $filename, 'public');
+        $disk = config('filesystems.uploads');
+        // The extension comes from the content, never from the uploaded name.
+        $filename = Str::uuid().'.'.$file->extension();
+        $path = $file->storeAs($folder, $filename, $disk);
 
         $media = MediaLibrary::create([
             'filename' => $filename,
             'original_filename' => $file->getClientOriginalName(),
-            'disk' => 'public',
+            'disk' => $disk,
             'path' => $path,
-            'url' => Storage::disk('public')->url($path),
+            // Not used: MediaLibrary::url() builds the address from the route.
+            'url' => '',
             'mime_type' => $file->getMimeType(),
             'size' => $file->getSize(),
             'folder' => $folder,
@@ -76,7 +93,9 @@ class AdminMediaController extends AdminController
             'folder' => ['nullable', 'string', 'max:100'],
         ]);
 
+        $before = $mediaLibrary->only(['alt', 'folder']);
         $mediaLibrary->update($validated);
+        $this->audit->logModel('media.updated', $mediaLibrary, $before, $mediaLibrary->only(['alt', 'folder']));
 
         return back()->with('success', 'Media updated.');
     }

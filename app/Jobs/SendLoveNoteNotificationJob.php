@@ -42,8 +42,11 @@ final class SendLoveNoteNotificationJob implements ShouldQueue
             'data' => ['love_note_id' => $this->loveNote->id],
         ]);
 
-        Mail::to($this->recipient->email)
-            ->queue(new LoveNoteReceivedMail($this->recipient, $sender));
+        // The in-app notification above is always created; only the email is optional.
+        if ($this->recipient->email_notifications) {
+            Mail::to($this->recipient->email)
+                ->queue(new LoveNoteReceivedMail($this->recipient, $sender));
+        }
     }
 
     public function failed(\Throwable $e): void

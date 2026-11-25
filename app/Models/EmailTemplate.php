@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $subject
  * @property string $html_body
  * @property string|null $text_body
- * @property array|null $variables
+ * @property array<int|string, mixed>|null $variables
  * @property bool $active
  */
 class EmailTemplate extends Model

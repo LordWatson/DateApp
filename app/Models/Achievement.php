@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Database\Factories\AchievementFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Carbon;
 
 /**
@@ -20,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property int $unlock_value
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read Pivot|null $pivot Set when loaded through User::achievements().
  */
 #[Fillable([
     'name',
@@ -33,6 +36,7 @@ use Illuminate\Support\Carbon;
 ])]
 class Achievement extends Model
 {
+    /** @use HasFactory<AchievementFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -44,6 +48,7 @@ class Achievement extends Model
         ];
     }
 
+    /** @return BelongsToMany<User, $this> */
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_achievements')

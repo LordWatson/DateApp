@@ -70,6 +70,8 @@ final class AdminAiSettingController extends AdminController
             retryAttempts: 1,
         );
 
+        $this->audit->log(action: 'ai.connection.tested', after: ['provider' => $provider->name()]);
+
         try {
             $response = $provider->complete($request);
         } catch (Throwable $e) {
@@ -116,8 +118,15 @@ final class AdminAiSettingController extends AdminController
         /** @var array<string, mixed> $context */
         $context = (array) $request->input('context', []);
 
+        // The context can hold a couple's answers, so only its shape is kept.
+        $this->audit->log(action: 'ai.response.previewed', after: [
+            'use_case' => $useCase->value,
+            'context_keys' => array_keys($context),
+        ]);
+
         try {
-            $response = $ai->generate($useCase, $context);
+            // The context is typed by the admin; no user's content is involved.
+            $response = $ai->generate($useCase, $context, people: []);
         } catch (Throwable $e) {
             return response()->json([
                 'ok' => false,

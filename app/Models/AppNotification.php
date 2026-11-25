@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\NotificationType;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -14,15 +13,13 @@ use Illuminate\Support\Carbon;
  * @property NotificationType $type
  * @property string $title
  * @property string|null $body
- * @property array|null $data
+ * @property array<string, mixed>|null $data
  * @property Carbon|null $read_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
 class AppNotification extends Model
 {
-    use HasFactory;
-
     protected $table = 'app_notifications';
 
     protected $fillable = [
@@ -43,6 +40,7 @@ class AppNotification extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

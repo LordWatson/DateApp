@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\AchievementController;
 use App\Http\Controllers\CalendarEventController;
+use App\Http\Controllers\DailyChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DateNightPlanController;
 use App\Http\Controllers\DateNightPlanPdfController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InsightsController;
 use App\Http\Controllers\IntimacyController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LoveNoteController;
 use App\Http\Controllers\MomentController;
 use App\Http\Controllers\NotificationController;
@@ -23,23 +25,30 @@ use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
 Route::inertia('/about', 'About')->name('about');
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
+Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 
 // Public invitation acceptance (redirects to register if not logged in)
 Route::get('invite/{token}', [OnboardingController::class, 'acceptInvite'])
     ->name('onboarding.accept-invite');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // An invitation is only accepted or declined by an explicit POST
+    Route::post('invite/{token}/accept', [OnboardingController::class, 'confirmInvite'])->name('onboarding.confirm-invite');
+    Route::post('invite/{token}/decline', [OnboardingController::class, 'declineInvite'])->name('onboarding.decline-invite');
+
     // Onboarding
     Route::prefix('onboarding')->name('onboarding.')->group(function () {
         Route::get('/', [OnboardingController::class, 'index'])->name('index');
         Route::post('/profile', [OnboardingController::class, 'completeProfile'])->name('complete-profile');
-        Route::post('/invite', [OnboardingController::class, 'sendInvite'])->name('send-invite');
+        Route::post('/invite', [OnboardingController::class, 'sendInvite'])->middleware('throttle:invites')->name('send-invite');
         Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
     });
 
     // Protected routes (require onboarding)
     Route::middleware('onboarding')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::post('daily-challenge/complete', [DailyChallengeController::class, 'complete'])->name('daily-challenge.complete');
 
         // Questionnaires
         Route::prefix('questionnaires')->name('questionnaires.')->group(function () {
@@ -48,11 +57,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/{questionnaire:slug}/start', [QuestionnaireController::class, 'start'])->name('start');
             Route::post('/{questionnaire:slug}/restart', [QuestionnaireController::class, 'restart'])->name('restart');
             Route::get('/{questionnaire:slug}/past-attempts/{response}', [QuestionnaireController::class, 'pastAttempt'])->name('past-attempt');
-            Route::get('/{questionnaire:slug}/question/{order}', [QuestionnaireController::class, 'question'])->name('question');
-            Route::post('/{questionnaire:slug}/question/{order}/answer', [QuestionnaireController::class, 'answer'])->name('answer');
+            Route::get('/{questionnaire:slug}/question/{order}', [QuestionnaireController::class, 'question'])->whereNumber('order')->name('question');
+            Route::post('/{questionnaire:slug}/question/{order}/answer', [QuestionnaireController::class, 'answer'])->whereNumber('order')->name('answer');
             Route::get('/{questionnaire:slug}/complete', [QuestionnaireController::class, 'complete'])->name('complete');
             Route::get('/{questionnaire:slug}/plan-status', [QuestionnaireController::class, 'planStatus'])->name('plan-status');
-            Route::post('/{questionnaire:slug}/finish', [QuestionnaireController::class, 'finish'])->name('finish');
+            Route::post('/{questionnaire:slug}/finish', [QuestionnaireController::class, 'finish'])->middleware('throttle:ai')->name('finish');
             Route::get('/{questionnaire:slug}/summary', [QuestionnaireController::class, 'summary'])->name('summary');
             Route::get('/{questionnaire:slug}/partner-answers', [QuestionnaireController::class, 'partnerAnswers'])->name('partner-answers');
             Route::get('/{questionnaire:slug}/compatibility', [QuestionnaireController::class, 'compatibility'])->name('compatibility');
@@ -67,6 +76,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/{dateNightPlan}/like', [DateNightPlanController::class, 'toggleLike'])->name('toggle-like');
             Route::post('/{dateNightPlan}/add-to-calendar', [DateNightPlanController::class, 'addToCalendar'])->name('add-to-calendar');
             Route::get('/{dateNightPlan}/export', [DateNightPlanPdfController::class, 'export'])->name('export');
+            Route::get('/{dateNightPlan}/answers', [DateNightPlanController::class, 'answers'])->name('answers');
+            Route::get('/{dateNightPlan}/compatibility', [DateNightPlanController::class, 'compatibility'])->name('compatibility');
+            Route::post('/{dateNightPlan}/retry-ai', [DateNightPlanController::class, 'retryAi'])->middleware('throttle:ai')->name('retry-ai');
         });
 
         // Love Notes
@@ -74,6 +86,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [LoveNoteController::class, 'index'])->name('index');
             Route::post('/', [LoveNoteController::class, 'store'])->name('store');
             Route::get('/unread-count', [LoveNoteController::class, 'unreadCount'])->name('unread-count');
+            Route::post('/mark-read', [LoveNoteController::class, 'markRead'])->name('mark-read');
             Route::get('/{loveNote}', [LoveNoteController::class, 'show'])->name('show');
         });
 
@@ -97,8 +110,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Partner management
         Route::prefix('partner')->name('partner.')->group(function () {
             Route::get('/', [PartnerController::class, 'index'])->name('index');
-            Route::post('/invite', [PartnerController::class, 'sendInvite'])->name('send-invite');
-            Route::post('/resend', [PartnerController::class, 'resendInvite'])->name('resend-invite');
+            Route::post('/invite', [PartnerController::class, 'sendInvite'])->middleware('throttle:invites')->name('send-invite');
+            Route::post('/resend', [PartnerController::class, 'resendInvite'])->middleware('throttle:invites')->name('resend-invite');
+            Route::delete('/invite', [PartnerController::class, 'revokeInvite'])->name('revoke-invite');
             Route::delete('/disconnect', [PartnerController::class, 'disconnect'])->name('disconnect');
         });
 
@@ -125,6 +139,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [MomentController::class, 'index'])->name('index');
             Route::post('/', [MomentController::class, 'store'])->name('store');
             Route::get('/{moment}', [MomentController::class, 'show'])->name('show');
+            Route::get('/{moment}/photo', [MomentController::class, 'photo'])->name('photo');
             Route::put('/{moment}', [MomentController::class, 'update'])->name('update');
             Route::delete('/{moment}', [MomentController::class, 'destroy'])->name('destroy');
             Route::post('/{moment}/favourite', [MomentController::class, 'toggleFavourite'])->name('toggle-favourite');
@@ -142,7 +157,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Weekly Reflection (AI-powered supportive weekly recap)
         Route::prefix('weekly-reflection')->name('weekly-reflection.')->group(function () {
             Route::get('/', [WeeklyReflectionController::class, 'index'])->name('index');
-            Route::post('/regenerate', [WeeklyReflectionController::class, 'regenerate'])->name('regenerate');
+            Route::post('/regenerate', [WeeklyReflectionController::class, 'regenerate'])->middleware('throttle:ai')->name('regenerate');
         });
 
         // Search
@@ -150,6 +165,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
-Route::get('/health', HealthController::class)->name('health');
+// Each call writes to the cache and the disk, so it is rate limited; `/up` stays open for load balancers.
+Route::get('/health', HealthController::class)->middleware('throttle:10,1')->name('health');
 
 require __DIR__.'/settings.php';

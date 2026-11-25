@@ -113,7 +113,7 @@ final class QuestionnairePresenter
 
     /**
      * @param  Collection<int, Answer>  $answers
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{value: string|null, option_title: string|null, option_emoji: string|null}>
      */
     public function answersForQuestion(Collection $answers, int $questionId): Collection
     {
@@ -127,9 +127,15 @@ final class QuestionnairePresenter
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function savedProfiles(User $user): array
+    public function savedProfiles(User $user, ?Questionnaire $for = null): array
     {
-        return $user->savedProfiles->map(fn ($p) => [
+        $profiles = $for === null
+            ? $user->savedProfiles
+            : $user->savedProfiles()
+                ->whereHas('answers.question', fn ($query) => $query->where('questionnaire_id', $for->id))
+                ->get();
+
+        return $profiles->map(fn ($p) => [
             'id' => $p->id,
             'name' => $p->name,
             'emoji' => $p->emoji,
@@ -140,7 +146,7 @@ final class QuestionnairePresenter
     /**
      * @param  Collection<int, Question>  $questions
      * @param  Collection<int, Answer>  $answers
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{question: array<string, mixed>, answers: Collection<int, array{value: string|null, option_title: string|null, option_emoji: string|null}>}>
      */
     public function summaryGroupedAnswers(Collection $questions, Collection $answers): Collection
     {
@@ -154,7 +160,7 @@ final class QuestionnairePresenter
      * @param  Collection<int, Question>  $questions
      * @param  Collection<int, Answer>  $userAnswers
      * @param  Collection<int, Answer>  $partnerAnswers
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array{question: array<string, mixed>, my_answers: Collection<int, array{value: string|null, option_title: string|null, option_emoji: string|null}>, partner_answers: Collection<int, array{value: string|null, option_title: string|null, option_emoji: string|null}>}>
      */
     public function comparisonGroupedAnswers(Collection $questions, Collection $userAnswers, Collection $partnerAnswers): Collection
     {

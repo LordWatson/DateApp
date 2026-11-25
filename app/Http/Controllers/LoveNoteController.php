@@ -33,8 +33,6 @@ class LoveNoteController extends Controller
             ->limit(50)
             ->get();
 
-        $received->each->markAsRead();
-
         return Inertia::render('love-notes/Index', [
             'sent' => $sent->map(fn ($n) => $this->formatNote($n, 'sent')),
             'received' => $received->map(fn ($n) => $this->formatNote($n, 'received')),
@@ -78,6 +76,18 @@ class LoveNoteController extends Controller
         ]);
     }
 
+    /**
+     * Called when the Received tab is opened.
+     */
+    public function markRead(Request $request): JsonResponse
+    {
+        LoveNote::where('recipient_id', $request->user()->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return response()->json(['read' => true]);
+    }
+
     public function unreadCount(Request $request): JsonResponse
     {
         $count = LoveNote::where('recipient_id', $request->user()->id)
@@ -97,7 +107,7 @@ class LoveNoteController extends Controller
         return [
             'id' => $note->id,
             'message' => $note->message,
-            'person_name' => $person?->display_name ?? $person?->name,
+            'person_name' => $person->display_name ?? $person?->name,
             'person_avatar' => $person?->avatar,
             'read_at' => $note->read_at?->toISOString(),
             'created_at' => $note->created_at?->toISOString(),

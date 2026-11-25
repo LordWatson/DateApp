@@ -23,7 +23,7 @@ class AiPromptTemplateSeeder extends Seeder
     /**
      * @return list<array<string, mixed>>
      */
-    private function templates(): array
+    public function templates(): array
     {
         $safety = (string) config('ai.safety.system_rules');
 
@@ -301,18 +301,21 @@ PROMPT,
             ],
             [
                 'name' => AIUseCase::IntimacyGame->value,
-                'description' => 'Writes a short, sexy, erotic game for a couple to play together.',
-                'system_prompt' => $safety."\n\nYou write sexy, erotic games for couples. Never invent personal details.",
+                'description' => 'Writes one new prompt card for an intimacy game a couple is playing.',
+                'system_prompt' => $safety."\n\nYou write playful, consensual prompt cards for couples' intimacy games. Never invent personal details.",
                 'user_prompt_template' => <<<'PROMPT'
-Write one sex / intimacy game for a couple.
+Write one new prompt card for the intimacy game described in the context.
+Match the game's category and intensity, keep it to one or two sentences that
+can be read aloud, make it easy to skip or swap, and do not repeat any card
+already listed in the context.
 
 Context:
 {{context}}
 
 Respond as JSON with:
-{ "caption": string }
+{ "prompt": string }
 PROMPT,
-                'version' => 1,
+                'version' => 2,
                 'active' => true,
             ],
             [

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MomentController extends Controller
 {
@@ -32,6 +33,8 @@ class MomentController extends Controller
                 'last_page' => $moments->lastPage(),
                 'total' => $moments->total(),
             ],
+            // The user's own "today", used as the default date of a new moment.
+            'today' => $user->today()->toDateString(),
         ]);
     }
 
@@ -46,12 +49,26 @@ class MomentController extends Controller
         ]);
     }
 
+    /**
+     * Photos sit on a private disk; this is the only way to read one.
+     */
+    public function photo(Moment $moment): StreamedResponse
+    {
+        $this->authorize('view', $moment);
+
+        $disk = Storage::disk(config('filesystems.uploads'));
+
+        abort_unless($moment->photo && $disk->exists($moment->photo), 404);
+
+        return $disk->response($moment->photo, null, ['Cache-Control' => 'private, max-age=3600']);
+    }
+
     public function store(StoreMomentRequest $request): RedirectResponse
     {
-        $data = $request->validated();
+        $data = $request->safe()->except(['photo', 'remove_photo']);
 
         if ($request->hasFile('photo')) {
-            $data['photo'] = $request->file('photo')->store('moments', 'public');
+            $data['photo'] = $request->file('photo')->store('moments', config('filesystems.uploads'));
         }
 
         $moment = $request->user()->moments()->create($data);
@@ -65,13 +82,17 @@ class MomentController extends Controller
     {
         $this->authorize('update', $moment);
 
-        $data = $request->validated();
+        // `photo` is only written when a file arrives or removal is asked for:
+        // the edit form sends null when the picture is left alone.
+        $data = $request->safe()->except(['photo', 'remove_photo']);
+        // A multipart form cannot send an empty list, so no tags means "none".
+        $data['tags'] ??= [];
 
-        if ($request->hasFile('photo')) {
+        if ($request->hasFile('photo') || $request->boolean('remove_photo')) {
             if ($moment->photo) {
-                Storage::disk('public')->delete($moment->photo);
+                Storage::disk(config('filesystems.uploads'))->delete($moment->photo);
             }
-            $data['photo'] = $request->file('photo')->store('moments', 'public');
+            $data['photo'] = $request->file('photo')?->store('moments', config('filesystems.uploads'));
         }
 
         $moment->update($data);
@@ -84,7 +105,7 @@ class MomentController extends Controller
         $this->authorize('delete', $moment);
 
         if ($moment->photo) {
-            Storage::disk('public')->delete($moment->photo);
+            Storage::disk(config('filesystems.uploads'))->delete($moment->photo);
         }
 
         $moment->delete();
@@ -100,6 +121,7 @@ class MomentController extends Controller
         return back();
     }
 
+    /** @return array<string, mixed> */
     private function formatMoment(Moment $moment, int $authUserId): array
     {
         $isOwner = $moment->user_id === $authUserId;
@@ -109,7 +131,8 @@ class MomentController extends Controller
             'title' => $moment->title,
             'description' => $moment->description,
             'mood' => $moment->mood,
-            'photo' => $moment->photo ? Storage::url($moment->photo) : null,
+            // The file name changes with the photo, so a replaced photo is not served from cache.
+            'photo' => $moment->photo ? route('moments.photo', [$moment, 'v' => basename($moment->photo)]) : null,
             'date' => $moment->date->toDateString(),
             'is_favourite' => $moment->is_favourite,
             'is_owner' => $isOwner,

@@ -61,6 +61,7 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                     'description' => $option['description'] ?? null,
                     'emoji' => $option['emoji'] ?? null,
                     'value' => $option['value'],
+                    'signals' => $option['signals'] ?? null,
                     'display_order' => $optionOrder + 1,
                 ]);
             }
@@ -112,13 +113,13 @@ class SoloDatePlannerQuestionnaireSeeder extends Seeder
                 'title' => 'What kind of vibe are you after?',
                 'type' => QuestionType::MultipleChoice,
                 'options' => [
-                    ['emoji' => '🍽️', 'title' => 'Food-focused', 'value' => 'food'],
+                    ['emoji' => '🍽️', 'title' => 'Food-focused', 'value' => 'food', 'signals' => ['food']],
                     ['emoji' => '🎨', 'title' => 'Cultural or artsy', 'value' => 'culture'],
-                    ['emoji' => '🎢', 'title' => 'Playful experience', 'value' => 'experience'],
-                    ['emoji' => '🌿', 'title' => 'Outdoors', 'value' => 'outdoors'],
+                    ['emoji' => '🎢', 'title' => 'Playful experience', 'value' => 'experience', 'signals' => ['adventure']],
+                    ['emoji' => '🌿', 'title' => 'Outdoors', 'value' => 'outdoors', 'signals' => ['outdoors']],
                     ['emoji' => '🍸', 'title' => 'Drinks & nightlife', 'value' => 'nightlife'],
-                    ['emoji' => '💆', 'title' => 'Relaxing & slow', 'value' => 'relaxing'],
-                    ['emoji' => '🎶', 'title' => 'Live music or shows', 'value' => 'music'],
+                    ['emoji' => '💆', 'title' => 'Relaxing & slow', 'value' => 'relaxing', 'signals' => ['relaxing']],
+                    ['emoji' => '🎶', 'title' => 'Live music or shows', 'value' => 'music', 'signals' => ['music']],
                 ],
             ],
             [

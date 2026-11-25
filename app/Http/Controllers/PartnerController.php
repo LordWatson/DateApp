@@ -6,6 +6,7 @@ use App\Actions\SendPartnerInvitationAction;
 use App\Events\PartnerDisconnected;
 use App\Http\Requests\Onboarding\SendInvitationRequest;
 use App\Jobs\SendInvitationEmailJob;
+use App\Models\PartnerInvitation;
 use App\Services\PartnerInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,14 +26,18 @@ class PartnerController extends Controller
         $pendingInvitation = $user->pendingInvitation();
 
         return Inertia::render('Partner', [
-            'partner' => $user->partner,
+            'partner' => $user->partner?->only(['id', 'name', 'display_name', 'avatar']),
             'pendingInvitation' => $pendingInvitation ? [
                 'email' => $pendingInvitation->email,
                 'expires_at' => $pendingInvitation->expires_at->toISOString(),
-                'token' => $pendingInvitation->token,
             ] : null,
+            // When the two connected, not when the partner signed up.
             'connectedSince' => $user->partner
-                ? $user->partner->created_at->toISOString()
+                ? PartnerInvitation::query()
+                    ->whereNotNull('accepted_at')
+                    ->whereIn('sender_id', [$user->id, $user->partner->id])
+                    ->latest('accepted_at')
+                    ->value('accepted_at')?->toISOString()
                 : null,
         ]);
     }
@@ -48,11 +53,27 @@ class PartnerController extends Controller
     {
         $invitation = $request->user()->pendingInvitation();
 
-        if ($invitation) {
-            SendInvitationEmailJob::dispatch($invitation);
+        if (! $invitation) {
+            return back()->with('error', 'There is no pending invitation to resend.');
         }
 
+        SendInvitationEmailJob::dispatch($invitation);
+
         return back()->with('success', 'Invitation resent!');
+    }
+
+    public function revokeInvite(Request $request): RedirectResponse
+    {
+        $invitation = $request->user()->pendingInvitation();
+
+        if (! $invitation) {
+            return back()->with('error', 'There is no pending invitation to revoke.');
+        }
+
+        // Closing it is all a revoke is: the link stops working and nobody is told.
+        $this->invitationService->declineInvitation($invitation);
+
+        return back()->with('success', 'Invitation revoked.');
     }
 
     public function disconnect(Request $request): RedirectResponse

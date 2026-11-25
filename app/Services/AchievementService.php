@@ -7,9 +7,11 @@ use App\Models\DateNightPlan;
 use App\Models\LoveNote;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AchievementService
 {
+    /** @return list<Achievement> */
     public function checkAndAward(User $user): array
     {
         $newlyUnlocked = [];
@@ -40,6 +42,7 @@ class AchievementService
             'love_notes_sent' => $this->loveNotesSent($user) >= $achievement->unlock_value,
             'calendar_events_created' => $user->calendarEvents()->count() >= $achievement->unlock_value,
             'moments_created' => $user->moments()->count() >= $achievement->unlock_value,
+            'challenges_completed' => DB::table('daily_challenge_completions')->where('user_id', $user->id)->count() >= $achievement->unlock_value,
             'perfect_compatibility' => $this->hasPerfectCompatibility($user),
             'average_compatibility' => $this->averageCompatibility($user) >= $achievement->unlock_value,
             'questionnaire_slug' => $this->hasCompletedSlug($user, 'anniversary'),
@@ -70,7 +73,7 @@ class AchievementService
         return (float) DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        })->avg('compatibility_score') ?? 0;
+        })->avg('compatibility_score');
     }
 
     private function hasCompletedSlug(User $user, string $slug): bool
@@ -81,10 +84,12 @@ class AchievementService
             ->exists();
     }
 
+    /** @return array<string, mixed> */
     public function getUserProgress(User $user): array
     {
         $all = Achievement::where('hidden', false)->get();
-        $unlocked = $user->achievements()->pluck('achievement_id')->toArray();
+        // Hidden achievements are not in the total, so they must not count as unlocked either.
+        $unlocked = $user->achievements()->where('hidden', false)->pluck('achievement_id')->toArray();
         $totalPoints = $user->achievements()->sum('points');
 
         return [

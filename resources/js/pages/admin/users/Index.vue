@@ -2,11 +2,11 @@
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { X } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import AdminPagination from '@/components/admin/AdminPagination.vue';
 import AdminTable from '@/components/admin/AdminTable.vue';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 import { index } from '@/routes/admin/users';
 import { show } from '@/routes/admin/users';
 
@@ -51,7 +51,7 @@ const suspendForm = useForm({ reason: '' });
 
 const doSuspend = (id: number) => {
     suspendForm.reason = suspendReason.value;
-    suspendForm.post(route('admin.users.suspend', id), {
+    suspendForm.post(admin.users.suspend(id).url, {
         onSuccess: () => {
             suspendUserId.value = null;
             suspendReason.value = '';
@@ -60,7 +60,7 @@ const doSuspend = (id: number) => {
 };
 
 const doDelete = (id: number) => {
-    router.delete(route('admin.users.destroy', id), {
+    router.delete(admin.users.destroy(id).url, {
         onSuccess: () => {
             confirmDelete.value = null;
         },
@@ -188,9 +188,7 @@ const columns = [
                         <button
                             v-else
                             @click="
-                                router.post(
-                                    route('admin.users.unsuspend', user.id),
-                                )
+                                router.post(admin.users.unsuspend(user.id).url)
                             "
                             class="text-xs text-success hover:underline"
                         >

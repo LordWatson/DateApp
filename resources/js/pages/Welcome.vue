@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { Heart, Lock, Sparkles } from '@lucide/vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
+import LegalLinks from '@/components/LegalLinks.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import { login, register } from '@/routes';
@@ -72,11 +73,18 @@ const proofPoints = [
                 </p>
 
                 <div class="mx-auto mt-10 flex max-w-sm flex-col gap-2">
-                    <Link :href="register()" class="block">
+                    <Link
+                        v-if="$page.props.registrationOpen"
+                        :href="register()"
+                        class="block"
+                    >
                         <PrimaryButton size="lg" full-width
                             >Create account</PrimaryButton
                         >
                     </Link>
+                    <p v-else class="text-sm text-muted-foreground">
+                        New sign-ups are closed for now.
+                    </p>
                     <Link :href="login()" class="block">
                         <SecondaryButton variant="ghost" full-width
                             >Sign in</SecondaryButton
@@ -110,6 +118,8 @@ const proofPoints = [
                         </span>
                     </li>
                 </ul>
+
+                <LegalLinks class="mt-8" />
             </div>
         </main>
     </div>

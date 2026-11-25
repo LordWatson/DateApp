@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\ExportUserDataJob;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -9,18 +10,16 @@ final class CleanTemporaryExportsCommand extends Command
 {
     protected $signature = 'datenight:clean-exports';
 
-    protected $description = 'Clean temporary export files older than 24 hours';
+    protected $description = 'Remove data export files that have passed their download window';
 
     public function handle(): int
     {
-        $files = Storage::files('exports');
+        $disk = Storage::disk(ExportUserDataJob::DISK);
         $deleted = 0;
 
-        foreach ($files as $file) {
-            $lastModified = Storage::lastModified($file);
-
-            if ($lastModified < now()->subDay()->timestamp) {
-                Storage::delete($file);
+        foreach ($disk->files('exports') as $file) {
+            if (! ExportUserDataJob::isAvailable($file)) {
+                $disk->delete($file);
                 $deleted++;
             }
         }

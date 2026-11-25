@@ -54,6 +54,10 @@ class IntimacyGame extends Model
         ];
     }
 
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

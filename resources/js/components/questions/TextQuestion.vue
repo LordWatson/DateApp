@@ -12,6 +12,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
     <div>
         <input
             type="text"
+            maxlength="255"
             :value="modelValue ?? ''"
             :placeholder="placeholder ?? 'Type your answer…'"
             class="input-premium"

@@ -13,8 +13,8 @@ use Illuminate\Support\Carbon;
  * @property string $action
  * @property string|null $auditable_type
  * @property int|null $auditable_id
- * @property array|null $before
- * @property array|null $after
+ * @property array<string, mixed>|null $before
+ * @property array<string, mixed>|null $after
  * @property string|null $ip_address
  * @property string|null $user_agent
  * @property Carbon|null $created_at
@@ -42,11 +42,13 @@ class AdminAuditLog extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return MorphTo<Model, $this> */
     public function auditable(): MorphTo
     {
         return $this->morphTo();

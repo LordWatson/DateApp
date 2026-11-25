@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Env;
+
 return [
 
     /*
@@ -15,7 +17,9 @@ return [
     |
     */
 
-    'provider' => env('AI_PROVIDER', 'anthropic'),
+    // Laravel reads the text "null" in .env as a real null, so AI_PROVIDER=null
+    // arrives here as null and must be turned back into the provider's name.
+    'provider' => Env::get('AI_PROVIDER', 'anthropic') ?? 'null',
 
     /*
     |--------------------------------------------------------------------------

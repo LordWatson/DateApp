@@ -2,9 +2,9 @@
 import { Link, useForm } from '@inertiajs/vue3';
 import { ChevronLeft } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
 import { Button } from '@/components/ui/button';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -51,7 +51,7 @@ const editForm = useForm({
 const editing = ref(false);
 
 const save = () => {
-    editForm.put(route('admin.users.update', props.user.id), {
+    editForm.put(admin.users.update(props.user.id).url, {
         onSuccess: () => {
             editing.value = false;
         },
@@ -63,7 +63,7 @@ const save = () => {
     <div>
         <div class="mb-6 flex items-center gap-4">
             <Link
-                :href="route('admin.users.index')"
+                :href="admin.users.index().url"
                 class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                 ><ChevronLeft class="size-4" aria-hidden="true" />Users</Link
             >
@@ -130,9 +130,7 @@ const save = () => {
                         <div v-if="user.partner">
                             <p class="text-xs text-muted-foreground">Partner</p>
                             <Link
-                                :href="
-                                    route('admin.users.show', user.partner.id)
-                                "
+                                :href="admin.users.show(user.partner.id).url"
                                 class="font-medium text-foreground hover:underline"
                             >
                                 {{ user.partner.name }}

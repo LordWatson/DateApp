@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { Moon, Pencil, Plus, Star, Trash2, X } from '@lucide/vue';
 import { ref } from 'vue';
-import { route } from 'ziggy-js';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
+import momentRoutes from '@/routes/moments';
 import { store, update, show } from '@/routes/moments';
 
 defineOptions({ layout: MobileLayout });
@@ -23,6 +24,7 @@ interface Moment {
     private_notes: string | null;
     tags: string[];
     date_night_plan: { id: number; theme: string } | null;
+    is_owner: boolean;
 }
 
 interface Pagination {
@@ -31,9 +33,11 @@ interface Pagination {
     total: number;
 }
 
-defineProps<{
+const props = defineProps<{
     moments: Moment[];
     pagination: Pagination;
+    /** Today's date (YYYY-MM-DD) in the user's own timezone. */
+    today: string;
 }>();
 
 const showForm = ref(false);
@@ -57,23 +61,66 @@ const form = useForm({
     title: '',
     description: '',
     mood: '',
-    date: new Date().toISOString().split('T')[0],
+    date: props.today,
     is_favourite: false,
     private_notes: '',
     tags: [] as string[],
     photo: null as File | null,
+    remove_photo: false,
 });
+
+// What the form shows: the stored photo when editing, or the file just picked.
+const photoPreview = ref<string | null>(null);
+const photoInput = ref<HTMLInputElement | null>(null);
+
+function setPreview(url: string | null): void {
+    if (photoPreview.value?.startsWith('blob:')) {
+        URL.revokeObjectURL(photoPreview.value);
+    }
+
+    photoPreview.value = url;
+}
+
+function onPhotoChange(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    form.photo = file;
+    form.remove_photo = false;
+    form.clearErrors('photo');
+    setPreview(URL.createObjectURL(file));
+}
+
+function removePhoto(): void {
+    form.photo = null;
+    // Only an already-saved photo needs the server to delete it.
+    form.remove_photo = Boolean(editingMoment.value?.photo);
+    setPreview(null);
+
+    if (photoInput.value) {
+        photoInput.value.value = '';
+    }
+}
 
 function openCreate(): void {
     editingMoment.value = null;
     form.reset();
-    form.date = new Date().toISOString().split('T')[0];
+    form.clearErrors();
+    form.date = props.today;
     tagInput.value = '';
+    setPreview(null);
     showForm.value = true;
 }
 
 function openEdit(moment: Moment): void {
     editingMoment.value = moment;
+    form.clearErrors();
+    form.photo = null;
+    form.remove_photo = false;
+    setPreview(moment.photo);
     form.title = moment.title;
     form.description = moment.description ?? '';
     form.mood = moment.mood ?? '';
@@ -100,13 +147,17 @@ function removeTag(tag: string): void {
 
 function submit(): void {
     if (editingMoment.value) {
-        form.put(update(editingMoment.value.id).url, {
-            onSuccess: () => {
-                showForm.value = false;
+        // A PUT body cannot carry a file, so edits go as POST with a spoofed method.
+        form.transform((data) => ({ ...data, _method: 'put' })).post(
+            update(editingMoment.value.id).url,
+            {
+                onSuccess: () => {
+                    showForm.value = false;
+                },
             },
-        });
+        );
     } else {
-        form.post(store().url, {
+        form.transform((data) => data).post(store().url, {
             onSuccess: () => {
                 showForm.value = false;
                 form.reset();
@@ -115,12 +166,16 @@ function submit(): void {
     }
 }
 
-function deleteMoment(moment: Moment): void {
-    router.delete(route('moments.destroy', moment.id));
+const momentToDelete = ref<Moment | null>(null);
+
+function deleteMoment(): void {
+    if (momentToDelete.value) {
+        router.delete(momentRoutes.destroy(momentToDelete.value.id).url);
+    }
 }
 
 function toggleFavourite(moment: Moment): void {
-    router.post(route('moments.toggle-favourite', moment.id));
+    router.post(momentRoutes.toggleFavourite(moment.id).url);
 }
 
 function formatDate(dateStr: string): string {
@@ -195,6 +250,7 @@ const focusClass =
                         </div>
 
                         <button
+                            v-if="moment.is_owner"
                             :class="[
                                 '-mt-1.5 -mr-1.5 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted',
                                 focusClass,
@@ -247,8 +303,9 @@ const focusClass =
                         {{ moment.date_night_plan.theme }}
                     </p>
 
-                    <!-- Actions -->
+                    <!-- Actions: only the person who wrote it can change it -->
                     <div
+                        v-if="moment.is_owner"
                         class="flex items-center justify-between border-t border-border pt-2"
                     >
                         <button
@@ -266,7 +323,7 @@ const focusClass =
                                 '-mr-2 inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10',
                                 focusClass,
                             ]"
-                            @click.stop="deleteMoment(moment)"
+                            @click.stop="momentToDelete = moment"
                         >
                             <Trash2 class="size-3.5" aria-hidden="true" />
                             Delete
@@ -286,6 +343,39 @@ const focusClass =
                 @action="openCreate"
             />
         </div>
+
+        <nav
+            v-if="pagination.last_page > 1"
+            class="flex items-center justify-between gap-3"
+            aria-label="Pages of moments"
+        >
+            <Link
+                v-if="pagination.current_page > 1"
+                :href="`/moments?page=${pagination.current_page - 1}`"
+                class="chip"
+                >Newer</Link
+            >
+            <span v-else />
+            <span class="text-xs text-muted-foreground tabular-nums"
+                >Page {{ pagination.current_page }} of
+                {{ pagination.last_page }}</span
+            >
+            <Link
+                v-if="pagination.current_page < pagination.last_page"
+                :href="`/moments?page=${pagination.current_page + 1}`"
+                class="chip"
+                >Older</Link
+            >
+            <span v-else />
+        </nav>
+
+        <ConfirmDialog
+            :open="momentToDelete !== null"
+            title="Delete this moment?"
+            description="It is removed for both of you and cannot be brought back."
+            @update:open="momentToDelete = null"
+            @confirm="deleteMoment"
+        />
     </div>
 
     <!-- Moment form modal -->
@@ -402,6 +492,66 @@ const focusClass =
                                     class="input-premium"
                                     placeholder="Tell the story..."
                                 />
+                            </div>
+
+                            <div>
+                                <label :class="labelClass" for="moment-photo"
+                                    >Photo</label
+                                >
+                                <div
+                                    v-if="photoPreview"
+                                    class="mb-2 overflow-hidden rounded-2xl border border-border"
+                                >
+                                    <img
+                                        :src="photoPreview"
+                                        alt="Selected photo"
+                                        class="h-40 w-full object-cover"
+                                    />
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <input
+                                        id="moment-photo"
+                                        ref="photoInput"
+                                        type="file"
+                                        accept="image/*"
+                                        class="block min-w-0 flex-1 text-sm text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary hover:file:bg-muted"
+                                        :aria-describedby="
+                                            form.errors.photo
+                                                ? 'moment-photo-error'
+                                                : 'moment-photo-hint'
+                                        "
+                                        @change="onPhotoChange"
+                                    />
+                                    <button
+                                        v-if="photoPreview"
+                                        type="button"
+                                        :class="[
+                                            'inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10',
+                                            focusClass,
+                                        ]"
+                                        @click="removePhoto"
+                                    >
+                                        <Trash2
+                                            class="size-3.5"
+                                            aria-hidden="true"
+                                        />
+                                        Remove photo
+                                    </button>
+                                </div>
+                                <p
+                                    v-if="form.errors.photo"
+                                    id="moment-photo-error"
+                                    class="mt-1 text-sm text-destructive"
+                                >
+                                    {{ form.errors.photo }}
+                                </p>
+                                <p
+                                    v-else
+                                    id="moment-photo-hint"
+                                    class="mt-1 text-xs text-muted-foreground"
+                                >
+                                    One image, up to 5 MB.
+                                </p>
                             </div>
 
                             <div>

@@ -9,6 +9,8 @@ use App\DTOs\AI\AIRequest;
 use App\DTOs\AI\AIResponse;
 use App\Enums\AI\AIUseCase;
 use App\Models\AiPromptTemplate;
+use App\Models\User;
+use App\Services\RuntimeSettings;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Database\Eloquent\Model;
 use Psr\Log\LoggerInterface;
@@ -27,6 +29,10 @@ use RuntimeException;
  */
 final readonly class AIService
 {
+    public const DISABLED_ERROR_CODE = 'ai_disabled';
+
+    public const NO_CONSENT_ERROR_CODE = 'ai_consent_missing';
+
     public function __construct(
         private AIProvider $provider,
         private ConfigRepository $config,
@@ -34,44 +40,83 @@ final readonly class AIService
         private AIAnalyticsRecorder $analytics,
     ) {}
 
-    public function generateDateNightPlan(array $context = []): AIResponse
+    /*
+     * Every method below takes `$people`: the users whose answers, notes or
+     * moments are in `$context`. The provider is only called when all of them
+     * have agreed to AI processing. Pass [] only when the context holds no
+     * personal data.
+     */
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function generateDateNightPlan(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::DateNightPlan, $context);
+        return $this->run(AIUseCase::DateNightPlan, $context, $people);
     }
 
-    public function generateDateNightPlanSolo(array $context = []): AIResponse
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function generateDateNightPlanSolo(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::DateNightPlanSolo, $context);
+        return $this->run(AIUseCase::DateNightPlanSolo, $context, $people);
     }
 
-    public function generateConversationPrompt(array $context = []): AIResponse
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function generateConversationPrompt(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::ConversationPrompt, $context);
+        return $this->run(AIUseCase::ConversationPrompt, $context, $people);
     }
 
-    public function generateRelationshipInsight(array $context = []): AIResponse
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function generateRelationshipInsight(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::RelationshipInsight, $context);
+        return $this->run(AIUseCase::RelationshipInsight, $context, $people);
     }
 
-    public function generateChallengeVariation(array $context = []): AIResponse
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function generateChallengeVariation(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::ChallengeVariation, $context);
+        return $this->run(AIUseCase::ChallengeVariation, $context, $people);
     }
 
-    public function enhanceThemeDescription(array $context = []): AIResponse
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function enhanceThemeDescription(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::ThemeDescription, $context);
+        return $this->run(AIUseCase::ThemeDescription, $context, $people);
     }
 
-    public function generateMomentCaption(array $context = []): AIResponse
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function generateMomentCaption(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::MomentCaption, $context);
+        return $this->run(AIUseCase::MomentCaption, $context, $people);
     }
 
-    public function generateCompatibilitySummary(array $context = []): AIResponse
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
+     */
+    public function generateCompatibilitySummary(array $context, array $people): AIResponse
     {
-        return $this->run(AIUseCase::CompatibilitySummary, $context);
+        return $this->run(AIUseCase::CompatibilitySummary, $context, $people);
     }
 
     /**
@@ -79,25 +124,51 @@ final readonly class AIService
      * user id for analytics without changing the semantic methods above.
      *
      * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
      */
     public function generate(
         AIUseCase $useCase,
-        array $context = [],
+        array $context,
+        array $people,
         ?Model $subject = null,
         ?int $userId = null,
     ): AIResponse {
-        return $this->run($useCase, $context, $subject, $userId);
+        return $this->run($useCase, $context, $people, $subject, $userId);
     }
 
     /**
      * @param  array<string, mixed>  $context
+     * @param  list<User>  $people
      */
     private function run(
         AIUseCase $useCase,
         array $context,
+        array $people,
         ?Model $subject = null,
         ?int $userId = null,
     ): AIResponse {
+        // Nothing leaves the app unless everyone whose content is in the prompt has agreed.
+        foreach ($people as $person) {
+            if (! $person->hasAiConsent()) {
+                return AIResponse::failure(
+                    $useCase,
+                    self::NO_CONSENT_ERROR_CODE,
+                    'Not everyone whose content is in this request has agreed to AI processing.',
+                    $this->provider->name(),
+                );
+            }
+        }
+
+        // Switched off by an admin: no provider call, and every caller uses its own fallback.
+        if (! app(RuntimeSettings::class)->flag('ai_generation')) {
+            return AIResponse::failure(
+                $useCase,
+                self::DISABLED_ERROR_CODE,
+                'AI generation is switched off (feature flag ai_generation).',
+                $this->provider->name(),
+            );
+        }
+
         $template = $this->loadTemplate($useCase);
 
         $request = new AIRequest(

@@ -18,7 +18,7 @@ The questionnaire engine. A user picks a questionnaire, answers it one question 
 | `app/Http/Presenters/QuestionnairePresenter.php` | Shapes every Inertia prop array for this module |
 | `app/Models/{Questionnaire,Question,QuestionOption,Response,Answer}.php` | Models |
 | `app/Enums/{QuestionType,QuestionnaireStatus,QuestionnaireVisibility,CompletionStatus}.php` | Enums |
-| `app/Http/Requests/Questionnaire/{SaveAnswerRequest,FinishQuestionnaireRequest,StartQuestionnaireRequest}.php` | Validation. `StartQuestionnaireRequest` validates `mode` (`solo`/`couple`) and exposes `solo(): ?bool` |
+| `app/Http/Requests/Questionnaire/{SaveAnswerRequest,FinishQuestionnaireRequest,StartQuestionnaireRequest}.php` | Validation. `SaveAnswerRequest` resolves the question (`question()`) and validates `value` per question type. `StartQuestionnaireRequest` validates `mode` (`solo`/`couple`) and exposes `solo(): ?bool` |
 | `app/Policies/ResponsePolicy.php` | Owner-only view/update/delete (not called anywhere, see gotchas) |
 | `app/Http/Resources/{Questionnaire,Question,Response}Resource.php` | JSON resources (not used anywhere) |
 | `app/Events/{QuestionnaireStarted,QuestionAnswered,QuestionnaireCompleted,CompatibilityCalculated}.php` | Events (only `QuestionnaireCompleted` is dispatched by app code) |
@@ -49,7 +49,7 @@ The questionnaire engine. A user picks a questionnaire, answers it one question 
 |---|---|---|
 | `questionnaires` | `slug` (unique, route key), `status`, `visibility`, `display_order`, `estimated_minutes`, `active_from`, `active_until`, `artwork`, `is_seasonal`, `is_intimacy`, `is_solo`, `partner_optional` | Casts: `status` -> `QuestionnaireStatus` (draft/active/archived), `visibility` -> `QuestionnaireVisibility` (public/private), three booleans. `questions()` is ordered by `display_order`. |
 | `questions` | `questionnaire_id` (cascade), `type`, `required` (default true), `minimum_value`, `maximum_value`, `step_value`, `unit` (max 32), `display_order` | `type` -> `QuestionType`. `display_order` is the `{order}` URL segment. |
-| `question_options` | `question_id` (cascade), `title`, `description`, `emoji`, `value`, `display_order` | `value` is what gets stored in `answers.value`. |
+| `question_options` | `question_id` (cascade), `title`, `description`, `emoji`, `value`, `signals` (nullable json, cast to array), `display_order` | `value` is what gets stored in `answers.value`. `signals` is a list from `RuleEngineService::SIGNALS` that tells the plan engine what the option means (see `date-night.md`). |
 | `responses` | `user_id`, `questionnaire_id` (both cascade), `status`, `is_solo` (nullable: the mode chosen for this attempt), `started_at`, `completed_at`, `compatibility_score`, `location_label/city/region/country`, `location_latitude/longitude` (decimal 10,7), `travel_radius_minutes` | One row per attempt. `status` -> `CompletionStatus` (in_progress/completed). |
 | `answers` | `response_id`, `question_id` (cascade), `question_option_id` (nullable, null on delete), `value` (text), `created_at` | `$timestamps = false`; `created_at` is set manually. |
 
@@ -62,6 +62,8 @@ Migrations worth knowing:
 - `2026_07_29_150000` adds latitude/longitude/`travel_radius_minutes`; `2026_07_29_150500` adds `questions.step_value` and `unit`.
 
 ### How each question type is stored and rendered
+
+Accepted values (`SaveAnswerRequest`, 422 otherwise): `single_choice` one option value, or `custom_amount:<1 to 7 digits>` when the question has a `custom_amount` option; `multiple_choice` an array of distinct option values (empty clears the answer); `slider` a number within min and max and on a step (defaults 1, 10, 1); `text` a string up to 255; `textarea` a string up to 500 (both may be empty).
 
 | `QuestionType` | Stored as (`QuestionnaireService::saveAnswer`) | Input component | Compatibility score |
 |---|---|---|---|
@@ -87,13 +89,13 @@ All in `routes/web.php` under `auth`, `verified`, `onboarding`; prefix `question
 | `restart` | POST `/{slug}/restart` | `restart` | Deletes in-progress responses, creates a new one. Optional `mode` |
 | `past-attempt` | GET `/{slug}/past-attempts/{response}` | `pastAttempt` | Renders `PartnerAnswers` with `is_past_attempt` |
 | `question` | GET `/{slug}/question/{order}` | `question` | Unknown order redirects to `show` |
-| `answer` | POST `/{slug}/question/{order}/answer` | `answer` | JSON `{saved: true}`; `SaveAnswerRequest` |
+| `answer` | POST `/{slug}/question/{order}/answer` | `answer` | JSON `{saved: true}`; `SaveAnswerRequest` validates per type (422) before the in-progress check (409) |
 | `summary` | GET `/{slug}/summary` | `summary` | Redirects to `show` if no response |
-| `finish` | POST `/{slug}/finish` | `finish` | `FinishQuestionnaireRequest`; redirects to `complete` |
+| `finish` | POST `/{slug}/finish` | `finish` | `FinishQuestionnaireRequest`; redirects to `complete`, or back to `summary` with an `answers` error while a required question has no non-empty answer |
 | `complete` | GET `/{slug}/complete` | `complete` | `awaiting_plan` = solo or partner fresh-completed |
 | `plan-status` | GET `/{slug}/plan-status` | `planStatus` | JSON `{ready, plan_id}` |
-| `partner-answers` | GET `/{slug}/partner-answers` | `partnerAnswers` | Needs partner + both completed + partner "fresh" |
-| `compatibility` | GET `/{slug}/compatibility` | `compatibility` | `compatibility` prop is null unless partner "fresh" |
+| `partner-answers` | GET `/{slug}/partner-answers` | `partnerAnswers` | Redirects to `date-night.answers` once a couple plan exists for the user's latest completed couple attempt; before that needs partner + both completed + partner "fresh" |
+| `compatibility` | GET `/{slug}/compatibility` | `compatibility` | Redirects to `date-night.compatibility` once that plan exists; before that the `compatibility` prop is null unless partner "fresh" |
 
 Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `admin.md`).
 
@@ -104,7 +106,7 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 1. `Show.vue` posts to `start` (or `restart`). `findOrCreateResponse` returns the latest in-progress response or creates one.
 2. `Question.vue` watches the answer, debounces 300 ms, then `axios.post`s `{value}` to `answer`. On failure it retries every 3 s. For `single_choice` it auto-advances 400 ms after a successful save.
 3. Last question goes to `summary`. "Edit" links back to `question/{order}`.
-4. `Summary.vue` posts to `finish` (solo: with location fields and `travel_radius_minutes`). `QuestionnaireService::completeWithLocation` saves location only when `is_solo`, then `completeResponse`.
+4. `Summary.vue` posts to `finish` (solo: with location fields and `travel_radius_minutes`). The controller refuses while required questions are unanswered (the error is shown above the Complete button). `QuestionnaireService::completeWithLocation` saves location only when `is_solo`, then `completeResponse`.
 5. `completeResponse` sets status/`completed_at`, runs `wipeOverhangingPendingResponses`, then dispatches `QuestionnaireCompleted`.
 6. `Complete.vue`: if `awaiting_plan`, polls `plan-status` every 2 s and visits `/date-night/{plan_id}` when ready.
 
@@ -156,20 +158,17 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 - Only `index` filters by `status = active`. Every other action works for any questionnaire reachable by slug. `visibility`, `active_from` and `active_until` are stored and editable in admin but never enforced.
 - "couples" filter means not solo, not intimacy, not seasonal. A `partner_optional` questionnaire keeps `is_solo = true`, so it is listed under "solo" even though it can be answered together.
 - Authorization is by query scoping (responses are always looked up by `user_id`). `pastAttempt` checks ownership inline. `SaveAnswerRequest::authorize` returns true.
-- Validation: `SaveAnswerRequest` only requires `value` to be present. The server does not check that a value matches an option, a slider range, or `required`; `finish` does not check that all questions are answered. `required` is enforced only in `Question.vue`.
+- Validation: `SaveAnswerRequest` checks the value against the question type (see the table above). `required` is not enforced per answer, so autosave can clear a choice or text mid-edit; `finish` enforces it (an answer row with an empty value does not count). `QuestionnaireService::applyProfile` writes answers without this validation.
 - `FinishQuestionnaireRequest`: label max 120, city/region/country max 80, lat -90..90, lng -180..180, `travel_radius_minutes` 0..600 (UI slider is 0..240, step 30, default 60).
 - `saveAnswer` falls through to the single-row text branch for any type that is not single or multiple choice.
 - A required slider has no answer until the user moves it (the component shows the minimum but emits nothing).
 - `QuestionnairePresenter::progress` percentage is based on the current position, not on answered count.
 - `SummariseCoupleAnswersAction` outputs option titles, or the raw value when there is no option (so `custom_amount:50` reaches the AI prompt as-is; the prompt template in `AiPromptTemplateSeeder` explains the format).
-- Seeders: `SoloDatePlannerQuestionnaireSeeder` is idempotent (`updateOrCreate` then deletes and recreates questions, which nulls `answers.question_option_id` and cascades answers). Seasonal and intimacy seeders use `firstOrCreate` (existing rows are never updated). `SeasonalQuestionnaireSeeder` also seeds non-seasonal ones (`weekend-away`, `staycation`, `rainy-day`).
+- Seeders: `SoloDatePlannerQuestionnaireSeeder` is idempotent (`updateOrCreate` then deletes and recreates questions, which nulls `answers.question_option_id` and cascades answers). Seasonal and intimacy seeders use `firstOrCreate` (existing rows are never updated, except that an option whose `signals` is still null gets the seeded signals). `QuestionnaireSeeder` does nothing when `tonight` exists apart from the same signals backfill (matched by question title and option value). `SeasonalQuestionnaireSeeder` also seeds non-seasonal ones (`weekend-away`, `staycation`, `rainy-day`).
+- Option signals: all four seeders set `signals` where the meaning is clear. A new option without signals still works through the engine's keyword fallback. The admin editor does not expose the column yet.
 - `bootstrap/cache/events.php` can exist locally (gitignored). If listeners seem stale, run `php artisan event:clear`.
-- Suspected issue: `question` (GET) calls `findOrCreateResponse`. After a response is completed, opening any question URL (for example "View Summary" then "Edit") creates a new empty in-progress response, which then becomes the "latest" one used by `show`, `summary` and `complete`. `app/Http/Controllers/QuestionnaireController.php:137`.
 - Suspected issue: `CompatibilityService::calculate` loads each partner's latest response by id regardless of status, so an in-progress restart is compared instead of the completed one. `app/Services/CompatibilityService.php:21-31`.
 - Suspected issue: `getAnswerValues` uses `->filter()`, which drops an option value of `"0"`. `app/Services/CompatibilityService.php:158-165`.
-- Suspected issue: once a plan exists for the pair, `partnerHasFreshCompletedResponse` is false, so `partner-answers` redirects to `complete` and `compatibility` shows the waiting state. Those pages only work between both completing and the plan row being written; afterwards only `past-attempt` works. The dashboard still links to `partner-answers` (`resources/js/pages/Dashboard.vue:308`). `app/Http/Controllers/QuestionnaireController.php:277,292-304`.
-- Suspected issue: `{order}` has no numeric route constraint but the controller types it `int`, so a non-numeric segment raises a `TypeError`. `routes/web.php:51-52`.
-- Suspected issue: `QuestionnaireSeeder` uses `Questionnaire::create` with the unique slug `tonight`, so re-running it fails. Its description is about sexual intimacy but `is_intimacy` is not set. `database/seeders/QuestionnaireSeeder.php:17-29`.
 - Dead code: `QuestionnaireStarted`, `QuestionAnswered` are never dispatched. `GenerateCompatibilityJob` (the only dispatcher of `CompatibilityCalculated`) is never dispatched. `GenerateCompatibilitySummaryJob` is dispatched only in `tests/Feature/AI/AIIntegrationTest.php` and its cache key `ai:compat_summary:plan:{id}` is never read. The three `*Resource` classes and `ResponsePolicy` are unused. `responses.compatibility_score` is never written by app code (only read by `AdminAnalyticsController`). The `compatibility:{id}` cache key is only ever forgotten, never set. `resources/js/components/QuestionCard.vue` is not imported.
 - Admin: `AdminQuestionController` validates `type` as any string (an invalid value would break the enum cast; the admin form's select offers the five valid ones), and `AdminQuestionnaireController` validates `is_seasonal` but not `is_solo` / `is_intimacy`. See `admin.md`.
 
@@ -180,7 +179,8 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 3. `QuestionnaireController::question`: `current_answer` is an array only for `multiple_choice` (hard-coded string check).
 4. Scoring: add an arm to the `match` in `CompatibilityService::calculate` (unhandled types are skipped) and to `formatAnswerLabels`.
 5. Frontend: new component in `resources/js/components/questions/`, a `v-else-if` in `Question.vue`, and display handling in `Summary.vue` (`formatAnswer`) and `PartnerAnswers.vue` (`formatAnswers`).
-6. Add a state to `QuestionFactory`, add the option to the admin form (`resources/js/pages/admin/questionnaires/Edit.vue`), and check the date night rule engine handles the answers (`date-night.md`).
+6. Add an arm to the `match` in `SaveAnswerRequest::rules()` (an unhandled type throws).
+7. Add a state to `QuestionFactory`, add the option to the admin form (`resources/js/pages/admin/questionnaires/Edit.vue`), and check the date night rule engine handles the answers (`date-night.md`).
 
 ### Adding a new questionnaire
 
@@ -205,6 +205,7 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 | `tests/Feature/ResponseTest.php` | Response/answer models, multiple responses allowed |
 | `tests/Feature/Events/QuestionnaireCompletedEventTest.php` | Event dispatch |
 | `tests/Feature/Listeners/QuestionnaireCompletedListenersTest.php` | Listener registration, plan dispatch rules, partner notification |
+| `tests/Feature/AnswerValidationTest.php` | Accepted and rejected values per question type; `finish` refusing unanswered required questions |
 | `tests/Feature/DateOutPlanningModeTest.php` | Solo vs couple attempts of a `partner_optional` questionnaire: immediate solo plan, partner request then shared plan, no cross-mode pairing, couple refused without a partner, intro props |
 
 ```
@@ -221,3 +222,5 @@ No dedicated tests for: `restart`, `pastAttempt`, `planStatus`, solo location sa
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — "Plan a Date Out" can be answered alone or with a partner: `partner_optional`, `responses.is_solo`, `Response::isSolo()` / `scopeInMode()`, mode chooser on `Show.vue`.
 - 2026-11-24 — `questionnaires/Question.vue`: Back / Continue moved from a fixed block (hidden behind the tab bar) to a sticky pill bar above it.
+- 2026-11-24 — Roadmap Phase 1: only `start`/`restart` create an attempt; completed summary is read-only; completion screen redirects to an existing plan, handles no partner and stops polling after 90s; saved profiles apply via axios and only to their own questionnaire; slider emits its starting value; no invented location; `whereNumber('order')`.
+- 2026-11-24 — Roadmap Phase 2 (2.7, 2.10, 2.11): `question_options.signals`; per-type answer validation; `finish` refuses unanswered required questions; comparison pages are driven from the plan and the old routes redirect to them.

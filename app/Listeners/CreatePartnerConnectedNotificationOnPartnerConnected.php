@@ -22,7 +22,7 @@ final class CreatePartnerConnectedNotificationOnPartnerConnected implements Shou
     {
         AppNotification::create([
             'user_id' => $recipient->id,
-            'type' => NotificationType::PartnerCompleted,
+            'type' => NotificationType::PartnerConnected,
             'title' => "💑 You are now connected with {$partnerName}!",
             'body' => 'Start your first questionnaire together.',
             'data' => [],

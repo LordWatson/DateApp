@@ -100,7 +100,7 @@ class DateNightPlanTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('date-night/History')
-                ->has('plans', 1)
+                ->has('plans.data', 1)
             );
     }
 
@@ -109,23 +109,48 @@ class DateNightPlanTest extends TestCase
         $this->actingAs($this->userOne)
             ->get(route('date-night.history', ['compatibility' => 'high']))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('plans', 1));
+            ->assertInertia(fn ($page) => $page->has('plans.data', 1));
 
         $this->actingAs($this->userOne)
             ->get(route('date-night.history', ['compatibility' => 'low']))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('plans', 0));
+            ->assertInertia(fn ($page) => $page->has('plans.data', 0));
     }
 
     public function test_user_can_toggle_favourite(): void
     {
-        $this->assertFalse($this->plan->is_favourite);
+        $this->actingAs($this->userOne)
+            ->post(route('date-night.toggle-favourite', $this->plan->id))
+            ->assertRedirect();
+
+        $this->assertTrue($this->plan->favouritedBy()->whereKey($this->userOne->id)->exists());
 
         $this->actingAs($this->userOne)
             ->post(route('date-night.toggle-favourite', $this->plan->id))
             ->assertRedirect();
 
-        $this->assertTrue($this->plan->fresh()->is_favourite);
+        $this->assertDatabaseCount('date_night_plan_favourites', 0);
+    }
+
+    public function test_favourites_are_per_person(): void
+    {
+        $this->actingAs($this->userOne)->post(route('date-night.toggle-favourite', $this->plan->id));
+
+        $this->actingAs($this->userOne)
+            ->get(route('date-night.show', $this->plan->id))
+            ->assertInertia(fn ($page) => $page->where('plan.is_favourite', true));
+
+        $this->actingAs($this->userTwo)
+            ->get(route('date-night.show', $this->plan->id))
+            ->assertInertia(fn ($page) => $page->where('plan.is_favourite', false));
+
+        $this->actingAs($this->userTwo)
+            ->get(route('date-night.favourites'))
+            ->assertInertia(fn ($page) => $page->has('plans', 0));
+
+        $this->actingAs($this->userTwo)
+            ->get(route('date-night.history'))
+            ->assertInertia(fn ($page) => $page->where('plans.data.0.is_favourite', false));
     }
 
     public function test_unrelated_user_cannot_toggle_favourite(): void
@@ -139,7 +164,7 @@ class DateNightPlanTest extends TestCase
 
     public function test_user_can_view_favourites(): void
     {
-        $this->plan->update(['is_favourite' => true]);
+        $this->plan->favouritedBy()->attach($this->userOne->id);
 
         $this->actingAs($this->userOne)
             ->get(route('date-night.favourites'))
@@ -307,11 +332,11 @@ class DateNightPlanTest extends TestCase
         $this->actingAs($this->userOne)
             ->get(route('date-night.history', ['search' => $this->plan->theme]))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('plans', 1));
+            ->assertInertia(fn ($page) => $page->has('plans.data', 1));
 
         $this->actingAs($this->userOne)
             ->get(route('date-night.history', ['search' => 'nonexistentthemexyz']))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->has('plans', 0));
+            ->assertInertia(fn ($page) => $page->has('plans.data', 0));
     }
 }

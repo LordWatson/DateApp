@@ -343,6 +343,8 @@ class QuestionnaireFlowTest extends TestCase
             'value' => 'dominant',
         ]);
 
+        QuestionOption::factory()->create(['question_id' => $this->question->id, 'value' => 'submissive']);
+
         $this->actingAs($this->user)
             ->postJson(
                 route('questionnaires.answer', [$this->questionnaire->slug, 1]),
@@ -423,10 +425,16 @@ class QuestionnaireFlowTest extends TestCase
 
     public function test_finish_marks_response_as_completed(): void
     {
-        Response::factory()->create([
+        $response = Response::factory()->create([
             'user_id' => $this->user->id,
             'questionnaire_id' => $this->questionnaire->id,
             'status' => CompletionStatus::InProgress,
+        ]);
+
+        Answer::factory()->create([
+            'response_id' => $response->id,
+            'question_id' => $this->question->id,
+            'value' => 'dominant',
         ]);
 
         $this->actingAs($this->user)

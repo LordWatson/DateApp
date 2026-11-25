@@ -39,7 +39,8 @@ class DateOutPlanningModeTest extends TestCase
             'partner_optional' => true,
         ]);
 
-        Question::factory()->create(['questionnaire_id' => $this->questionnaire->id, 'display_order' => 1]);
+        // Optional free text: these tests are not about answer validation.
+        Question::factory()->text()->create(['questionnaire_id' => $this->questionnaire->id, 'display_order' => 1, 'required' => false]);
     }
 
     public function test_solo_attempt_generates_a_plan_as_soon_as_it_is_finished(): void

@@ -47,8 +47,8 @@ class SavedProfileController extends Controller
         $profile = SavedProfile::create([
             'user_id' => $user->id,
             'name' => $request->string('name'),
-            'emoji' => $request->string('emoji') ?: null,
-            'colour' => $request->string('colour') ?: null,
+            'emoji' => $request->input('emoji') ?: null,
+            'colour' => $request->input('colour') ?: null,
         ]);
 
         $answers = $this->questionnaireService->getAnswersForResponse($response);

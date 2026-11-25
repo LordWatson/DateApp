@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { route } from 'ziggy-js';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import admin from '@/routes/admin';
 
 defineOptions({ layout: AdminLayout });
 
@@ -62,7 +62,7 @@ defineProps<{
                         new Date(template.updated_at).toLocaleDateString()
                     }}</span>
                     <Link
-                        :href="route('admin.email-templates.edit', template.id)"
+                        :href="admin.emailTemplates.edit(template.id).url"
                         class="text-sm font-medium text-foreground hover:underline"
                     >
                         Edit

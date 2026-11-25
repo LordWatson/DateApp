@@ -24,7 +24,7 @@ class QuestionnaireCompletedMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '💕 '.($this->sender->display_name ?? $this->sender->name).' completed the questionnaire!',
+            subject: ($this->sender->display_name ?? $this->sender->name).' is waiting for your answers',
         );
     }
 

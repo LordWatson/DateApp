@@ -1,5 +1,5 @@
 # Dashboard, Relationship Hub, Insights and Search
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-25
 
 ## Purpose
 The read-only "overview" screens. The Dashboard is the post-login home (partner status, streak stats, a challenge, recent date nights, saved profiles). The Relationship Hub is a card menu into the other modules with a few live numbers. Insights shows lifetime statistics computed from the user's data. Search is a site-wide `LIKE` search over the user's own content.
@@ -64,6 +64,8 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 4. Result URLs: plans -> `date-night.show`, questionnaires -> `questionnaires.show`; every other type links to its index page, not the item.
 
 ## Rules and gotchas
+- The dashboard shows `components/AiConsentCard.vue` under the hero while `auth.user.ai_consent` is null (the user has not answered the AI question yet). See `auth-settings.md`.
+- **Time zones**: the dashboard's `stats.monthly_completions` counts from the start of the month in the user's timezone, and the hub's `upcoming_events` start at the user's own today (`User::today()`). A `today()` value compared with a timestamp column must be converted with `->utc()` first, because query bindings are not converted.
 - **There is no caching.** Nothing in these controllers/services calls `Cache::remember` or `Cache::put`. The keys `dashboard:{userId}` and `compatibility:{userId}` are only ever *forgotten* (`InvalidateCacheOnPartnerConnected`, `InvalidateCacheOnQuestionnaireCompleted`, `RefreshRelationshipStatisticsJob`), so those listeners, the job and the nightly `datenight:refresh-statistics` command are no-ops. If you add caching, those are the intended keys and invalidation points; note they are not triggered by plan generation, love notes, moments or disconnect.
 - Insights is not AI-backed: `GenerateRelationshipInsightJob` and `GenerateConversationPromptJob` are never dispatched and nothing reads their cache keys.
 - Feature flag `insights` is seeded (`FeatureFlagSeeder`) but `FeatureFlag::isEnabled()` is not called by any non-admin code, so it does not gate anything.
@@ -96,3 +98,8 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 
 ## Change log
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Roadmap Phase 0: search highlighting escapes HTML before adding `<mark>`; the dashboard sends only `id`, `name`, `display_name`, `avatar` for the partner.
+- 2026-11-24 — Roadmap Phase 1: search results update while typing and link to the item; search and hub use `QuestionnaireStatus::Active`; the monthly stat counts this month; achievement progress ignores hidden achievements.
+- 2026-11-24 — Roadmap Phase 2 (2.1): dashboard saved profile rows and a "Manage" link open `/saved-profiles`, which now exists (also the target of saved profile search results).
+- 2026-11-25 — Roadmap Phase 3 (3.14): "this month" on the dashboard and upcoming events on the hub follow the user's timezone.
+- 2026-11-25 — Roadmap Phase 3 (3.6): AI consent card on the dashboard until the user answers.

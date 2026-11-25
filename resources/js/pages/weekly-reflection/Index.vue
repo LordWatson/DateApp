@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { RefreshCw, Sparkles } from '@lucide/vue';
 import { ref } from 'vue';
+import { toast } from 'vue-sonner';
 import PageHeader from '@/components/PageHeader.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import SectionHeader from '@/components/SectionHeader.vue';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 import { index } from '@/routes/insights';
+import { edit as editProfile } from '@/routes/profile';
 import { regenerate as regenerateRoute } from '@/routes/weekly-reflection';
 
 defineOptions({ layout: MobileLayout });
 
 const regenerating = ref(false);
+
+// Someone without a partner is not looking back at a week "together".
+const title = usePage().props.auth.user.partner_id
+    ? 'This week together'
+    : 'Your week';
 
 interface Reflection {
     id: number;
@@ -54,6 +61,18 @@ const regenerate = (): void => {
         {},
         {
             preserveScroll: true,
+            // Regenerating costs an AI call, so the server limits it. Say so instead of showing an error page.
+            onHttpException: (response) => {
+                if (response.status !== 429) {
+                    return;
+                }
+
+                toast.error(
+                    'You have refreshed this a lot. Please try again in a little while.',
+                );
+
+                return false;
+            },
             onStart: () => {
                 regenerating.value = true;
             },
@@ -66,13 +85,13 @@ const regenerate = (): void => {
 </script>
 
 <template>
-    <Head title="This week together" />
+    <Head :title="title" />
 
     <div class="space-y-8 px-4 pt-6 pb-28">
         <PageHeader
             :back-href="index().url"
             back-label="Insights"
-            title="This week together"
+            :title="title"
             description="A gentle look back at your week"
         />
 
@@ -186,6 +205,22 @@ const regenerate = (): void => {
                         “{{ reflection.encouragement }}”
                     </p>
                 </template>
+
+                <p
+                    v-if="reflection.fallback_used"
+                    class="text-center text-xs text-muted-foreground"
+                >
+                    Written without AI. AI reflections need AI turned on in
+                    <Link
+                        :href="editProfile()"
+                        class="font-medium text-primary underline underline-offset-4"
+                        >Settings</Link
+                    >{{
+                        $page.props.auth.user.partner_id
+                            ? ' by both of you'
+                            : ''
+                    }}.
+                </p>
             </div>
         </article>
 

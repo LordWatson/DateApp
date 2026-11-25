@@ -20,7 +20,7 @@ class PartnerInvitationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '💕 '.$this->invitation->sender->display_name.' wants to connect on Date Night',
+            subject: ($this->invitation->sender->display_name ?? $this->invitation->sender->name).' wants to connect on Date Night',
         );
     }
 

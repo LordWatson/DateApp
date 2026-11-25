@@ -45,11 +45,11 @@ class SummariseCoupleAnswersAction
                 'is_intimacy' => (bool) $questionnaire->is_intimacy,
             ],
             'partner_one' => [
-                'name' => $partnerOneResponse->user?->name ?? 'Partner One',
+                'name' => $partnerOneResponse->user->name ?? 'Partner One',
                 'answers' => $this->summariseAnswers($partnerOneResponse),
             ],
             'partner_two' => [
-                'name' => $partnerTwoResponse->user?->name ?? 'Partner Two',
+                'name' => $partnerTwoResponse->user->name ?? 'Partner Two',
                 'answers' => $this->summariseAnswers($partnerTwoResponse),
             ],
         ];
@@ -60,15 +60,14 @@ class SummariseCoupleAnswersAction
      */
     private function summariseAnswers(Response $response): array
     {
-        return $response->answers
-            ->sortBy(fn (Answer $answer) => $answer->question?->display_order ?? 0)
+        return array_values($response->answers
+            ->sortBy(fn (Answer $answer) => $answer->question->display_order ?? 0)
             ->map(fn (Answer $answer): array => [
-                'question' => (string) ($answer->question?->title ?? ''),
+                'question' => (string) ($answer->question->title ?? ''),
                 'answer' => $this->formatAnswerValue($answer),
             ])
             ->filter(fn (array $row): bool => $row['question'] !== '' && $row['answer'] !== '')
-            ->values()
-            ->all();
+            ->all());
     }
 
     private function formatAnswerValue(Answer $answer): string

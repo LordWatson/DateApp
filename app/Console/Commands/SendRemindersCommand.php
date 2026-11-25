@@ -21,13 +21,18 @@ final class SendRemindersCommand extends Command
                 $q->whereNull('last_completed_questionnaire_at')
                     ->orWhere('last_completed_questionnaire_at', '<', now()->subDays(7));
             })
+            // One nudge a week at most: this runs daily and the condition stays true until they act.
+            ->whereNotIn('id', AppNotification::query()
+                ->where('type', NotificationType::QuestionnaireReminder)
+                ->where('created_at', '>', now()->subDays(7))
+                ->select('user_id'))
             ->get();
 
         foreach ($users as $user) {
             AppNotification::create([
                 'user_id' => $user->id,
-                'type' => NotificationType::PartnerCompleted,
-                'title' => '💕 Time for a Date Night!',
+                'type' => NotificationType::QuestionnaireReminder,
+                'title' => 'Time for a date night',
                 'body' => 'You haven\'t completed a questionnaire recently. Start one with your partner!',
                 'data' => [],
             ]);

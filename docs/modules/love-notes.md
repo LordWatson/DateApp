@@ -101,3 +101,4 @@ Not covered: `show` authorisation (403 for third parties), `unreadCount`, mail c
 ## Change log
 
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Roadmap Phase 1: notes are marked read by `POST /love-notes/mark-read` when the Received tab opens (not on page load); the tab shows the unread count.

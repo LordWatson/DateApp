@@ -64,16 +64,19 @@ class Response extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<Questionnaire, $this> */
     public function questionnaire(): BelongsTo
     {
         return $this->belongsTo(Questionnaire::class);
     }
 
+    /** @return HasMany<Answer, $this> */
     public function answers(): HasMany
     {
         return $this->hasMany(Answer::class);
@@ -90,6 +93,9 @@ class Response extends Model
     /**
      * Limit to attempts made in the given mode. Only questionnaires that offer the choice are filtered;
      * attempts made before the choice existed (null) count as the questionnaire's default mode.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeInMode(Builder $query, Questionnaire $questionnaire, bool $solo): Builder
     {

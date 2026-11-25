@@ -28,7 +28,7 @@ class AchievementController extends Controller
                 'hidden' => $a->hidden,
                 'unlocked' => in_array($a->id, $unlockedIds),
                 'unlocked_at' => in_array($a->id, $unlockedIds)
-                    ? $user->achievements()->where('achievement_id', $a->id)->first()?->pivot?->unlocked_at
+                    ? $user->achievements()->where('achievement_id', $a->id)->first()?->pivot->getAttribute('unlocked_at')
                     : null,
             ]);
 

@@ -9,6 +9,8 @@ export type User = {
     timezone?: string;
     partner_id?: number;
     onboarding_completed?: boolean;
+    /** AI processing: true = agreed, false = declined, null = not asked yet. */
+    ai_consent?: boolean | null;
     current_streak?: number;
     longest_streak?: number;
     monthly_completion_count?: number;
@@ -22,11 +24,19 @@ export type User = {
     [key: string]: unknown;
 };
 
-export type Auth = {
-    user: User;
+export type AdminAbilities = {
+    manageUsers: boolean;
+    manageContent: boolean;
+    viewAnalytics: boolean;
+    superAdmin: boolean;
 };
 
-/* @chisel-passkeys */
+export type Auth = {
+    user: User;
+    /** Only present for admins. */
+    can: AdminAbilities | null;
+};
+
 export type Passkey = {
     id: number;
     name: string;
@@ -34,7 +44,6 @@ export type Passkey = {
     created_at_diff: string;
     last_used_at_diff: string | null;
 };
-/* @end-chisel-passkeys */
 
 export type TwoFactorConfigContent = {
     title: string;

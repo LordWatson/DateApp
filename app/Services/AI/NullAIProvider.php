@@ -39,10 +39,19 @@ final class NullAIProvider implements AIProvider
     private function stubData(AIUseCase $useCase): array
     {
         return match ($useCase) {
+            // Only keys DateNightGeneratorService accepts (its ENHANCEABLE_FIELDS).
             AIUseCase::DateNightPlan => [
-                'title' => 'A gentle evening in',
                 'summary' => 'A calm, connection-focused evening at home.',
-                'activities' => [],
+            ],
+            AIUseCase::DateNightPlanSolo => [
+                'summary' => 'An easy date out, planned around what you asked for.',
+                'local_suggestions' => [],
+            ],
+            AIUseCase::WeeklyReflection => [
+                'summary' => 'A steady week with small moments worth noticing.',
+            ],
+            AIUseCase::IntimacyGame => [
+                'prompt' => 'Share one thing your partner did recently that made you feel close.',
             ],
             AIUseCase::DateNightPlanOutCouple => [
                 'summary' => 'An easy evening out that gives each of you something you asked for.',

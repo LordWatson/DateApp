@@ -57,8 +57,8 @@ class AdminCoupleController extends AdminController
             'partner_id' => ['required', 'exists:users,id', 'different:user_id'],
         ]);
 
-        $user = User::findOrFail($validated['user_id']);
-        $partner = User::findOrFail($validated['partner_id']);
+        $user = User::whereKey($validated['user_id'])->firstOrFail();
+        $partner = User::whereKey($validated['partner_id'])->firstOrFail();
 
         $user->update(['partner_id' => $partner->id]);
         $partner->update(['partner_id' => $user->id]);

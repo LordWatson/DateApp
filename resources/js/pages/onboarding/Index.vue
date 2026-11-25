@@ -1,12 +1,7 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import {
-    ArrowRight,
-    ChevronLeft,
-    ChevronRight,
-    CircleAlert,
-} from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { ArrowRight, ChevronLeft, ChevronRight } from '@lucide/vue';
+import { ref } from 'vue';
 import OnboardingController from '@/actions/App/Http/Controllers/OnboardingController';
 import FloatingHearts from '@/components/FloatingHearts.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
@@ -20,7 +15,6 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const page = usePage<{ flash?: { error?: string } }>();
 
 const currentStep = ref(
     props.user.onboarding_completed ? 4 : props.user.display_name ? 3 : 2,
@@ -82,8 +76,6 @@ const genderOptions = [
     { value: 'prefer_not_to_say', label: 'Prefer not to say', emoji: '🤍' },
 ];
 
-const flashError = computed(() => page.props.flash?.error);
-
 function selectAvatar(emoji: string): void {
     selectedAvatar.value = emoji;
     profileForm.avatar = emoji;
@@ -107,7 +99,10 @@ function submitInvite(): void {
 }
 
 function submitJoin(): void {
-    router.get(`/invite/${joinForm.token}`);
+    // Accept the bare token or the whole emailed link.
+    const token = joinForm.token.trim().split('/').filter(Boolean).pop() ?? '';
+
+    router.get(`/invite/${token}`);
 }
 
 function completeOnboarding(): void {
@@ -500,17 +495,6 @@ const choiceClass =
                             <ChevronLeft class="size-4" aria-hidden="true" />
                             Back
                         </button>
-                        <div
-                            v-if="flashError"
-                            class="flex items-start gap-2.5 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                            role="alert"
-                        >
-                            <CircleAlert
-                                class="mt-0.5 size-4 shrink-0"
-                                aria-hidden="true"
-                            />
-                            {{ flashError }}
-                        </div>
                         <form class="space-y-4" @submit.prevent="submitInvite">
                             <div>
                                 <label :class="labelClass" for="partner_email"

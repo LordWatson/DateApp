@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 
 interface Props {
     modelValue: string | null;
@@ -59,6 +59,14 @@ function formatValue(value: number): string {
 const displayCurrent = computed(() => formatValue(current.value));
 const displayMin = computed(() => formatValue(min.value));
 const displayMax = computed(() => formatValue(max.value));
+
+// The slider shows its minimum from the start. Without this, a required
+// slider could not be accepted until it had been moved away and back.
+onMounted(() => {
+    if (props.modelValue === null || props.modelValue === '') {
+        emit('update:modelValue', String(min.value));
+    }
+});
 
 function onInput(event: Event): void {
     const target = event.target as HTMLInputElement;

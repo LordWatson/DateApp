@@ -2,51 +2,19 @@
 
 namespace Database\Seeders;
 
-use App\Enums\Gender;
-use App\Enums\UserRole;
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
+    /**
+     * Reference data only, safe to run on any environment and to run again.
+     * The demo couple (known password, super administrator) is local only.
+     */
     public function run(): void
     {
-        $alex = User::create([
-            'name' => 'Alex',
-            'email' => 'squatty.watson@gmail.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password'),
-            'gender' => Gender::Male,
-            'date_of_birth' => '1993-10-16',
-            'timezone' => 'UTC',
-            'email_notifications' => true,
-            'push_notifications' => true,
-            'dark_mode' => false,
-        ]);
-
-        $rimmaEmail = config('app.env') == 'local' ? 'alexander.watson.work@gmail.com' : 'elizarudowicz@gmail.com';
-
-        $eliza = User::create([
-            'name' => 'Rimma',
-            'email' => $rimmaEmail,
-            'email_verified_at' => now(),
-            'password' => Hash::make('password'),
-            'gender' => Gender::Female,
-            'date_of_birth' => '1992-03-22',
-            'timezone' => 'UTC',
-            'email_notifications' => true,
-            'push_notifications' => true,
-            'dark_mode' => false,
-        ]);
-
-        $alex->update(['partner_id' => $eliza->id]);
-        $eliza->update(['partner_id' => $alex->id]);
-
         $this->call([
             RoleSeeder::class,
             FeatureFlagSeeder::class,
@@ -62,9 +30,8 @@ class DatabaseSeeder extends Seeder
             AiPromptTemplateSeeder::class,
         ]);
 
-        // Assign super admin role to Alex
-        $superAdminRole = Role::where('name', UserRole::SuperAdministrator->value)->first();
-        $alex->update(['role_id' => $superAdminRole?->id, 'onboarding_completed' => true]);
-        $eliza->update(['onboarding_completed' => true]);
+        if (app()->environment('local', 'testing')) {
+            $this->call(DemoCoupleSeeder::class);
+        }
     }
 }

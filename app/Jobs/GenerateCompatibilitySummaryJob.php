@@ -54,7 +54,7 @@ final class GenerateCompatibilitySummaryJob implements ShouldQueue
         }
 
         /** @var DateNightPlan|null $plan */
-        $plan = DateNightPlan::find($this->planId);
+        $plan = DateNightPlan::with(['partnerOneResponse.user', 'partnerTwoResponse.user'])->find($this->planId);
         if ($plan === null) {
             return;
         }
@@ -66,6 +66,7 @@ final class GenerateCompatibilitySummaryJob implements ShouldQueue
                     'compatibility_score' => $plan->compatibility_score,
                     'theme' => $plan->theme,
                 ],
+                people: array_values(array_filter([$plan->partnerOneResponse?->user, $plan->partnerTwoResponse?->user])),
                 subject: $plan,
             );
         } catch (Throwable $e) {

@@ -15,7 +15,7 @@ class AdminFeatureFlagTest extends TestCase
 
     private function adminUser(): User
     {
-        $role = Role::factory()->create(['name' => UserRole::Administrator->value, 'label' => UserRole::Administrator->label()]);
+        $role = Role::factory()->create(['name' => UserRole::SuperAdministrator->value, 'label' => UserRole::SuperAdministrator->label()]);
 
         return User::factory()->create(['role_id' => $role->id]);
     }

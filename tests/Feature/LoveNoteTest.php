@@ -77,18 +77,23 @@ class LoveNoteTest extends TestCase
             ->assertSessionHasErrors('message');
     }
 
-    public function test_received_notes_are_marked_as_read_on_view(): void
+    public function test_received_notes_are_marked_read_when_the_received_tab_is_opened(): void
     {
         $note = LoveNote::factory()->create([
             'sender_id' => $this->recipient->id,
             'recipient_id' => $this->sender->id,
             'read_at' => null,
         ]);
+        $someoneElses = LoveNote::factory()->create(['read_at' => null]);
 
-        $this->actingAs($this->sender)
-            ->get(route('love-notes.index'));
+        // Loading the page opens the Send tab, so nothing has been read yet.
+        $this->actingAs($this->sender)->get(route('love-notes.index'));
+        $this->assertNull($note->fresh()->read_at);
+
+        $this->actingAs($this->sender)->postJson(route('love-notes.mark-read'))->assertOk();
 
         $this->assertNotNull($note->fresh()->read_at);
+        $this->assertNull($someoneElses->fresh()->read_at);
     }
 
     public function test_user_without_partner_cannot_send_note(): void

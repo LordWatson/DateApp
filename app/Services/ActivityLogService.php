@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 final class ActivityLogService
 {
+    /** @param  array<string, mixed>  $metadata */
     public function log(User $user, string $action, ?Model $subject = null, array $metadata = []): ActivityLog
     {
         Log::info('activity', [

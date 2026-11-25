@@ -38,7 +38,7 @@ Three ways the app records or announces that something happened: in-app notifica
 - **`app_notifications`** (migration `2026_07_13_000004_create_notifications_table.php` - file name says `notifications`, table is `app_notifications`): `user_id` (cascade delete), `type` string, `title`, `body` nullable text, `data` nullable json, `read_at` nullable. Indexes `(user_id, read_at)`, `type`. Casts: `type` -> `NotificationType`, `data` -> array, `read_at` -> datetime.
 - **`activity_log`** (`2026_07_12_200000_create_activity_log_table.php`): `user_id` (cascade), `action` string, nullable morph `subject_type`/`subject_id`, `metadata` nullable json (cast array; empty array stored as `null`). Indexes `(user_id, created_at)`, `action`.
 - **`email_templates`** (`2026_07_12_161522_create_email_templates_table.php`): `key` unique, `label`, `subject`, `html_body`, `text_body`, `variables` json, `active`. No seeder.
-- **`users.email_notifications`** boolean default true (`2026_07_12_000001_extend_users_table.php`); `push_notifications` also exists.
+- **`users.email_notifications`** boolean default true (`2026_07_12_000001_extend_users_table.php`), changed at `/settings/notifications`. Every job that sends a notification email checks it; the in-app notification is created either way. Account mail (verification, password reset) and the invitation email ignore it. `push_notifications` also exists and is unused.
 - Laravel's built-in database notifications are not used, even though `User` has the `Notifiable` trait.
 
 ### Notification types
@@ -50,6 +50,9 @@ Three ways the app records or announces that something happened: in-app notifica
 | `partner_completed` (reused) | `SendRemindersCommand` | Onboarded users with a partner whose `last_completed_questionnaire_at` is null or older than 7 days | Scheduler, daily 09:00 |
 | `date_night_plan_ready` | `NotifyPlanReadyOnDateNightPlanGenerated` | `userOne` and `userTwo` (if not null) | `DateNightPlanGenerated`. `data`: `plan_id` |
 | `love_note_received` | `SendLoveNoteNotificationJob` | Note recipient | `LoveNoteSent`. `data`: `love_note_id` |
+| `partner_left` | `NotifyFormerPartnerOnPartnerDisconnected` (also `DeleteAccountAction`) | The other partner | `PartnerDisconnected`, or the partner deleting their account |
+| `invitation_expired` | `ExpireInvitationsCommand` | Invitation sender | Daily 00:10, once per invitation that ran out unanswered |
+| `data_export_ready` | `ExportUserDataJob` | The user | Their data export file is ready (links to `/settings/profile`) |
 | `moment_created` | `SendMomentNotificationJob` | Creator's partner | `MomentCreated` (only if a partner exists). `data`: `moment_id` |
 | `partner_viewed_plan` | `NotificationService::notifyPartnerViewedPlan` from `DateNightPlanController@show` (line 39) | Partner | Every time the plan page is opened, if the partner can view the plan |
 | `partner_liked_plan` | `NotificationService::notifyPartnerLikedPlan` from `LikeDateNightPlanAction` (line 36) | Partner | Like added (not on unlike) |
@@ -65,9 +68,9 @@ All render Blade views in `resources/views/emails/`. None read `EmailTemplate`.
 | `PartnerInvitationMail` (`partner-invitation`) | No | `SendInvitationEmailJob` (`emails`) | `SendPartnerInvitationAction` line 20; `PartnerController@resendInvite` line 52 | `invitation->email` | n/a; job skips accepted or expired invitations |
 | `PartnerConnectedMail` (`partner-connected`) | Yes | `SendPartnerConnectedEmailJob` (`emails`) | `PartnerConnected` | Both users | Yes |
 | `DateNightReadyMail` (`date-night-ready`) | Yes | `SendSummaryEmailJob` (`emails`) | `DateNightPlanGenerated` | `userOne`, `userTwo` if set | Yes |
-| `LoveNoteReceivedMail` (`love-note-received`) | Yes | `SendLoveNoteNotificationJob` (`notifications`) | `LoveNoteSent` | Note recipient | No |
-| `MomentCreatedMail` (`moment-created`) | Yes | `SendMomentNotificationJob` (`notifications`) | `MomentCreated` | Creator's partner | No |
-| `QuestionnaireCompletedMail` (`questionnaire-completed`) | Yes | `SendQuestionnaireCompletedNotificationJob` (`notifications`) | `QuestionnaireCompleted` (non-solo, has partner) | Partner | No |
+| `LoveNoteReceivedMail` (`love-note-received`) | Yes | `SendLoveNoteNotificationJob` (`notifications`) | `LoveNoteSent` | Note recipient | Yes |
+| `MomentCreatedMail` (`moment-created`) | Yes | `SendMomentNotificationJob` (`notifications`) | `MomentCreated` | Creator's partner | Yes |
+| `QuestionnaireCompletedMail` (`questionnaire-completed`) | Yes | `SendQuestionnaireCompletedNotificationJob` (`notifications`) | `QuestionnaireCompleted` (non-solo, has partner) | Partner | Yes |
 
 ### Activity log actions
 | `action` | Listener | Logged for | Subject / metadata |
@@ -117,7 +120,6 @@ There are no routes for the activity log. Email template admin routes live in `r
 - Suspected issue: `app/Listeners/NotifyOnAchievementUnlocked.php:19` reads `$event->achievement->title`, but the `achievements` column is `name`, so the title renders as "Achievement unlocked: !".
 - Suspected issue: `DateNightPlanController@show` (line 39) creates a `partner_viewed_plan` notification on every page view with no de-duplication.
 - Suspected issue: `SendRemindersCommand` has no "already reminded" check, so an inactive couple gets a new reminder every day.
-- Suspected issue: `email_notifications` is only honoured by `SendPartnerConnectedEmailJob` and `SendSummaryEmailJob`; love note, moment and questionnaire-completed emails ignore it. No controller or page lets the user change the flag.
 - Suspected issue: `app/Mail/PartnerInvitationMail.php:23` builds the subject from `sender->display_name` with no fallback to `name` (the body on line 32 has the fallback).
 - Suspected issue: `notifications/Index.vue` has no click target for `partner_viewed_plan` or `partner_added_date_night_to_calendar` even though both carry `plan_id`, and `typeEmoji` has no entry for the calendar type.
 - Dead code: `NotificationResource`, `NotificationCreated`, `NotificationService::notifyPartnerCompleted/notifyDateNightPlanReady/notifyLoveNoteReceived`, enum cases `CompatibilityReady` and `DailyChallenge`, route `notifications.unread-count`, `SendInvitationEmailOnPartnerInvitationCreated` (unregistered; invitation mail is dispatched directly).
@@ -137,3 +139,6 @@ There are no routes for the activity log. Email template admin routes live in `r
 
 ## Change log
 - 2026-11-24 — Initial doc.
+- 2026-11-24 — Roadmap Phase 1: new types `partner_connected`, `achievement_unlocked`, `questionnaire_reminder`, `plan_failed`; every type links somewhere (`destination()` in `notifications/Index.vue`); "partner viewed plan" is sent once per plan; the weekly reminder is sent at most once every 7 days.
+- 2026-11-24 — Roadmap Phase 2 (2.3, 2.4): new type `calendar_reminder` (hourly `SendCalendarRemindersCommand`, links to the event); `daily_challenge` is now sent to the partner when a daily challenge is completed.
+- 2026-11-24 — Roadmap Phase 2 (2.6, 2.12, 2.14): love note, moment and questionnaire-completed emails honour `email_notifications` (settable in settings); new types `invitation_expired` and `data_export_ready`; `partner_left` is also sent on disconnect.

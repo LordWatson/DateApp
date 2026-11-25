@@ -49,6 +49,12 @@ const props = defineProps<Props>();
 
 const shortcuts = [
     {
+        emoji: '🕰️',
+        title: 'Timeline',
+        description: 'Your story so far, in order',
+        href: '/timeline',
+    },
+    {
         emoji: '❤️',
         title: 'Relationship insights',
         description: 'Your love story in numbers',

@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\Gender;
 use App\Enums\UserRole;
+use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,6 +44,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $suspended_at
  * @property string|null $suspension_reason
  * @property string|null $display_name
+ * @property Carbon|null $terms_accepted_at
+ * @property Carbon|null $ai_consent_at
+ * @property Carbon|null $ai_consent_declined_at
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -72,9 +77,12 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'is_suspended',
     'suspended_at',
     'suspension_reason',
+    'terms_accepted_at',
+    'ai_consent_at',
+    'ai_consent_declined_at',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements PasskeyUser
+class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
@@ -94,9 +102,52 @@ class User extends Authenticatable implements PasskeyUser
             'onboarding_completed' => 'boolean',
             'is_suspended' => 'boolean',
             'suspended_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
+            'ai_consent_at' => 'datetime',
+            'ai_consent_declined_at' => 'datetime',
         ];
     }
 
+    /**
+     * Whether this person's content may be sent to the AI provider.
+     * No answer yet counts as no.
+     */
+    public function hasAiConsent(): bool
+    {
+        return $this->ai_consent_at !== null;
+    }
+
+    /**
+     * True = agreed, false = declined, null = not asked yet.
+     */
+    public function aiConsent(): ?bool
+    {
+        return match (true) {
+            $this->ai_consent_at !== null => true,
+            $this->ai_consent_declined_at !== null => false,
+            default => null,
+        };
+    }
+
+    public function recordAiConsent(bool $agreed): void
+    {
+        $this->update([
+            'ai_consent_at' => $agreed ? now() : null,
+            'ai_consent_declined_at' => $agreed ? null : now(),
+        ]);
+    }
+
+    /**
+     * The start of the current day where the user lives. The app runs in UTC,
+     * so use this for anything the user would call "today" or "this month".
+     * Call `->utc()` on the result before comparing it with a timestamp column.
+     */
+    public function today(): CarbonImmutable
+    {
+        return CarbonImmutable::now($this->timezone ?: 'UTC')->startOfDay();
+    }
+
+    /** @return BelongsTo<Role, $this> */
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
@@ -122,11 +173,13 @@ class User extends Authenticatable implements PasskeyUser
         return $this->adminRole() === $role;
     }
 
+    /** @return BelongsTo<User, $this> */
     public function partner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'partner_id');
     }
 
+    /** @return HasMany<PartnerInvitation, $this> */
     public function sentInvitations(): HasMany
     {
         return $this->hasMany(PartnerInvitation::class, 'sender_id');
@@ -141,26 +194,31 @@ class User extends Authenticatable implements PasskeyUser
             ->first();
     }
 
+    /** @return HasMany<Response, $this> */
     public function responses(): HasMany
     {
         return $this->hasMany(Response::class);
     }
 
+    /** @return HasMany<SavedProfile, $this> */
     public function savedProfiles(): HasMany
     {
         return $this->hasMany(SavedProfile::class);
     }
 
+    /** @return HasMany<CalendarEvent, $this> */
     public function calendarEvents(): HasMany
     {
         return $this->hasMany(CalendarEvent::class);
     }
 
+    /** @return HasMany<Moment, $this> */
     public function moments(): HasMany
     {
         return $this->hasMany(Moment::class);
     }
 
+    /** @return BelongsToMany<Achievement, $this> */
     public function achievements(): BelongsToMany
     {
         return $this->belongsToMany(Achievement::class, 'user_achievements')
@@ -168,6 +226,7 @@ class User extends Authenticatable implements PasskeyUser
             ->withTimestamps();
     }
 
+    /** @return HasMany<TimelineEntry, $this> */
     public function timelineEntries(): HasMany
     {
         return $this->hasMany(TimelineEntry::class);
