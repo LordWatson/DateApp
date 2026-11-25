@@ -47,6 +47,9 @@ Rules:
   meal" or "a fun activity".
 - `theme` is a 2–5 word Title Case name that accurately reflects the plan you
   actually produced (no emojis, no markdown, no trailing punctuation).
+- If `requested_change` is present, the couple has read the plan in
+  `deterministic_plan` and asked for that change. Rewrite the plan so it clearly
+  honours the request, keep what still fits, and stay within every other rule.
 
 Context:
 {{context}}
@@ -63,7 +66,7 @@ non-empty strings, no markdown):
   "romantic_challenge": string
 }
 PROMPT,
-                'version' => 11,
+                'version' => 12,
                 'active' => true,
                 // Schema has 9 short string fields; keep a generous but not
                 // excessive output budget so DeepSeek does not truncate.
@@ -87,6 +90,9 @@ Rules:
   as a rough total budget in the user's local currency and tailor spend to it.
 - `theme` is a 2–5 word Title Case name that accurately reflects the plan you
   produced (no emojis, no markdown, no trailing punctuation).
+- If `requested_change` is present, the user has read the plan in
+  `deterministic_plan` and asked for that change. Rewrite the plan so it clearly
+  honours the request, keep what still fits, and stay within every other rule.
 
 Location & travel radius (only when `location` is provided):
 - `location` may include a rough label (city/region/country), approximate
@@ -129,7 +135,7 @@ non-empty, no markdown):
 Hard limit: `local_suggestions` MUST contain at most 3 entries; prefer fewer,
 higher-quality picks over padding. Return an empty array when `location` is null.
 PROMPT,
-                'version' => 1,
+                'version' => 2,
                 'active' => true,
                 'max_tokens' => 5000,
             ],
@@ -159,6 +165,9 @@ Compromise rules (this is the point of the plan):
   say which partner gave which answer and never invent preferences.
 - `theme` is a 2–5 word Title Case name that reflects the plan you produced
   (no emojis, no markdown, no trailing punctuation).
+- If `requested_change` is present, the couple has read the plan in
+  `deterministic_plan` and asked for that change. Rewrite the plan so it clearly
+  honours the request, keep what still fits, and stay within every other rule.
 
 Location & travel radius (only when `location` is provided):
 - `location` may include a rough label (city/region/country), approximate
@@ -199,7 +208,7 @@ non-empty, no markdown):
 Hard limit: `local_suggestions` MUST contain at most 3 entries; prefer fewer,
 higher-quality picks over padding. Return an empty array when `location` is missing.
 PROMPT,
-                'version' => 1,
+                'version' => 2,
                 'active' => true,
                 'max_tokens' => 5000,
             ],

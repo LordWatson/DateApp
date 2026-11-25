@@ -213,6 +213,14 @@ final readonly class WeeklyReflectionService
             ->orderBy('created_at')
             ->get();
 
+        $done = DB::table('date_night_plan_completions')
+            ->join('date_night_plans', 'date_night_plans.id', '=', 'date_night_plan_completions.date_night_plan_id')
+            ->whereIn('date_night_plan_completions.user_id', $ids)
+            ->whereDate('completed_on', '>=', $days[0])
+            ->whereDate('completed_on', '<=', $days[1])
+            ->orderBy('completed_on')
+            ->get(['date_night_plans.theme', 'date_night_plan_completions.user_id', 'rating', 'completed_on']);
+
         $notes = LoveNote::query()
             ->whereIn('sender_id', $ids)
             ->whereIn('recipient_id', $ids)
@@ -274,6 +282,13 @@ final readonly class WeeklyReflectionService
                 'meal' => $plan->meal_suggestion,
                 'where' => $plan->location_label,
             ], static fn (mixed $value): bool => $value !== null))->values()->all(),
+            // Date nights the couple actually did this week, with each person's rating out of 5.
+            'date_nights_done' => $done->take(self::MAX_ITEMS)->map(fn (object $row): array => [
+                'date' => substr((string) $row->completed_on, 0, 10),
+                'theme' => $row->theme,
+                'rated_by' => $name((int) $row->user_id),
+                'rating_out_of_5' => (int) $row->rating,
+            ])->values()->all(),
             'love_notes' => [
                 'total' => $notes->count(),
                 'sent_by' => $notes->countBy(fn (LoveNote $note): string => $name($note->sender_id))->all(),

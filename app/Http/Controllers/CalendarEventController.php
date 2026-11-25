@@ -7,6 +7,8 @@ use App\Events\CalendarEventCreated;
 use App\Http\Requests\CalendarEvent\StoreCalendarEventRequest;
 use App\Http\Requests\CalendarEvent\UpdateCalendarEventRequest;
 use App\Models\CalendarEvent;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,26 +21,29 @@ class CalendarEventController extends Controller
         $user = $request->user();
         $partner = $user->partner;
 
+        $today = $user->today();
+
         $userEvents = $user->calendarEvents()
             ->orderBy('date')
             ->get()
-            ->map(fn ($e) => $this->formatEvent($e, $user->name, true))
+            ->map(fn ($e) => $this->formatEvent($e, $user->name, true, $today))
             ->toBase();
 
         $partnerEvents = $partner
             ? $partner->calendarEvents()
                 ->orderBy('date')
                 ->get()
-                ->map(fn ($e) => $this->formatEvent($e, $partner->name, false))
+                ->map(fn ($e) => $this->formatEvent($e, $partner->name, false, $today))
                 ->toBase()
             : collect();
 
-        $events = $userEvents->merge($partnerEvents)->sortBy('date')->values();
+        // A repeating event sits where it next falls, not where it was first entered.
+        $events = $userEvents->merge($partnerEvents)->sortBy('next_date')->values();
 
         return Inertia::render('calendar/Index', [
             'events' => $events,
             // The user's own "today": it splits upcoming from past and is the default date.
-            'today' => $user->today()->toDateString(),
+            'today' => $today->toDateString(),
             'eventTypes' => $this->eventTypes(),
         ]);
     }
@@ -51,7 +56,7 @@ class CalendarEventController extends Controller
         $isMine = $request->user()->id === $owner->id;
 
         return Inertia::render('calendar/Show', [
-            'event' => $this->formatEvent($calendarEvent, $owner->name, $isMine),
+            'event' => $this->formatEvent($calendarEvent, $owner->name, $isMine, $request->user()->today()),
         ]);
     }
 
@@ -70,8 +75,9 @@ class CalendarEventController extends Controller
         $calendarEvent->fill($request->validated());
 
         // A moved event or a changed reminder is due again.
-        if ($calendarEvent->isDirty(['date', 'reminder'])) {
+        if ($calendarEvent->isDirty(['date', 'reminder', 'recurrence'])) {
             $calendarEvent->reminder_sent = false;
+            $calendarEvent->reminded_for_date = null;
         }
 
         $calendarEvent->save();
@@ -88,8 +94,10 @@ class CalendarEventController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function formatEvent(CalendarEvent $event, string $ownerName, bool $isMine): array
+    private function formatEvent(CalendarEvent $event, string $ownerName, bool $isMine, CarbonInterface $today): array
     {
+        $next = $event->nextOccurrence($today);
+
         return [
             'id' => $event->id,
             'title' => $event->title,
@@ -97,6 +105,12 @@ class CalendarEventController extends Controller
             'type' => $event->type,
             'emoji' => $event->emoji,
             'date' => $event->date->toDateString(),
+            'recurrence' => $event->recurrence?->value,
+            // Where the event next falls (its own date for a one-off), and how far away that is.
+            'next_date' => $next->toDateString(),
+            'days_until' => (int) CarbonImmutable::parse($today->toDateString())->diffInDays($next, false),
+            // "5th anniversary": how many years after the first one the next occurrence is.
+            'occurrence' => $event->recurrence ? $next->year - $event->date->year : null,
             'time' => $event->time,
             'location' => $event->location,
             'notes' => $event->notes,

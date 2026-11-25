@@ -25,4 +25,7 @@ enum NotificationType: string
     case PartnerNudge = 'partner_nudge';
     case LoveNoteReaction = 'love_note_reaction';
     case ConnectionAnniversary = 'connection_anniversary';
+    case PartnerCompletedPlan = 'partner_completed_plan';
+    case ConnectionPaused = 'connection_paused';
+    case ConnectionResumed = 'connection_resumed';
 }

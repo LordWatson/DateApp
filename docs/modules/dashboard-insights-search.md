@@ -48,9 +48,10 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 4. `recentQuestionnaires` (only with a partner): user's 5 latest completed responses for questionnaires the partner has also completed. The template section that renders them is commented out (`Dashboard.vue` lines 296-337).
 5. `recentDateNights`: 3 newest plans (rule above). `savedProfiles`: id, name, emoji, colour.
 
+5b. `todayChallenge` also carries `couple_streak` and `longest_couple_streak` (null without a partner); see `challenges-achievements-streaks.md`.
 6. `onThisDay`: up to 3 items from today's date (the user's own day) in earlier years, nearest year first: moments of the user and partner (by `date`) and plans from `DateNightPlan::visibleTo()` (by `created_at`, which is UTC, so a plan made around midnight can be a day out). Each item: `type` (`moment` / `plan`), `id`, `title`, `emoji`, `years_ago`, `url`. `components/OnThisDayCard.vue` renders nothing when the list is empty. 29 February only matches in leap years.
 
-**Relationship Hub load**: next 3 calendar events (user + partner), 3 most recent own moments, moment count (user + partner), `AchievementService::getUserProgress()`, rounded average `compatibility_score`, up to 3 seasonal questionnaires.
+**Relationship Hub load**: next 3 calendar events (user + partner; repeating events count at their next occurrence, see `calendar.md`), 3 most recent own moments, moment count (user + partner), `AchievementService::getUserProgress()`, rounded average `compatibility_score`, up to 3 seasonal questionnaires.
 
 **Insights load**: `InsightsService::getInsights()` returns `total_questionnaires`, `total_plans`, `average_compatibility`, `love_notes_sent`, `love_notes_received`, `current_streak`, `longest_streak`, `most_completed_month`, `favourite_theme`, `most_selected_atmosphere`, `compatibility_over_time` (up to 12 `{month: 'YYYY-MM', score}` rows), `moments_count`, `calendar_events_count`. Everything is computed per request. The page also links to Weekly Reflection ([weekly-reflection.md](weekly-reflection.md)).
 
@@ -63,6 +64,7 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 ## Rules and gotchas
 - The dashboard shows `components/AiConsentCard.vue` under the hero while `auth.user.ai_consent` is null (the user has not answered the AI question yet). See `auth-settings.md`.
 - **Time zones**: the dashboard's `stats.monthly_completions` counts from the start of the month in the user's timezone, and the hub's `upcoming_events` start at the user's own today (`User::today()`). A `today()` value compared with a timestamp column must be converted with `->utc()` first, because query bindings are not converted.
+- **Hidden history**: plan queries here add `notHiddenFor($user)` and love note queries use `LoveNote::visibleTo($user)`, so what a person took out of their account after a connection ended is not listed, counted or found. The dashboard also sends `connectionPaused`.
 - **There is no caching.** Nothing in these controllers/services calls `Cache::remember` or `Cache::put`. Every page load queries the database. If you add caching, add the invalidation with it (partner connect and disconnect, questionnaire completion, plan generation, love notes, moments).
 - Feature flag `insights` is seeded (`FeatureFlagSeeder`) but `FeatureFlag::isEnabled()` is not called by any non-admin code, so it does not gate anything.
 - `InsightsService` branches on `DB::getDriverName()`: `strftime` for SQLite, `MONTH()` / `DATE_FORMAT()` otherwise (MySQL syntax; other drivers are not handled).
@@ -102,3 +104,6 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 - 2026-11-25 — Roadmap Phase 3 (3.6): AI consent card on the dashboard until the user answers.
 - 2026-11-26 — Roadmap Phase 4: removed the cache-forgetting listeners, `RefreshRelationshipStatisticsJob`, `datenight:refresh-statistics` and the two never-dispatched AI insight jobs. Still no caching.
 - 2026-11-25 — Roadmap Phase 5.5: "On this day" card on the dashboard (`onThisDay` prop, `OnThisDayCard.vue`).
+- 2026-11-25 — Roadmap Phase 5.4: couple streak on the challenge card.
+- 2026-11-25 — Roadmap Phase 5.7: hub upcoming events include repeating events.
+- 2026-11-25 — Roadmap Phase 5.12: hidden plans and notes are left out of the dashboard, hub, insights, search and timeline.

@@ -55,12 +55,13 @@ class AdminUserController extends AdminController
         ]);
     }
 
-    public function show(User $user): Response
+    public function show(Request $request, User $user): Response
     {
         $user->load(['role', 'partner', 'responses.questionnaire', 'moments', 'achievements']);
 
         return Inertia::render('admin/users/Show', [
             'user' => $user,
+            'canViewAs' => $request->user()->can('super-admin') && ! $user->isAdmin(),
         ]);
     }
 

@@ -17,6 +17,10 @@ interface CalendarEvent {
     type: string;
     emoji: string | null;
     date: string;
+    recurrence: string | null;
+    next_date: string;
+    days_until: number;
+    occurrence: number | null;
     time: string | null;
     location: string | null;
     notes: string | null;
@@ -39,6 +43,18 @@ function formatDate(dateStr: string): string {
     });
 }
 
+function countdown(days: number): string {
+    if (days < 0) {
+        return '';
+    }
+
+    if (days === 0) {
+        return 'Today';
+    }
+
+    return days === 1 ? 'Tomorrow' : `In ${days} days`;
+}
+
 const confirmingDelete = ref(false);
 
 function deleteEvent(): void {
@@ -56,7 +72,8 @@ function deleteEvent(): void {
             "
             :title="event.title"
             :description="
-                formatDate(event.date) + (event.time ? ' · ' + event.time : '')
+                formatDate(event.next_date) +
+                (event.time ? ' · ' + event.time : '')
             "
             :back-href="index.url()"
             back-label="Back to calendar"
@@ -68,6 +85,20 @@ function deleteEvent(): void {
                 >{{ event.emoji ?? '📅' }}</span
             >
         </PageHeader>
+
+        <div
+            v-if="countdown(event.days_until) || event.recurrence"
+            class="flex flex-wrap gap-2"
+        >
+            <span
+                v-if="countdown(event.days_until)"
+                class="badge-soft tabular-nums"
+                >{{ countdown(event.days_until) }}</span
+            >
+            <span v-if="event.recurrence" class="badge-soft"
+                >Every year since {{ event.date.slice(0, 4) }}</span
+            >
+        </div>
 
         <div
             v-if="

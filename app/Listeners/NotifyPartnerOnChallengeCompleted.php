@@ -15,7 +15,7 @@ final class NotifyPartnerOnChallengeCompleted implements ShouldQueue
     {
         $user = $event->user;
 
-        if (! $user->partner_id) {
+        if (! $user->partner_id || $user->isConnectionPaused()) {
             return;
         }
 

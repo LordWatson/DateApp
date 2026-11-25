@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\AdminCoupleController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminEmailTemplateController;
 use App\Http\Controllers\Admin\AdminFeatureFlagController;
+use App\Http\Controllers\Admin\AdminImpersonationController;
 use App\Http\Controllers\Admin\AdminMediaController;
 use App\Http\Controllers\Admin\AdminOptionController;
 use App\Http\Controllers\Admin\AdminQuestionController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\Admin\AdminQuestionnaireController;
 use App\Http\Controllers\Admin\AdminSystemSettingController;
 use App\Http\Controllers\Admin\AdminUserController;
 use Illuminate\Support\Facades\Route;
+
+// Outside the admin group: while viewing as a user the session belongs to a non-admin.
+Route::post('stop-viewing', [AdminImpersonationController::class, 'stop'])->middleware('auth')->name('impersonation.stop');
 
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
@@ -27,6 +31,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [AdminUserController::class, 'index'])->name('index');
         Route::get('/{user}', [AdminUserController::class, 'show'])->name('show');
+        // Read-only, time-limited and audited; see ImpersonationService.
+        Route::post('/{user}/view-as', [AdminImpersonationController::class, 'start'])->middleware('can:super-admin')->name('view-as');
 
         Route::middleware('can:manage-users')->group(function () {
             Route::put('/{user}', [AdminUserController::class, 'update'])->name('update');

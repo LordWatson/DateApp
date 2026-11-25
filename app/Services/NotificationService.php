@@ -43,6 +43,32 @@ class NotificationService
         ]);
     }
 
+    public function notifyPartnerCompletedPlan(User $recipient, User $sender, DateNightPlan $plan): void
+    {
+        $senderName = $sender->display_name ?? $sender->name;
+
+        AppNotification::create([
+            'user_id' => $recipient->id,
+            'type' => NotificationType::PartnerCompletedPlan,
+            'title' => "{$senderName} marked your date night as done",
+            'body' => "How was your {$plan->theme_emoji} {$plan->theme} evening? Add your own rating.",
+            'data' => ['plan_id' => $plan->id],
+        ]);
+    }
+
+    public function notifyPartnerChangedPlan(User $recipient, User $sender, DateNightPlan $plan, string $steer): void
+    {
+        $senderName = $sender->display_name ?? $sender->name;
+
+        AppNotification::create([
+            'user_id' => $recipient->id,
+            'type' => NotificationType::DateNightPlanReady,
+            'title' => "{$senderName} changed your date night plan",
+            'body' => "They asked for: \"{$steer}\". Take a look at the new plan.",
+            'data' => ['plan_id' => $plan->id],
+        ]);
+    }
+
     public function notifyPartnerAddedDateNightToCalendar(
         User $recipient,
         User $sender,

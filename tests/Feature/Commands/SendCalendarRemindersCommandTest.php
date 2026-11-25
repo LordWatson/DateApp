@@ -91,6 +91,35 @@ class SendCalendarRemindersCommandTest extends TestCase
         $this->assertSame(2, $this->reminderCount());
     }
 
+    public function test_a_yearly_event_is_reminded_once_for_each_occurrence(): void
+    {
+        $event = $this->event(['title' => 'Anniversary', 'date' => '2020-12-02', 'reminder' => '1_day', 'recurrence' => 'yearly']);
+
+        $this->artisan('datenight:send-calendar-reminders')->assertSuccessful();
+        // On the day itself the same occurrence has already been announced.
+        $this->travelTo('2026-12-02 10:00:00');
+        $this->artisan('datenight:send-calendar-reminders')->assertSuccessful();
+
+        $this->assertSame(2, $this->reminderCount());
+        $this->assertSame('2026-12-02', $event->fresh()->reminded_for_date->toDateString());
+        $this->assertFalse($event->fresh()->reminder_sent);
+
+        $this->travelTo('2027-12-01 10:00:00');
+        $this->artisan('datenight:send-calendar-reminders')->assertSuccessful();
+
+        $this->assertSame(4, $this->reminderCount());
+        $this->assertSame('2027-12-02', $event->fresh()->reminded_for_date->toDateString());
+    }
+
+    public function test_a_yearly_event_is_not_reminded_outside_its_window(): void
+    {
+        $this->event(['date' => '2020-12-20', 'reminder' => '1_week', 'recurrence' => 'yearly']);
+
+        $this->artisan('datenight:send-calendar-reminders')->assertSuccessful();
+
+        $this->assertSame(0, $this->reminderCount());
+    }
+
     public function test_moving_the_event_allows_a_new_reminder(): void
     {
         $event = $this->event(['date' => '2026-12-01', 'reminder' => 'same_day']);

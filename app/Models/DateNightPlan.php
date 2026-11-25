@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -29,6 +30,9 @@ use Illuminate\Support\Carbon;
  * @property bool $is_solo
  * @property array<int, array<string, string>>|null $local_suggestions
  * @property string|null $location_label
+ * @property string|null $last_steer
+ * @property int $regeneration_count
+ * @property-read bool|null $is_done Whether anyone has marked it done; only set by scopeWithDone.
  * @property-read bool|null $is_favourite Per viewer; only set by scopeWithFavouriteFor or loadExists.
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -37,6 +41,9 @@ class DateNightPlan extends Model
 {
     /** @use HasFactory<DateNightPlanFactory> */
     use HasFactory;
+
+    /** How many times a plan can be rewritten with a steer. */
+    public const MAX_REGENERATIONS = 3;
 
     protected $fillable = [
         'questionnaire_id',
@@ -58,6 +65,8 @@ class DateNightPlan extends Model
         'location_label',
         'ai_enhanced',
         'fallback_used',
+        'last_steer',
+        'regeneration_count',
     ];
 
     protected function casts(): array
@@ -68,6 +77,7 @@ class DateNightPlan extends Model
             'is_solo' => 'boolean',
             'local_suggestions' => 'array',
             'compatibility_score' => 'integer',
+            'regeneration_count' => 'integer',
         ];
     }
 
@@ -140,10 +150,56 @@ class DateNightPlan extends Model
     {
         $responseIds = Response::where('user_id', $user->id)->select('id');
 
-        return $query->where(fn (Builder $q) => $q
+        return $query->notHiddenFor($user)->where(fn (Builder $q) => $q
             ->whereIn('partner_one_response_id', $responseIds)
             ->orWhereIn('partner_two_response_id', $responseIds)
             ->orWhere('partner_user_id', $user->id));
+    }
+
+    /**
+     * Leaves out plans this person took out of their own account after a connection ended.
+     * Add it to any listing or count that does not already use `visibleTo`.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeNotHiddenFor(Builder $query, User $user): Builder
+    {
+        return $query->whereNotIn(
+            'date_night_plans.id',
+            DB::table('date_night_plan_hidden')->where('user_id', $user->id)->select('date_night_plan_id'),
+        );
+    }
+
+    public function isHiddenFor(User $user): bool
+    {
+        return DB::table('date_night_plan_hidden')
+            ->where('date_night_plan_id', $this->id)
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    /**
+     * People who marked the plan as done, each with their own rating.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function completedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'date_night_plan_completions')
+            ->withPivot(['rating', 'note', 'completed_on'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Adds a boolean `is_done` attribute: true once anyone has marked the plan done.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeWithDone(Builder $query): Builder
+    {
+        return $query->withExists('completedBy as is_done');
     }
 
     /** @return BelongsToMany<User, $this> */

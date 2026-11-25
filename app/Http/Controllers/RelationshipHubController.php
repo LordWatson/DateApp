@@ -25,18 +25,24 @@ class RelationshipHubController extends Controller
 
         $partnerIds = $partner ? [$user->id, $partner->id] : [$user->id];
 
+        $today = $user->today();
+
+        // Repeating events are always upcoming, whatever year they were entered in.
         $upcomingEvents = CalendarEvent::whereIn('user_id', $partnerIds)
-            ->where('date', '>=', $user->today()->toDateString())
-            ->orderBy('date')
-            ->limit(3)
+            ->where(fn ($query) => $query
+                ->where('date', '>=', $today->toDateString())
+                ->orWhereNotNull('recurrence'))
             ->get()
-            ->map(fn ($e) => [
+            ->map(fn (CalendarEvent $e) => [
                 'id' => $e->id,
                 'title' => $e->title,
                 'emoji' => $e->emoji ?? '📅',
-                'date' => $e->date->toDateString(),
+                'date' => $e->nextOccurrence($today)->toDateString(),
                 'colour' => $e->colour,
-            ]);
+            ])
+            ->sortBy('date')
+            ->take(3)
+            ->values();
 
         $momentsCount = Moment::whereIn('user_id', $partnerIds)->count();
 
@@ -58,7 +64,7 @@ class RelationshipHubController extends Controller
             DateNightPlan::where(function ($q) use ($user) {
                 $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                     ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-            })->avg('compatibility_score') ?? 0)
+            })->notHiddenFor($user)->avg('compatibility_score') ?? 0)
         );
 
         $seasonalQuestionnaires = Questionnaire::where('is_seasonal', true)

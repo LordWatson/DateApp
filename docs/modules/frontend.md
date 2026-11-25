@@ -47,6 +47,7 @@ Resolution order (Inertia): a page's own `defineOptions({ layout })` wins; other
 |---|---|---|
 | `name` | `config('app.name')` | `global.d.ts` `sharedPageProps` |
 | `auth.user` | Full `User` model or null (hidden: `password`, `two_factor_secret`, `two_factor_recovery_codes`, `remember_token`) | `auth.ts` `User`, `Auth` |
+| `impersonating` | `{name}` while an administrator is viewing as this user, else null; `ImpersonationBanner.vue` in `MobileLayout` | typed in `global.d.ts` |
 | `unreadNotificationsCount` | unread `AppNotification` count (one query per request) | **not typed** — read with a cast in `MobileLayout` |
 | `flash.success`, `flash.error` | session flash from `->with('success'|'error', ...)` | **not typed** — pages declare it locally |
 
@@ -232,3 +233,4 @@ No JS unit/e2e test runner is configured. Frontend checks are `npm run lint:chec
 - 2026-11-25 — Roadmap Phase 3 (3.4, 3.14): `calendar/Index.vue` and `moments/Index.vue` take a `today` prop instead of the browser's UTC date; moment photo URLs point at the `moments.photo` route.
 - 2026-11-25 — Roadmap Phase 3 (3.3, 3.5, 3.6): pages `Error`, `legal/Privacy`, `legal/Terms`; components `LegalDocument`, `LegalLinks`, `AiConsentCard`; shared prop `auth.user.ai_consent`; terms checkbox on Register.
 - 2026-11-26 — Roadmap Phase 4 (4.5): removed the starter layouts (`layouts/app`, `layouts/auth`), the sidebar/header components, six unused components, the UI kits only they used, the `sidebarOpen` shared prop and the unused "Instrument Sans" font.
+- 2026-11-25 — Roadmap Phase 5.11: `ImpersonationBanner` in `MobileLayout`, shared prop `impersonating`.

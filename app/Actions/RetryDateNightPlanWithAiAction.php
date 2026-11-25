@@ -14,13 +14,14 @@ class RetryDateNightPlanWithAiAction
     ) {}
 
     /**
-     * Re-run the AI enhancement for a plan that was saved with the rule-based wording.
+     * Re-run the AI enhancement for a plan that was saved with the rule-based
+     * wording, or, with a steer, rewrite any plan in the direction asked for.
      *
      * @return bool True when the AI answered and the plan was updated in place.
      */
-    public function execute(DateNightPlan $plan): bool
+    public function execute(DateNightPlan $plan, ?string $steer = null): bool
     {
-        if (! $plan->fallback_used) {
+        if ($steer === null && ! $plan->fallback_used) {
             return false;
         }
 
@@ -33,9 +34,16 @@ class RetryDateNightPlanWithAiAction
             $plan->partnerTwoResponse,
         );
 
-        return $this->generatorService->retryEnhancement(
+        $rewritten = $this->generatorService->retryEnhancement(
             $plan,
             $compatibility ?? ['percentage' => $plan->compatibility_score, 'matched' => [], 'different' => []],
+            $steer,
         );
+
+        if ($rewritten && $steer !== null) {
+            $plan->update(['last_steer' => $steer, 'regeneration_count' => $plan->regeneration_count + 1]);
+        }
+
+        return $rewritten;
     }
 }

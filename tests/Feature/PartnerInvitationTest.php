@@ -171,7 +171,7 @@ class PartnerInvitationTest extends TestCase
 
         $this->actingAs($user);
 
-        $response = $this->delete(route('partner.disconnect'));
+        $response = $this->delete(route('partner.disconnect'), ['keep_plans' => true, 'keep_notes' => true, 'password' => 'password']);
 
         $response->assertRedirect(route('partner.index'));
         $this->assertNull($user->fresh()->partner_id);

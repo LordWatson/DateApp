@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { Check, Circle } from '@lucide/vue';
+import { Check, Circle, Flame } from '@lucide/vue';
 import { ref } from 'vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import { complete } from '@/routes/daily-challenge';
@@ -14,10 +14,15 @@ interface Props {
     /** null when there is no partner to show */
     completedByPartner?: boolean | null;
     partnerName?: string;
+    /** Days in a row both partners did the challenge; null without a partner. */
+    coupleStreak?: number | null;
 }
 
-const { completedByMe = false, completedByPartner = null } =
-    defineProps<Props>();
+const {
+    completedByMe = false,
+    completedByPartner = null,
+    coupleStreak = null,
+} = defineProps<Props>();
 
 const submitting = ref(false);
 
@@ -36,7 +41,17 @@ function markDone(): void {
 
 <template>
     <div class="space-y-4 card-premium p-6">
-        <p class="eyebrow">Today's challenge</p>
+        <div class="flex items-center justify-between gap-3">
+            <p class="eyebrow">Today's challenge</p>
+            <span
+                v-if="coupleStreak"
+                class="badge-soft inline-flex items-center gap-1 tabular-nums"
+            >
+                <Flame class="size-3.5 text-gold" aria-hidden="true" />
+                {{ coupleStreak }} day{{ coupleStreak === 1 ? '' : 's' }}
+                together
+            </span>
+        </div>
 
         <div class="flex items-start gap-4">
             <span
@@ -99,6 +114,14 @@ function markDone(): void {
                     {{ completedByPartner ? 'done' : 'not yet' }}
                 </li>
             </ul>
+
+            <p
+                v-if="completedByMe && completedByPartner"
+                class="text-sm font-medium text-success"
+                role="status"
+            >
+                Both done. See you tomorrow!
+            </p>
 
             <PrimaryButton
                 v-if="!completedByMe"

@@ -1,6 +1,6 @@
 # Auth and Settings
 
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 
@@ -80,6 +80,7 @@ App-defined (`routes/settings.php`):
 | `user-password.update` | PUT `settings/password` | `Settings\SecurityController@update` | `auth`, `verified`, `throttle:6,1` |
 | `appearance.edit` | GET `settings/appearance` | `Route::inertia` -> `settings/Appearance` | `auth`, `verified` |
 | `notification-settings.edit` / `notification-settings.update` | GET, PATCH `settings/notifications` | `Settings\NotificationsController@edit` / `@update` | `auth`, `verified` |
+| `email-unsubscribe.show` / `email-unsubscribe.store` | GET, POST `email-preferences/{user}/{category}` | `Settings\EmailUnsubscribeController@show` / `@store` | `signed` only (no login): the "Stop emails like this" link in an email |
 | `data-export.store` | POST `settings/data-export` | `Settings\DataExportController@store` | `auth`, `verified`; one an hour per user, enforced in the controller so the page gets a toast instead of a 429 |
 | `data-export.download` | GET `settings/data-export` | `Settings\DataExportController@download` | `auth`, `verified`; serves only the signed-in user's own file, 404 when there is none or it is older than 24 hours |
 | `well-known.passkeys` | GET `.well-known/passkey-endpoints` | closure (JSON `enroll`/`manage` -> `security.edit`) | public |
@@ -117,7 +118,11 @@ Fortify / passkeys (vendor-registered, `web` middleware; names matter because th
 
 **Profile update**: PATCH `settings/profile` validates `name` + `email` (unique ignoring self) and, when sent, `display_name` (max 50), `avatar` (max 255, an emoji from the picker), `timezone` (valid zone) and `gender` (enum); these four are optional here because people who join from an invitation never see the onboarding profile step; if `email` is dirty, `email_verified_at` is nulled; flashes a `toast` via `Inertia::flash`.
 
-**Notification settings**: PATCH `settings/notifications` sets `email_notifications` (required boolean). Off means no love note, moment, questionnaire, partner-connected or plan-ready emails; in-app notifications are unaffected.
+**Notification settings**: PATCH `settings/notifications` sets `email_notifications` (required boolean, the master switch: off means no notification emails at all) and, when sent, `emails` (a map of `NotificationCategory` value to boolean; unknown keys are rejected) and `reminder_frequency` (`weekly`, `monthly` or `off`). The last two are stored in `users.notification_preferences` (json: `{emails: {...}, reminder_frequency}`; null means all defaults). In-app notifications are unaffected by any of it.
+
+- `App\Enums\NotificationCategory` lists only kinds that send an email: `partner_activity` (waiting for your answers, plan ready, partner connected), `love_notes`, `moments`. Reminders and challenges are in-app only, so they have no email toggle.
+- Ask through the model: `User::wantsEmail($category)` (master switch on and the category not switched off), `setEmailPreference()`, `reminderFrequency()` (default `weekly`).
+- **Unsubscribe from an email**: each notification email's footer includes `emails.partials.unsubscribe`, a signed link to `email-unsubscribe.show`. Opening it shows a confirmation page (`resources/views/unsubscribe.blade.php`, a plain Blade page) and changes nothing, because mail scanners follow links; the button posts to the same signed URL and switches that one category off.
 
 **Data export**: POST `settings/data-export` dispatches `ExportUserDataJob` (queue `exports`). The job writes one JSON file per user, `exports/user-{id}.json`, to the private `local` disk (a new export replaces the old one) and creates a `data_export_ready` notification that links to the profile page, where a "Download file" link appears while the file exists and is under 24 hours old. The file holds the user's profile, their responses and answers, plans they took part in, their own moments (with private notes) and calendar events, love notes sent and received, achievements and notifications; never the partner's own moments, events, answers or solo plans. `datenight:clean-exports` deletes files past 24 hours.
 
@@ -134,6 +139,8 @@ Fortify / passkeys (vendor-registered, `web` middleware; names matter because th
 - **Legal pages:** `GET /privacy` and `/terms` (`LegalController`, pages `legal/Privacy`, `legal/Terms`, shell `components/LegalDocument.vue`) are public, outside the auth and onboarding groups, and allowed through maintenance mode. Both are marked as an unreviewed draft. The operator name and contact email come from `config('app.legal.operator')` / `contact_email` (`LEGAL_OPERATOR`, `LEGAL_CONTACT_EMAIL`; placeholders until set). `components/LegalLinks.vue` links them from `GuestLayout` (all auth pages), About and the settings layout.
 - **Email verification is enforced**: `User implements MustVerifyEmail`, so registration sends the verification email and `verified` routes redirect unverified users to the notice.
 - **Account deletion** (`app/Actions/DeleteAccountAction.php`, used by settings and admin): shared date night plans are re-pointed at the partner's own response before the cascade so the partner keeps them, the partner is unlinked and notified (`NotificationType::PartnerLeft`), and the leaving user's moment photos are removed from the `public` disk. Love notes between the two are deleted for both by the database cascade.
+- **`impersonating`** (shared prop): `{name}` while an administrator is viewing the app as this user, otherwise null. See `admin.md`.
+- The delete-account dialog points to pausing or ending the connection on the Partner page as the gentler option. Deleting the account still deletes love notes for both people.
 - **Shared props**: `auth.user` is `id`, `name`, `display_name`, `email`, `avatar`, `email_verified_at`, `timezone`, `partner_id`, `onboarding_completed`. Add a field to `HandleInertiaRequests` before reading it on a page.
 
 - Password policy (`AppServiceProvider::configureDefaults`): in production min 12, mixed case, letters, numbers, symbols, uncompromised; in every other environment there are no extra rules (`Password::defaults` returns `null`).
@@ -164,7 +171,7 @@ Fortify / passkeys (vendor-registered, `web` middleware; names matter because th
 ## Tests
 
 - `tests/Feature/Auth/AuthenticationTest.php`, `RegistrationTest.php`, `PasswordResetTest.php`, `PasswordConfirmationTest.php`, `EmailVerificationTest.php`, `VerificationNotificationTest.php`, `TwoFactorChallengeTest.php`
-- `tests/Feature/Settings/ProfileUpdateTest.php`, `SecurityTest.php`
+- `tests/Feature/Settings/ProfileUpdateTest.php`, `SecurityTest.php`, `NotificationSettingsTest.php` (master switch, per-category emails, reminder frequency), `EmailUnsubscribeTest.php` (signed link, confirm first, one category only)
 
 ```
 php artisan test tests/Feature/Auth tests/Feature/Settings
@@ -182,3 +189,5 @@ Tests use sqlite `:memory:`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array` (`phpu
 - 2026-11-25 — Roadmap Phase 3 (3.14): `User::today()` gives the start of the current day in `users.timezone`; streaks, the dashboard month, calendar and moment defaults use it. Avatars are emoji strings, not files, so the uploads disk does not apply to them.
 - 2026-11-25 — Roadmap Phase 3 (3.5, 3.6): registration requires the terms checkbox (`users.terms_accepted_at`); public `/privacy` and `/terms`; AI consent columns, `PUT settings/ai-consent` and the consent card. Tests: `LegalPagesTest`, `AI/AiConsentTest`.
 - 2026-11-26 — Roadmap Phase 4: removed the unused `UserResource` (all of `app/Http/Resources` is gone).
+- 2026-11-25 — Roadmap Phase 5.10: per-category email preferences and reminder frequency (`users.notification_preferences`, `NotificationCategory`, `User::wantsEmail()`), signed unsubscribe link in notification emails. Phase 5.11: shared prop `impersonating`.
+- 2026-11-25 — Roadmap Phase 5.12: delete-account dialog mentions pause and end connection.

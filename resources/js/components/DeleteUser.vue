@@ -43,9 +43,11 @@ const passwordInput = useTemplateRef('passwordInput');
         >
             <span class="font-medium">This cannot be undone.</span>
             Your answers, moments, calendar events and love notes are deleted.
-            If you have a partner, they are disconnected and told, they keep the
-            date nights you planned together, and the love notes between you are
-            removed for both of you.
+            If you only want to stop sharing, you can pause or end your
+            connection on the Partner page and keep your account. If you have a
+            partner, they are disconnected and told, they keep the date nights
+            you planned together, and the love notes between you are removed for
+            both of you.
         </p>
 
         <Dialog>

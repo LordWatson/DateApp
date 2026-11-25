@@ -130,10 +130,13 @@ class DateNightGeneratorService
      * wording, and update it in place. The stored wording is the deterministic
      * plan, so it is what the AI is asked to improve.
      *
+     * With a steer ("cheaper", "stay in") the AI is asked to change the stored
+     * plan in that direction instead.
+     *
      * @param  array<string, mixed>  $compatibility
      * @return bool False when the AI failed again; the plan is then left untouched.
      */
-    public function retryEnhancement(DateNightPlan $plan, array $compatibility): bool
+    public function retryEnhancement(DateNightPlan $plan, array $compatibility, ?string $steer = null): bool
     {
         $plan->loadMissing(['questionnaire', 'partnerOneResponse', 'partnerTwoResponse']);
 
@@ -146,6 +149,7 @@ class DateNightGeneratorService
             $plan->partnerOneResponse,
             $plan->is_solo ? null : $plan->partnerTwoResponse,
             $plan->is_solo || $plan->questionnaire->is_solo,
+            $steer,
         );
 
         if ($fallbackUsed) {
@@ -181,6 +185,7 @@ class DateNightGeneratorService
         Response $primaryResponse,
         ?Response $partnerResponse,
         bool $usesLocation,
+        ?string $steer = null,
     ): array {
         $isSolo = $partnerResponse === null;
         $location = $usesLocation ? $this->buildLocationContext($primaryResponse, $partnerResponse) : null;
@@ -193,6 +198,11 @@ class DateNightGeneratorService
             partnerResponse: $partnerResponse,
             location: $location,
         );
+
+        if ($steer !== null) {
+            // The prompt reads everything from `context`, so the steer has to live inside it.
+            $context['requested_change'] = $steer;
+        }
 
         $aiPayload = [
             'context' => $context,

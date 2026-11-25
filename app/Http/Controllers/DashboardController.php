@@ -44,6 +44,7 @@ class DashboardController extends Controller
 
         $userId = $user->id;
         $recentDateNights = DateNightPlan::with('questionnaire')
+            ->notHiddenFor($user)
             ->where(function ($query) use ($userResponseIds, $userId) {
                 $query->whereIn('partner_one_response_id', $userResponseIds)
                     ->orWhereIn('partner_two_response_id', $userResponseIds)
@@ -69,6 +70,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'partner' => $user->partner?->only(['id', 'name', 'display_name', 'avatar']),
+            'connectionPaused' => $user->isConnectionPaused(),
             'pendingInvitation' => $pendingInvitation ? [
                 'email' => $pendingInvitation->email,
                 'expires_at' => $pendingInvitation->expires_at->toISOString(),
@@ -89,7 +91,10 @@ class DashboardController extends Controller
                 'emoji' => $todayChallenge->emoji ?? '✨',
                 'difficulty' => $todayChallenge->difficulty->value,
                 'completed_by_me' => $challengeDoneBy->contains($user->id),
-                'completed_by_partner' => $user->partner_id ? $challengeDoneBy->contains($user->partner_id) : null,
+                'completed_by_partner' => $user->activePartner() ? $challengeDoneBy->contains($user->partner_id) : null,
+                // Days in a row both partners did the challenge; null without a partner.
+                'couple_streak' => $user->partner_id ? $user->currentChallengeStreak() : null,
+                'longest_couple_streak' => $user->partner_id ? $user->longest_challenge_streak : null,
             ] : null,
             'onThisDay' => $this->onThisDay($user),
             'recentQuestionnaires' => $recentQuestionnaires,

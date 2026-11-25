@@ -56,6 +56,7 @@ final class GlobalSearchService
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
         })
+            ->notHiddenFor($user)
             ->where(fn ($q) => $q->where('theme', 'like', "%{$query}%")->orWhere('summary', 'like', "%{$query}%"))
             ->limit(self::PER_TYPE_LIMIT)
             ->get();
@@ -101,7 +102,7 @@ final class GlobalSearchService
      */
     private function loveNotes(User $user, string $query): ?Collection
     {
-        $notes = LoveNote::where(fn ($q) => $q->where('sender_id', $user->id)->orWhere('recipient_id', $user->id))
+        $notes = LoveNote::visibleTo($user)
             ->where('message', 'like', "%{$query}%")
             ->limit(self::PER_TYPE_LIMIT)
             ->get();

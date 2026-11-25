@@ -1,5 +1,5 @@
 # Date Night Plans
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 When both partners finish the same questionnaire (or one user finishes a solo questionnaire), the app generates a "date night plan": a theme plus meal, atmosphere, activity, conversation prompt and romantic challenge. A deterministic rule engine always produces a plan; the AI layer then optionally rewrites the wording. Users can view, favourite, like, print and add a plan to their calendar, compare both partners' answers from the plan, and ask the AI again when a plan was saved without it.
@@ -42,6 +42,8 @@ When both partners finish the same questionnaire (or one user finishes a solo qu
 | `tests/Feature/Jobs/GenerateDateNightPlanJobTest.php` | Job queueing and no-op case |
 | `tests/Feature/DateNightEngineTest.php` | Date-out plan without AI, solo wording, signals, romance sliders, seeders re-run, null AI provider |
 | `tests/Feature/DateNightPlanFinishesTest.php` | Plan-scoped comparison pages, history theme filter and pagination, print page, retry with AI |
+| `tests/Feature/DateNightPlanCompletionTest.php` | "We did it": ratings per person, partner notice, validation, history badge, moment prefill and linked moments |
+| `tests/Feature/DateNightPlanRegenerateTest.php` | Regenerate with a steer: rewrite, prompt content, failure, the limit of three, consent |
 
 ## Data model
 
@@ -54,6 +56,10 @@ When both partners finish the same questionnaire (or one user finishes a solo qu
 - Index `dnp_responses_index` on the two response ids. It is no longer unique (dropped so solo plans can reuse one response).
 - `drink_suggestion` and `music_vibe` were removed by `2026_08_02_213000_remove_drink_and_music_from_date_night_plans`.
 - Relations: `questionnaire`, `partnerOneResponse`, `partnerTwoResponse`, `dateNightTheme`, `partnerUser`, `likedBy`, `favouritedBy` (both belongsToMany). Scopes: `visibleTo($user)` (the participant condition), `favouritedBy($user)`, `withFavouriteFor($user)` (adds a boolean `is_favourite` attribute for that viewer; the presenter reads it).
+
+- `last_steer` (string 200, nullable) and `regeneration_count` (tinyint, default 0): the last change a user asked for and how many have been made.
+
+**`date_night_plan_completions`**: `date_night_plan_id`, `user_id` (both cascade), `rating` (1 to 5), `note` (nullable, 500), `completed_on` (date), timestamps, unique on the pair. Relation `completedBy` (with pivot), scope `withDone()`.
 
 **`date_night_plan_likes`** and **`date_night_plan_favourites`**: `date_night_plan_id`, `user_id`, timestamps, unique on the pair. The favourites migration copied every old shared favourite to each person on the plan.
 
@@ -76,6 +82,8 @@ All under `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 | `date-night.answers` | GET `/date-night/{dateNightPlan}/answers` | `DateNightPlanController@answers` | Policy `view`; 404 for solo plans. Renders `questionnaires/PartnerAnswers` |
 | `date-night.compatibility` | GET `/date-night/{dateNightPlan}/compatibility` | `DateNightPlanController@compatibility` | Policy `view`; 404 for solo plans. Renders `questionnaires/Compatibility` |
 | `date-night.retry-ai` | POST `/date-night/{dateNightPlan}/retry-ai` | `DateNightPlanController@retryAi` | Policy `update`, `throttle:ai`. Flashes `success` or `error` |
+| `date-night.regenerate` | POST `/date-night/{dateNightPlan}/regenerate` | `DateNightPlanController@regenerate` | Policy `update`, `throttle:ai`, `RegenerateDateNightPlanRequest` (`steer` 3 to 200 characters). Flashes `success` or `error` |
+| `date-night.complete` | POST `/date-night/{dateNightPlan}/complete` | `DateNightPlanController@complete` | Policy `complete`, `CompleteDateNightPlanRequest` (`rating` 1 to 5, `note` max 500, `completed_on` not after the user's today) |
 | `questionnaires.plan-status` | GET `/questionnaires/{questionnaire:slug}/plan-status` | `QuestionnaireController@planStatus` | JSON `{ready, plan_id}` |
 
 ## Flows
@@ -125,9 +133,15 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 ### 6. Try again with AI
 `Show.vue` shows the offer when `plan.fallback_used` is true. `retryAi` calls `RetryDateNightPlanWithAiAction`, which recalculates compatibility for couples and calls `DateNightGeneratorService::retryEnhancement()`: the stored wording is used as the deterministic plan, the same AI call as generation runs, and on success the plan is updated in place (`fallback_used` false, `ai_enhanced` as usual, `local_suggestions` replaced only if returned). On failure nothing changes. The call is synchronous in the web request.
 
+### 7. Regenerate with a steer ("Not quite right?")
+`Show.vue` shows the section while `plan.can_regenerate` is true (the `ai_generation` flag is on, everyone whose answers are in the plan has agreed to AI, and fewer than `DateNightPlan::MAX_REGENERATIONS` = 3 changes have been made). `regenerate` calls `RetryDateNightPlanWithAiAction::execute($plan, $steer)`, which runs the same `retryEnhancement()` as "Try again with AI" with the steer added to the prompt context as `requested_change` (the stored wording is sent as `deterministic_plan`, so the AI changes the plan the user is looking at). On success the plan is updated in place, `last_steer` is saved, `regeneration_count` goes up by one and the partner gets a `date_night_plan_ready` notification quoting the request. On failure nothing changes and nothing is counted. Synchronous in the web request, like retry.
+
+### 8. We did it
+`complete` stores one row per person in `date_night_plan_completions` through `CompleteDateNightPlanAction` (insert or update; `completed_on` defaults to the user's own today). The first rating by a person sends the partner a `partner_completed_plan` notification; changing it sends nothing. The plan page shows both ratings (`plan.completion.mine` / `.partner`), the moments linked to the plan (`plan.moments`: the viewer's and their partner's) and "Capture a moment from it", which opens `/moments?plan={id}` with the form prefilled (see `moments-timeline.md`). History and Favourites show a "Done" badge from `is_done` (anyone has rated it; load with `DateNightPlan::withDone()`). Ratings also go into the weekly reflection context and the data export.
+
 ## Rules and gotchas
 - **AI needs consent.** The generator passes the owner of each response in the prompt to `AIService`; unless all of them agreed to AI processing the call is refused (`ai_consent_missing`) and the plan is saved with the rule-based wording and `fallback_used = true`, exactly as for an AI outage. "Try again with AI" fails the same way until they agree; the fallback card on the plan page links to Settings. See `ai.md`.
-- **Who can access a plan**: the `partner_user_id` user, or any user owning one of the two responses. All policy abilities delegate to `view`. Listings use `DateNightPlan::visibleTo($user)`; use it for new listings.
+- **Who can access a plan**: the `partner_user_id` user, or any user owning one of the two responses, **unless that person has hidden the plan** (`date_night_plan_hidden`: `date_night_plan_id`, `user_id`; written when a connection ends and they choose not to keep shared plans, see `onboarding-partner.md`). All policy abilities delegate to `view`. Listings use `DateNightPlan::visibleTo($user)`, which already leaves hidden plans out; a query that cannot use it adds `->notHiddenFor($user)` (search, timeline, insights, hub and dashboard do). Achievements, the weekly reflection, the data export and the questionnaire pairing logic deliberately still count hidden plans.
 - **Solo vs couple**: a plan is solo when the questionnaire is solo. Solo plans reuse one response for both response columns, set `partner_user_id` so the partner sees the plan and gets the notification and email, store compatibility 100, and copy `location_label` from the response. `Show.vue` hides the score and the second partner for solo plans.
 - **Favourites vs likes**: both are per user. A favourite is private (the button says "Save to my favourites"); a like notifies the partner. `is_favourite` in the Inertia props is computed per viewer, so load plans with `withFavouriteFor($user)` (or `loadExists`) before passing them to the presenter, otherwise it is false.
 - **`partner_one` is not a stable role**: for couples the job is dispatched by whoever completed second, and that user becomes `userOne` / `partner_one_response_id`.
@@ -146,7 +160,6 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - Suspected issue: `Complete.vue` polls forever; there is no attempt cap or error state if generation never produces a plan.
 - Suspected issue: solo plans show "100%" compatibility in the plan-ready email.
 - Suspected issue: `Show.vue` has the theme emoji commented out and renders a fixed heart.
-- Dead code: `DateNightPlanPolicy::update` is not called.
 
 ## Related modules
 - `questionnaires.md`: completion, responses, compatibility, the completion page.
@@ -162,6 +175,8 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - `php artisan test --filter=GenerateDateNightPlanJobTest`
 - `php artisan test --filter=DateNightEngineTest`
 - `php artisan test --filter=DateNightPlanFinishesTest`
+- `php artisan test --filter=DateNightPlanCompletionTest`
+- `php artisan test --filter=DateNightPlanRegenerateTest`
 - AI fallback is covered in `tests/Feature/AI/AIIntegrationTest.php`.
 
 ## Change log
@@ -172,3 +187,5 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - 2026-11-25 — Roadmap Phase 3 (3.6): AI enhancement only runs when everyone whose answers are in the plan has agreed to AI processing.
 - 2026-11-26 — Roadmap Phase 4: removed `EnhanceDateNightPlanWithAIJob`, `PlanResource` and `config/datenight.php`.
 - 2026-11-26 — Plan page (`date-night/Show.vue`) redesigned: theme emoji and an animated compatibility ring in the hero, the plan sections as a swipeable step-by-step deck with dots and arrows, the romantic challenge sealed behind a reveal button, local ideas as a swipe row. Presentation only; props are unchanged.
+- 2026-11-25 — Roadmap Phase 5.2 and 5.3: "We did it" (per-person ratings, linked moments, Done badge) and regenerate with a steer (three changes per plan, `requested_change` in the prompt context).
+- 2026-11-25 — Roadmap Phase 5.12: plans can be hidden per person (`date_night_plan_hidden`, `notHiddenFor()`); partner notices use `activePartner()` and stop while a connection is paused.

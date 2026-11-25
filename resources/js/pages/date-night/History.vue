@@ -16,6 +16,7 @@ interface PlanSummary {
     theme_emoji: string | null;
     compatibility_score: number | null;
     is_favourite: boolean;
+    is_done: boolean;
     created_at: string;
     questionnaire_title: string | null;
 }
@@ -177,6 +178,11 @@ function scoreColour(score: number): string {
                                 class="size-3.5 shrink-0 fill-current text-gold"
                                 aria-label="Favourite"
                             />
+                            <span
+                                v-if="plan.is_done"
+                                class="badge-soft shrink-0"
+                                >Done</span
+                            >
                         </p>
                         <p class="truncate text-xs text-muted-foreground">
                             {{ formatDate(plan.created_at) }}

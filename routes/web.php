@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [OnboardingController::class, 'index'])->name('index');
         Route::post('/profile', [OnboardingController::class, 'completeProfile'])->name('complete-profile');
         Route::post('/invite', [OnboardingController::class, 'sendInvite'])->middleware('throttle:invites')->name('send-invite');
+        Route::post('/invite-link', [OnboardingController::class, 'createLink'])->middleware('throttle:invites')->name('create-link');
         Route::post('/complete', [OnboardingController::class, 'complete'])->name('complete');
     });
 
@@ -79,6 +80,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{dateNightPlan}/export', [DateNightPlanPdfController::class, 'export'])->name('export');
             Route::get('/{dateNightPlan}/answers', [DateNightPlanController::class, 'answers'])->name('answers');
             Route::get('/{dateNightPlan}/compatibility', [DateNightPlanController::class, 'compatibility'])->name('compatibility');
+            Route::post('/{dateNightPlan}/regenerate', [DateNightPlanController::class, 'regenerate'])->middleware('throttle:ai')->name('regenerate');
+            Route::post('/{dateNightPlan}/complete', [DateNightPlanController::class, 'complete'])->name('complete');
             Route::post('/{dateNightPlan}/retry-ai', [DateNightPlanController::class, 'retryAi'])->middleware('throttle:ai')->name('retry-ai');
         });
 
@@ -113,9 +116,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('partner')->name('partner.')->group(function () {
             Route::get('/', [PartnerController::class, 'index'])->name('index');
             Route::post('/invite', [PartnerController::class, 'sendInvite'])->middleware('throttle:invites')->name('send-invite');
+            Route::post('/invite-link', [PartnerController::class, 'createLink'])->middleware('throttle:invites')->name('create-link');
             Route::post('/resend', [PartnerController::class, 'resendInvite'])->middleware('throttle:invites')->name('resend-invite');
             Route::delete('/invite', [PartnerController::class, 'revokeInvite'])->name('revoke-invite');
             Route::delete('/disconnect', [PartnerController::class, 'disconnect'])->name('disconnect');
+            Route::post('/pause', [PartnerController::class, 'pause'])->name('pause');
+            Route::post('/resume', [PartnerController::class, 'resume'])->name('resume');
+            Route::get('/after', [PartnerController::class, 'after'])->name('after');
+            Route::post('/after', [PartnerController::class, 'applyChoices'])->name('apply-choices');
         });
 
         // Relationship Hub

@@ -112,7 +112,7 @@ class InvitationLifecycleTest extends TestCase
         $partner = User::factory()->create(['partner_id' => $user->id]);
         $user->update(['partner_id' => $partner->id]);
 
-        $this->actingAs($user)->delete(route('partner.disconnect'))->assertRedirect(route('partner.index'));
+        $this->actingAs($user)->delete(route('partner.disconnect'), ['keep_plans' => true, 'keep_notes' => true, 'password' => 'password'])->assertRedirect(route('partner.index'));
 
         $notification = AppNotification::sole();
         $this->assertSame($partner->id, $notification->user_id);

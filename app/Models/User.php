@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Gender;
+use App\Enums\NotificationCategory;
 use App\Enums\UserRole;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
@@ -30,6 +31,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Gender|null $gender
  * @property int|null $partner_id
  * @property Carbon|null $connected_at
+ * @property Carbon|null $connection_paused_at
+ * @property int|null $connection_paused_by
+ * @property int|null $former_partner_id
  * @property Carbon|null $date_of_birth
  * @property string|null $avatar
  * @property string $timezone
@@ -37,7 +41,11 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property int $current_streak
  * @property int $longest_streak
  * @property int $monthly_completion_count
+ * @property int $challenge_streak
+ * @property int $longest_challenge_streak
+ * @property Carbon|null $challenge_streak_date
  * @property bool $email_notifications
+ * @property array{emails?: array<string, bool>, reminder_frequency?: string}|null $notification_preferences
  * @property bool $push_notifications
  * @property bool $dark_mode
  * @property bool $onboarding_completed
@@ -65,6 +73,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'gender',
     'partner_id',
     'connected_at',
+    'connection_paused_at',
+    'connection_paused_by',
+    'former_partner_id',
     'date_of_birth',
     'avatar',
     'timezone',
@@ -72,7 +83,11 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'current_streak',
     'longest_streak',
     'monthly_completion_count',
+    'challenge_streak',
+    'longest_challenge_streak',
+    'challenge_streak_date',
     'email_notifications',
+    'notification_preferences',
     'push_notifications',
     'dark_mode',
     'onboarding_completed',
@@ -98,8 +113,11 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'gender' => Gender::class,
             'date_of_birth' => 'date',
             'connected_at' => 'datetime',
+            'connection_paused_at' => 'datetime',
+            'challenge_streak_date' => 'date',
             'last_completed_questionnaire_at' => 'datetime',
             'email_notifications' => 'boolean',
+            'notification_preferences' => 'array',
             'push_notifications' => 'boolean',
             'dark_mode' => 'boolean',
             'onboarding_completed' => 'boolean',
@@ -150,6 +168,51 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return CarbonImmutable::now($this->timezone ?: 'UTC')->startOfDay();
     }
 
+    /**
+     * Whether to email this person about this kind of thing. `email_notifications`
+     * is the master switch; a category is on unless it was switched off.
+     */
+    public function wantsEmail(NotificationCategory $category): bool
+    {
+        return $this->email_notifications
+            && ($this->notification_preferences['emails'][$category->value] ?? true);
+    }
+
+    public function setEmailPreference(NotificationCategory $category, bool $wanted): void
+    {
+        $preferences = $this->notification_preferences ?? [];
+        $preferences['emails'][$category->value] = $wanted;
+
+        $this->update(['notification_preferences' => $preferences]);
+    }
+
+    /**
+     * How often to be reminded to answer a questionnaire: weekly (the default), monthly or off.
+     */
+    public function reminderFrequency(): string
+    {
+        return $this->notification_preferences['reminder_frequency'] ?? 'weekly';
+    }
+
+    /**
+     * Days in a row on which both partners completed the daily challenge.
+     * The stored number is only current if the last shared day was today or
+     * yesterday (the challenge's own UTC day), so read the streak through this.
+     */
+    public function currentChallengeStreak(): int
+    {
+        if ($this->partner_id === null || $this->challenge_streak_date === null) {
+            return 0;
+        }
+
+        // A paused connection freezes the streak as it stood when the pause began.
+        $asOf = $this->connection_paused_at ?? now();
+
+        return $this->challenge_streak_date->toDateString() >= $asOf->subDay()->toDateString()
+            ? $this->challenge_streak
+            : 0;
+    }
+
     /** @return BelongsTo<Role, $this> */
     public function role(): BelongsTo
     {
@@ -180,6 +243,33 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function partner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'partner_id');
+    }
+
+    /**
+     * The person this user was last connected to (kept after a disconnect).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function formerPartner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'former_partner_id');
+    }
+
+    /**
+     * A paused couple stays linked and keeps its shared history, but nothing new passes between them.
+     */
+    public function isConnectionPaused(): bool
+    {
+        return $this->partner_id !== null && $this->connection_paused_at !== null;
+    }
+
+    /**
+     * The partner to notify, share with or plan with right now: nobody while the connection is paused.
+     * Use `partner` for reading shared history, and this for anything that does something to them.
+     */
+    public function activePartner(): ?User
+    {
+        return $this->isConnectionPaused() ? null : $this->partner;
     }
 
     /** @return HasMany<PartnerInvitation, $this> */

@@ -4,6 +4,7 @@ import { ArrowRight, ChevronLeft, ChevronRight } from '@lucide/vue';
 import { ref } from 'vue';
 import OnboardingController from '@/actions/App/Http/Controllers/OnboardingController';
 import FloatingHearts from '@/components/FloatingHearts.vue';
+import InviteLink from '@/components/InviteLink.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
 import SecondaryButton from '@/components/SecondaryButton.vue';
 import StepIndicator from '@/components/StepIndicator.vue';
@@ -12,6 +13,8 @@ import type { User } from '@/types';
 
 interface Props {
     user: User;
+    /** The link for the user's own pending invitation. */
+    inviteUrl: string | null;
 }
 
 const props = defineProps<Props>();
@@ -19,7 +22,7 @@ const props = defineProps<Props>();
 const currentStep = ref(
     props.user.onboarding_completed ? 4 : props.user.display_name ? 3 : 2,
 );
-const partnerMode = ref<'invite' | 'join' | null>(null);
+const partnerMode = ref<'invite' | 'join' | 'link' | null>(null);
 const inviteSent = ref(false);
 
 const BUILT_IN_AVATARS = [
@@ -66,6 +69,7 @@ const profileForm = useForm({
 
 const inviteForm = useForm({ email: '' });
 const joinForm = useForm({ token: '' });
+const linkForm = useForm({});
 
 const selectedAvatar = ref(props.user.avatar ?? '');
 
@@ -96,6 +100,20 @@ function submitInvite(): void {
             currentStep.value = 4;
         },
     });
+}
+
+// The page comes back with `inviteUrl` set; the step and mode are kept.
+function createLink(): void {
+    partnerMode.value = 'link';
+    linkForm.post(OnboardingController.createLink().url, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+}
+
+function linkShared(): void {
+    inviteSent.value = true;
+    currentStep.value = 4;
 }
 
 function submitJoin(): void {
@@ -453,6 +471,32 @@ const choiceClass =
                         <button
                             type="button"
                             :class="[choiceClass, focusClass]"
+                            @click="createLink"
+                        >
+                            <span
+                                class="icon-tile h-12 w-12 text-2xl"
+                                aria-hidden="true"
+                                >🔗</span
+                            >
+                            <span class="block min-w-0 flex-1">
+                                <span class="block font-medium text-foreground"
+                                    >Share an invite link</span
+                                >
+                                <span
+                                    class="block text-sm text-muted-foreground"
+                                    >Send it yourself by message, no email
+                                    needed</span
+                                >
+                            </span>
+                            <ChevronRight
+                                class="size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            :class="[choiceClass, focusClass]"
                             @click="partnerMode = 'join'"
                         >
                             <span
@@ -527,6 +571,36 @@ const choiceClass =
                                 }}
                             </PrimaryButton>
                         </form>
+                    </div>
+
+                    <!-- Share a link -->
+                    <div v-else-if="partnerMode === 'link'" class="space-y-4">
+                        <button
+                            type="button"
+                            :class="[backClass, focusClass]"
+                            @click="partnerMode = null"
+                        >
+                            <ChevronLeft class="size-4" aria-hidden="true" />
+                            Back
+                        </button>
+                        <template v-if="inviteUrl">
+                            <InviteLink :url="inviteUrl" />
+                            <PrimaryButton full-width @click="linkShared">
+                                I've shared it
+                                <ArrowRight class="size-4" aria-hidden="true" />
+                            </PrimaryButton>
+                        </template>
+                        <p
+                            v-else
+                            class="text-sm text-muted-foreground"
+                            role="status"
+                        >
+                            {{
+                                linkForm.processing
+                                    ? 'Creating your link…'
+                                    : 'We could not create a link just now. Go back and try again.'
+                            }}
+                        </p>
                     </div>
 
                     <!-- Join with token -->

@@ -34,6 +34,7 @@ const props = defineProps<{
     sent: NoteItem[];
     received: NoteItem[];
     partner: Partner | null;
+    connection_paused: boolean;
     default_messages: string[];
     reactions: string[];
 }>();
@@ -125,6 +126,15 @@ function formatTime(iso: string): string {
         <template v-if="activeTab === 'send'">
             <div v-if="!partner" class="card-premium">
                 <EmptyState
+                    v-if="connection_paused"
+                    emoji="⏸️"
+                    title="Your connection is paused"
+                    description="Love notes cannot be sent while it is paused. The ones you have are still here."
+                    action-label="Partner settings"
+                    @action="router.visit('/partner')"
+                />
+                <EmptyState
+                    v-else
                     emoji="💔"
                     title="No partner connected"
                     description="Connect with your partner to send love notes."

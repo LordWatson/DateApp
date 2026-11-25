@@ -32,7 +32,14 @@ class DeleteAccountAction
             if ($partner) {
                 $this->handSharedPlansTo($partner, $user);
 
-                $partner->update(['partner_id' => null, 'connected_at' => null]);
+                $partner->update([
+                    'partner_id' => null,
+                    'connected_at' => null,
+                    'connection_paused_at' => null,
+                    'connection_paused_by' => null,
+                    'challenge_streak' => 0,
+                    'challenge_streak_date' => null,
+                ]);
 
                 $name = $user->display_name ?? $user->name;
 

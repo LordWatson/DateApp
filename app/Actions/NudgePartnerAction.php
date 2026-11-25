@@ -31,7 +31,7 @@ class NudgePartnerAction
         }
 
         $sender = $response->user;
-        $partner = $sender->partner;
+        $partner = $sender->activePartner();
         $questionnaire = $response->questionnaire;
         $senderName = $sender->display_name ?? $sender->name;
 
@@ -56,7 +56,7 @@ class NudgePartnerAction
     public function canNudge(Response $response): bool
     {
         $response->loadMissing(['user.partner', 'questionnaire']);
-        $partner = $response->user->partner;
+        $partner = $response->user->activePartner();
 
         if ($response->status !== CompletionStatus::Completed || $response->isSolo() || ! $partner) {
             return false;

@@ -23,7 +23,8 @@ interface Partner {
 }
 
 interface PendingInvitation {
-    email: string;
+    /** Null for an invitation shared as a link. */
+    email: string | null;
     expires_at: string;
 }
 
@@ -41,6 +42,8 @@ interface TodayChallenge {
     difficulty: string;
     completed_by_me: boolean;
     completed_by_partner: boolean | null;
+    couple_streak: number | null;
+    longest_couple_streak: number | null;
 }
 
 interface SavedProfile {
@@ -69,6 +72,7 @@ interface RecentDateNight {
 
 interface Props {
     partner: Partner | null;
+    connectionPaused: boolean;
     pendingInvitation: PendingInvitation | null;
     stats: Stats;
     todayChallenge: TodayChallenge | null;
@@ -150,9 +154,11 @@ function invitePartner(): void {
                         partner?.avatar || '💕'
                     }}</span>
                     <span class="truncate"
-                        >With {{ partner?.display_name ?? partner?.name }}</span
+                        >{{ connectionPaused ? 'Paused with' : 'With' }}
+                        {{ partner?.display_name ?? partner?.name }}</span
                     >
                     <span
+                        v-if="!connectionPaused"
                         class="size-1.5 shrink-0 rounded-full bg-success"
                         aria-hidden="true"
                     />
@@ -215,6 +221,7 @@ function invitePartner(): void {
             :difficulty="todayChallenge.difficulty"
             :completed-by-me="todayChallenge.completed_by_me"
             :completed-by-partner="todayChallenge.completed_by_partner"
+            :couple-streak="todayChallenge.couple_streak"
             :partner-name="partner?.display_name ?? partner?.name"
         />
         <div v-else class="card-premium">

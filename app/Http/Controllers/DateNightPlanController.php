@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Actions\AddDateNightPlanToCalendarAction;
+use App\Actions\CompleteDateNightPlanAction;
 use App\Actions\LikeDateNightPlanAction;
 use App\Actions\RetryDateNightPlanWithAiAction;
 use App\Http\Presenters\DateNightPlanPresenter;
 use App\Http\Presenters\QuestionnairePresenter;
 use App\Http\Requests\DateNightPlan\AddToCalendarRequest;
+use App\Http\Requests\DateNightPlan\CompleteDateNightPlanRequest;
+use App\Http\Requests\DateNightPlan\RegenerateDateNightPlanRequest;
 use App\Models\DateNightPlan;
 use App\Models\Response;
 use App\Services\CompatibilityService;
+use App\Services\ImpersonationService;
 use App\Services\NotificationService;
 use App\Services\QuestionnaireService;
 use Illuminate\Http\RedirectResponse;
@@ -37,9 +41,10 @@ class DateNightPlanController extends Controller
         ]);
         $dateNightPlan->loadExists(['favouritedBy as is_favourite' => fn ($query) => $query->whereKey($user->id)]);
 
-        $partner = $user->partner;
+        $partner = $user->activePartner();
 
-        if ($partner && $partner->can('view', $dateNightPlan)) {
+        // An administrator looking at the page is not the partner seeing the plan.
+        if ($partner && $partner->can('view', $dateNightPlan) && ! app(ImpersonationService::class)->isActive()) {
             $this->notificationService->notifyPartnerViewedPlan($partner, $dateNightPlan);
         }
 
@@ -59,6 +64,7 @@ class DateNightPlanController extends Controller
         $paginator = DateNightPlan::with(['questionnaire'])
             ->visibleTo($user)
             ->withFavouriteFor($user)
+            ->withDone()
             ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q
                 ->where('theme', 'like', "%{$search}%")
                 ->orWhere('summary', 'like', "%{$search}%")))
@@ -165,6 +171,57 @@ class DateNightPlanController extends Controller
             : back()->with('error', 'AI is still unavailable, so your plan is unchanged. Please try again later.');
     }
 
+    /**
+     * "Not quite right?": rewrite the plan in the direction the user asks for.
+     */
+    public function regenerate(
+        RegenerateDateNightPlanRequest $request,
+        DateNightPlan $dateNightPlan,
+        RetryDateNightPlanWithAiAction $retryWithAi,
+    ): RedirectResponse {
+        $this->authorize('update', $dateNightPlan);
+
+        if ($dateNightPlan->regeneration_count >= DateNightPlan::MAX_REGENERATIONS) {
+            return back()->with('error', 'This plan has already been changed '.DateNightPlan::MAX_REGENERATIONS.' times.');
+        }
+
+        $steer = $request->validated('steer');
+
+        if (! $retryWithAi->execute($dateNightPlan, $steer)) {
+            return back()->with('error', 'The AI could not change the plan just now, so it is unchanged. Please try again later.');
+        }
+
+        $user = $request->user();
+        $partner = $user->activePartner();
+
+        if ($partner && $partner->can('view', $dateNightPlan)) {
+            $this->notificationService->notifyPartnerChangedPlan($partner, $user, $dateNightPlan, $steer);
+        }
+
+        return back()->with('success', 'Your plan has been changed.');
+    }
+
+    /**
+     * "We did it": rate the night. Each person has their own rating.
+     */
+    public function complete(
+        CompleteDateNightPlanRequest $request,
+        DateNightPlan $dateNightPlan,
+        CompleteDateNightPlanAction $completePlan,
+    ): RedirectResponse {
+        $this->authorize('complete', $dateNightPlan);
+
+        $completePlan->execute(
+            $request->user(),
+            $dateNightPlan,
+            $request->integer('rating'),
+            $request->validated('note'),
+            $request->validated('completed_on'),
+        );
+
+        return back()->with('success', 'Saved. Glad you did it!');
+    }
+
     public function toggleLike(
         Request $request,
         DateNightPlan $dateNightPlan,
@@ -203,6 +260,7 @@ class DateNightPlanController extends Controller
             ->visibleTo($user)
             ->favouritedBy($user)
             ->withFavouriteFor($user)
+            ->withDone()
             ->orderByDesc('created_at')
             ->get();
 

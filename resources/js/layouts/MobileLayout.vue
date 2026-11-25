@@ -16,6 +16,7 @@ import NotificationController from '@/actions/App/Http/Controllers/NotificationC
 import QuestionnaireController from '@/actions/App/Http/Controllers/QuestionnaireController';
 import RelationshipHubController from '@/actions/App/Http/Controllers/RelationshipHubController';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import ImpersonationBanner from '@/components/ImpersonationBanner.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { index as searchIndex } from '@/routes/search';
 
@@ -52,6 +53,7 @@ function isActive(href: string): boolean {
 
 <template>
     <div class="relative flex min-h-svh flex-col">
+        <ImpersonationBanner />
         <header
             class="sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl"
         >

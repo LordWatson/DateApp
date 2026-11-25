@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\NotificationCategory;
 use App\Enums\NotificationType;
 use App\Mail\LoveNoteReceivedMail;
 use App\Models\AppNotification;
@@ -43,7 +44,7 @@ final class SendLoveNoteNotificationJob implements ShouldQueue
         ]);
 
         // The in-app notification above is always created; only the email is optional.
-        if ($this->recipient->email_notifications) {
+        if ($this->recipient->wantsEmail(NotificationCategory::LoveNotes)) {
             Mail::to($this->recipient->email)
                 ->queue(new LoveNoteReceivedMail($this->recipient, $sender));
         }

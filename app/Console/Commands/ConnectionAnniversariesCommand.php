@@ -21,6 +21,7 @@ final class ConnectionAnniversariesCommand extends Command
 
         $users = User::with('partner')
             ->whereNotNull('partner_id')
+            ->whereNull('connection_paused_at')
             ->whereMonth('connected_at', $today->month)
             ->whereDay('connected_at', $today->day)
             ->whereYear('connected_at', '<', $today->year)

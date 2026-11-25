@@ -30,7 +30,7 @@ class LikeDateNightPlanAction
 
         $plan->likedBy()->attach($user->id);
 
-        $partner = $user->partner;
+        $partner = $user->activePartner();
 
         if ($partner) {
             $this->notificationService->notifyPartnerLikedPlan($partner, $user, $plan);

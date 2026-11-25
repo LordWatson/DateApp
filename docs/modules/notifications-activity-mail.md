@@ -36,7 +36,7 @@ Three ways the app records or announces that something happened: in-app notifica
 - **`app_notifications`** (migration `2026_07_13_000004_create_notifications_table.php` - file name says `notifications`, table is `app_notifications`): `user_id` (cascade delete), `type` string, `title`, `body` nullable text, `data` nullable json, `read_at` nullable. Indexes `(user_id, read_at)`, `type`. Casts: `type` -> `NotificationType`, `data` -> array, `read_at` -> datetime.
 - **`activity_log`** (`2026_07_12_200000_create_activity_log_table.php`): `user_id` (cascade), `action` string, nullable morph `subject_type`/`subject_id`, `metadata` nullable json (cast array; empty array stored as `null`). Indexes `(user_id, created_at)`, `action`.
 - **`email_templates`** (`2026_07_12_161522_create_email_templates_table.php`): `key` unique, `label`, `subject`, `html_body`, `text_body`, `variables` json, `active`. No seeder.
-- **`users.email_notifications`** boolean default true (`2026_07_12_000001_extend_users_table.php`), changed at `/settings/notifications`. Every job that sends a notification email checks it; the in-app notification is created either way. Account mail (verification, password reset) and the invitation email ignore it. `push_notifications` also exists and is unused.
+- **`users.email_notifications`** boolean default true (`2026_07_12_000001_extend_users_table.php`), changed at `/settings/notifications`. It is the master switch: every job that sends a notification email asks `User::wantsEmail(NotificationCategory)`, which also honours the per-category choices in `users.notification_preferences` (see `auth-settings.md`); the in-app notification is created either way. The five notification emails carry a signed "Stop emails like this" link for their category. Account mail (verification, password reset) and the invitation email ignore it. `push_notifications` also exists and is unused.
 - Laravel's built-in database notifications are not used, even though `User` has the `Notifiable` trait.
 
 ### Notification types
@@ -58,6 +58,9 @@ Three ways the app records or announces that something happened: in-app notifica
 | `partner_nudge` | `NudgePartnerAction` (button on the waiting screen, or `datenight:nudge-partners`) | Partner | A couple attempt has been waiting for their answers. `data`: `questionnaire_id`, `questionnaire_slug` |
 | `love_note_reaction` | `LoveNoteController@react` | Note sender | The recipient's first reaction to a note (not on change or clear). `data`: `love_note_id` |
 | `connection_anniversary` | `ConnectionAnniversariesCommand` | Both partners | Daily 09:00, on the anniversary of `users.connected_at`. `data`: `years` |
+| `partner_completed_plan` | `NotificationService::notifyPartnerCompletedPlan` from `CompleteDateNightPlanAction` | Partner | First time a person marks a plan as done. `data`: `plan_id` |
+| `date_night_plan_ready` (reused) | `NotificationService::notifyPartnerChangedPlan` from `DateNightPlanController@regenerate` | Partner | A plan was rewritten with a steer. `data`: `plan_id` |
+| `connection_paused`, `connection_resumed` | `PartnerController@pause` / `@resume` | The other partner | Once per pause or resume |
 | `compatibility_ready` | nothing | - | Never created |
 | `daily_challenge` | nothing | - | Never created |
 
@@ -66,7 +69,7 @@ All render Blade views in `resources/views/emails/`. None read `EmailTemplate`.
 
 | Mailable (view) | `ShouldQueue` | Sent by job (queue) | Trigger | Recipient | Checks `email_notifications` |
 |---|---|---|---|---|---|
-| `PartnerInvitationMail` (`partner-invitation`) | No | `SendInvitationEmailJob` (`emails`) | `SendPartnerInvitationAction` line 20; `PartnerController@resendInvite` line 52 | `invitation->email` | n/a; job skips accepted or expired invitations |
+| `PartnerInvitationMail` (`partner-invitation`; never sent for a link invitation, which has no address) | No | `SendInvitationEmailJob` (`emails`) | `SendPartnerInvitationAction` line 20; `PartnerController@resendInvite` line 52 | `invitation->email` | n/a; job skips accepted or expired invitations |
 | `PartnerConnectedMail` (`partner-connected`) | Yes | `SendPartnerConnectedEmailJob` (`emails`) | `PartnerConnected` | Both users | Yes |
 | `DateNightReadyMail` (`date-night-ready`) | Yes | `SendSummaryEmailJob` (`emails`) | `DateNightPlanGenerated` | `userOne`, `userTwo` if set | Yes |
 | `LoveNoteReceivedMail` (`love-note-received`) | Yes | `SendLoveNoteNotificationJob` (`notifications`) | `LoveNoteSent` | Note recipient | Yes |
@@ -145,3 +148,7 @@ There are no routes for the activity log. Email template admin routes live in `r
 - 2026-11-24 — Roadmap Phase 2 (2.6, 2.12, 2.14): love note, moment and questionnaire-completed emails honour `email_notifications` (settable in settings); new types `invitation_expired` and `data_export_ready`; `partner_left` is also sent on disconnect.
 - 2026-11-26 — Roadmap Phase 4: removed `NotificationResource`, `NotificationCreated`, the three uncalled `NotificationService` methods and the unregistered invitation listener.
 - 2026-11-25 — Roadmap Phase 5A: new types `partner_nudge`, `love_note_reaction`, `connection_anniversary`, each with a link and emoji in `notifications/Index.vue`. The nudge reuses `QuestionnaireCompletedMail`.
+- 2026-11-25 — Roadmap Phase 5B: new type `partner_completed_plan`; `date_night_plan_ready` is also sent when a partner changes a plan.
+- 2026-11-25 — Roadmap Phase 5.8: `SendInvitationEmailJob` skips invitations with no email.
+- 2026-11-25 — Roadmap Phase 5.10: mail jobs use `User::wantsEmail()` with a category; emails carry an unsubscribe link; `datenight:send-reminders` follows each user's reminder frequency.
+- 2026-11-25 — Roadmap Phase 5.12: `connection_paused` and `connection_resumed`; `partner_left` opens the "what you keep" page; partner notifications and emails are not sent while a connection is paused.

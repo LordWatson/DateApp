@@ -8,6 +8,7 @@ use App\Http\Requests\LoveNote\ReactToLoveNoteRequest;
 use App\Http\Requests\LoveNote\SendLoveNoteRequest;
 use App\Models\AppNotification;
 use App\Models\LoveNote;
+use App\Services\ImpersonationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,12 +26,14 @@ class LoveNoteController extends Controller
         $user = $request->user();
 
         $sent = LoveNote::with('recipient')
+            ->visibleTo($user)
             ->where('sender_id', $user->id)
             ->orderByDesc('created_at')
             ->limit(50)
             ->get();
 
         $received = LoveNote::with('sender')
+            ->visibleTo($user)
             ->where('recipient_id', $user->id)
             ->orderByDesc('created_at')
             ->limit(50)
@@ -39,11 +42,12 @@ class LoveNoteController extends Controller
         return Inertia::render('love-notes/Index', [
             'sent' => $sent->map(fn ($n) => $this->formatNote($n, 'sent')),
             'received' => $received->map(fn ($n) => $this->formatNote($n, 'received')),
-            'partner' => $user->partner ? [
-                'id' => $user->partner->id,
-                'name' => $user->partner->display_name ?? $user->partner->name,
-                'avatar' => $user->partner->avatar,
+            'partner' => ($partner = $user->activePartner()) ? [
+                'id' => $partner->id,
+                'name' => $partner->display_name ?? $partner->name,
+                'avatar' => $partner->avatar,
             ] : null,
+            'connection_paused' => $user->isConnectionPaused(),
             'default_messages' => $this->defaultMessages(),
             'reactions' => LoveNote::REACTIONS,
         ]);
@@ -52,10 +56,12 @@ class LoveNoteController extends Controller
     public function store(SendLoveNoteRequest $request): RedirectResponse
     {
         $user = $request->user();
-        $partner = $user->partner;
+        $partner = $user->activePartner();
 
         if (! $partner) {
-            return back()->withErrors(['partner' => 'You need a partner to send love notes.']);
+            return back()->withErrors(['partner' => $user->isConnectionPaused()
+                ? 'Your connection is paused, so love notes cannot be sent.'
+                : 'You need a partner to send love notes.']);
         }
 
         $this->sendLoveNoteAction->execute($user, $partner, $request->validated('message'));
@@ -71,7 +77,11 @@ class LoveNoteController extends Controller
             abort(403);
         }
 
-        if ($loveNote->recipient_id === $user->id) {
+        // Taken out of this person's account after the connection ended.
+        abort_unless(LoveNote::visibleTo($user)->whereKey($loveNote->id)->exists(), 404);
+
+        // Not when an administrator is viewing as the recipient: they have not read it.
+        if ($loveNote->recipient_id === $user->id && ! app(ImpersonationService::class)->isActive()) {
             $loveNote->markAsRead();
         }
 
@@ -122,7 +132,8 @@ class LoveNoteController extends Controller
 
     public function unreadCount(Request $request): JsonResponse
     {
-        $count = LoveNote::where('recipient_id', $request->user()->id)
+        $count = LoveNote::visibleTo($request->user())
+            ->where('recipient_id', $request->user()->id)
             ->whereNull('read_at')
             ->count();
 

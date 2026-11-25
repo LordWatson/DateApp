@@ -1,6 +1,6 @@
 # Moments and Timeline
 
-> Last verified against code: 2026-11-26
+> Last verified against code: 2026-11-25
 
 ## Purpose
 
@@ -75,6 +75,12 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 2. `TimelineBuilderService::build()` queries each source (max 20 rows per type, achievements unlimited), maps to `{id, type, title, description, emoji, occurred_at, link, ...}` and sorts by `occurred_at` desc.
 3. Only date night plan entries carry a `link` (`date-night.show`).
 
+### Capture from a date night
+
+1. `GET /moments?plan={id}` (the link on a plan marked as done): when the user can view that plan, `index` sends `prefill` (`date_night_plan_id`, `title` = the plan's theme, `date` = the user's completion date or their today); otherwise `prefill` is null.
+2. `moments/Index.vue` opens the create form with those values and submits `date_night_plan_id`. The form now always sends that field, so an edit carries the moment's existing link (`openEdit` copies it) instead of clearing it.
+3. Moments linked to a plan are listed on the plan page for the owner and their partner (see `date-night.md`).
+
 ## Rules and gotchas
 
 - **Who can see / edit**:
@@ -83,7 +89,7 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
   - `private_notes` are returned only to the owner (`MomentController::formatMoment`).
   - Policies are not registered explicitly; they rely on Laravel's `App\Policies\{Model}Policy` auto-discovery.
   - Timeline is strictly personal: `TimelineController` passes only `$request->user()`. It shows the user's **own** moments and calendar events (not the partner's), and love notes both sent and received.
-- Validation (`StoreMomentRequest`): `title` required max 255; `date` required; `description` and `private_notes` max 2000; `mood` max 50; `photo` image max 5120 KB; `remove_photo` boolean; `tags` array of strings max 50 each; `date_night_plan_id` must exist. The same rules apply to update, so `title` and `date` are always required.
+- Validation (`StoreMomentRequest`): `title` required max 255; `date` required; `description` and `private_notes` max 2000; `mood` max 50; `photo` image max 5120 KB; `remove_photo` boolean; `tags` array of strings max 50 each; `date_night_plan_id` must be a plan the author can view. The same rules apply to update, so `title` and `date` are always required.
 - **Photos / storage**: photos are private. Files go to the uploads disk (`config('filesystems.uploads')`, env `UPLOADS_DISK`, default the private `local` disk, `storage/app/private/moments`) and are only readable through `moments.photo`, which checks the moment policy and streams the file with `Storage::disk(...)->response()`. No `storage:link` is needed and nothing is reachable by URL alone. The page prop `photo` is that route's URL plus `?v=<file name>`, so a replaced photo is not served from the browser cache (the response is `Cache-Control: private, max-age=3600`). There is no resizing or thumbnailing. The table does not record the disk: after changing `UPLOADS_DISK`, run `php artisan datenight:move-uploads --from=<old disk>` (default `public`; copies then deletes, safe to run again). `DeleteAccountAction` deletes the owner's photos from the same disk.
 - **Today**: `moments.index` sends `today` (`User::today()`, the user's own date) and the form uses it as the default date. The timeline's calendar entries stop at the user's own today.
 - Disconnecting a partner immediately hides moments from the ex-partner (visibility is computed from `partner_id`).
@@ -112,6 +118,8 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 
 Run: `php artisan test --filter="MomentTest|MomentPhotoTest|TimelineTest"`
 
+`tests/Feature/DateNightPlanCompletionTest.php` covers the `prefill` prop and a moment created with a plan id.
+
 Not covered: partner visibility, `private_notes` hiding, notification/mail, non-moment timeline sources.
 
 ## Change log
@@ -122,3 +130,4 @@ Not covered: partner visibility, `private_notes` hiding, notification/mail, non-
 - 2026-11-24 — Roadmap Phase 2 (2.5): photo upload with preview and remove on the create/edit form; edits post with `_method: 'put'`; photo URL comes from the `public` disk; an edit without a new file no longer clears the photo.
 - 2026-11-25 — Roadmap Phase 3 (3.4, 3.14): photos are private on the configurable uploads disk and served by the new `moments.photo` route; `datenight:move-uploads` moves old files; the default date comes from the user's timezone.
 - 2026-11-26 — Roadmap Phase 4: removed `MomentResource`, the `TimelineEntry` model and `User::timelineEntries()`; a new migration drops the never-used `timeline_entries` table. The timeline is still built on the fly.
+- 2026-11-25 — Roadmap Phase 5.2: `?plan=` prefills the create form and the form sends `date_night_plan_id`.

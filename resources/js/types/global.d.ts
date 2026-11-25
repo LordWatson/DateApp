@@ -20,6 +20,8 @@ declare module '@inertiajs/core' {
             auth: Auth;
             unreadNotificationsCount: number;
             flash: { success?: string | null; error?: string | null };
+            /** Set while an administrator is viewing the app as this user. */
+            impersonating: { name: string } | null;
             registrationOpen: boolean;
             [key: string]: unknown;
         };

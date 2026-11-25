@@ -426,7 +426,7 @@ Do this after Phases 1 and 2, because several of these are things those phases w
 
 Ordered by how much they add for the effort. The first five reuse data and code that already exist.
 
-**Step-by-step build instructions for each feature are in [PHASE-5.md](PHASE-5.md).**
+**All 12 were built on 2026-11-25.** The build steps, what was built and what was left out are in [PHASE-5.md](PHASE-5.md). Not built: the QR code for 5.8 (needs an npm package to be approved).
 
 | # | Feature | Why it earns its place | Builds on | Size |
 |---|---|---|---|---|

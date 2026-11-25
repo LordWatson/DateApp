@@ -47,6 +47,7 @@ Under `auth`, `verified`, `onboarding` middleware.
 POST deletes the couple's row for this week and runs generation again, so the new text replaces it for both partners. The Vue page disables the button while the request runs, and shows a toast instead of an error page when the limit answers 429.
 
 ## Rules and gotchas
+- The context sent to the AI includes `date_nights_done`: date nights either partner marked as done in the period (`date_night_plan_completions.completed_on`), with who rated it and the rating out of 5. The rule-based fallback text does not use it.
 - **AI needs consent from both partners** (the recap contains both people's notes and moments); a user without a partner needs only their own. Otherwise the deterministic recap is stored with `fallback_used = true`, and the page shows a one-line note linking to Settings whenever `fallback_used` is set. See `ai.md`.
 - **The context key must be `context`.** The prompt template interpolates `{{context}}`; any other key is silently dropped and the model writes generic text. This was the original bug.
 - **Prompt:** `weekly_reflection` version 2 in `AiPromptTemplateSeeder` (specific, shared, no per-person tallies, no verbatim notes). Environments must reseed to get it; an older active version still receives the full log but with the older instructions.
@@ -75,3 +76,4 @@ POST deletes the couple's row for this week and runs generation again, so the ne
 - 2026-11-24 — Reflections are now built from the couple's real activity over the past seven days and shared by both partners; fixed the context key that kept the data from the model; prompt version 2; first tests.
 - 2026-11-24 — Roadmap Phase 2 (2.16): regenerate is throttled (`throttle:ai`) and the page handles the 429; solo wording for users without a partner; a cache lock keeps a couple to one row per week.
 - 2026-11-25 — Roadmap Phase 3 (3.6): the AI recap needs AI consent from the user and their partner; fallback recaps show a note linking to Settings.
+- 2026-11-25 — Roadmap Phase 5.2: `date_nights_done` (ratings of date nights done in the period) added to the AI context.

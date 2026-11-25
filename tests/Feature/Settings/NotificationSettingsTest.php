@@ -116,6 +116,106 @@ class NotificationSettingsTest extends TestCase
         $this->assertSame(1, AppNotification::where('user_id', $recipient->id)->where('type', NotificationType::PartnerCompleted)->count());
     }
 
+    public function test_one_kind_of_email_can_be_switched_off_while_the_others_still_send(): void
+    {
+        Mail::fake();
+
+        [$recipient, $partner] = $this->couple(true);
+        $recipient->update(['notification_preferences' => ['emails' => ['love_notes' => false]]]);
+        $note = LoveNote::factory()->create(['sender_id' => $partner->id, 'recipient_id' => $recipient->id]);
+        $moment = Moment::factory()->create(['user_id' => $partner->id]);
+
+        SendLoveNoteNotificationJob::dispatch($recipient, $note);
+        SendMomentNotificationJob::dispatch($recipient, $moment);
+
+        Mail::assertNotQueued(LoveNoteReceivedMail::class);
+        Mail::assertQueued(MomentCreatedMail::class);
+        $this->assertSame(1, AppNotification::where('user_id', $recipient->id)->where('type', NotificationType::LoveNoteReceived)->count());
+    }
+
+    public function test_email_categories_and_reminder_frequency_are_saved_and_shown(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->patch(route('notification-settings.update'), [
+                'email_notifications' => true,
+                'emails' => ['love_notes' => false, 'moments' => true],
+                'reminder_frequency' => 'monthly',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            ['emails' => ['love_notes' => false, 'moments' => true], 'reminder_frequency' => 'monthly'],
+            $user->refresh()->notification_preferences,
+        );
+
+        $this->actingAs($user)
+            ->get(route('notification-settings.edit'))
+            ->assertInertia(fn ($page) => $page
+                ->where('reminderFrequency', 'monthly')
+                ->has('emailCategories', 3)
+                ->where('emailCategories.1.value', 'love_notes')
+                ->where('emailCategories.1.enabled', false)
+                ->where('emailCategories.0.enabled', true));
+    }
+
+    public function test_unknown_categories_and_frequencies_are_rejected(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->patch(route('notification-settings.update'), ['email_notifications' => true, 'emails' => ['newsletters' => false]])
+            ->assertSessionHasErrors('emails');
+
+        $this->actingAs($user)
+            ->patch(route('notification-settings.update'), ['email_notifications' => true, 'reminder_frequency' => 'hourly'])
+            ->assertSessionHasErrors('reminder_frequency');
+
+        $this->assertNull($user->refresh()->notification_preferences);
+    }
+
+    public function test_the_questionnaire_reminder_follows_the_chosen_frequency(): void
+    {
+        [$weekly, $weeklyPartner] = $this->couple(true);
+        [$monthly, $monthlyPartner] = $this->couple(true);
+        [$never, $neverPartner] = $this->couple(true);
+        $monthly->update(['notification_preferences' => ['reminder_frequency' => 'monthly']]);
+        $never->update(['notification_preferences' => ['reminder_frequency' => 'off']]);
+        // Their partners are not part of this test.
+        foreach ([$weeklyPartner, $monthlyPartner, $neverPartner] as $partner) {
+            $partner->update(['notification_preferences' => ['reminder_frequency' => 'off']]);
+        }
+
+        // Everyone was last reminded ten days ago: due again weekly, not yet monthly.
+        $this->travel(-10)->days();
+        foreach ([$weekly, $monthly, $never] as $user) {
+            AppNotification::create([
+                'user_id' => $user->id,
+                'type' => NotificationType::QuestionnaireReminder,
+                'title' => 'Earlier reminder',
+                'data' => [],
+            ]);
+        }
+        $this->travelBack();
+
+        $this->artisan('datenight:send-reminders')->assertSuccessful();
+
+        $reminders = fn (User $user): int => AppNotification::where('user_id', $user->id)
+            ->where('type', NotificationType::QuestionnaireReminder)
+            ->count();
+
+        $this->assertSame(2, $reminders($weekly));
+        $this->assertSame(1, $reminders($monthly));
+        $this->assertSame(1, $reminders($never));
+
+        $this->travel(25)->days();
+        $this->artisan('datenight:send-reminders')->assertSuccessful();
+
+        $this->assertSame(2, $reminders($monthly));
+        $this->assertSame(1, $reminders($never));
+    }
+
     /**
      * @return array{0: User, 1: User} the person being notified, then their partner
      */

@@ -183,7 +183,7 @@ Today "Since" is read from the newest accepted invitation sent by either person 
 
 ## Sub-phase 5B: close the loops
 
-### - [ ] 5.2 "We did it" on a plan (M)
+### - [x] 5.2 "We did it" on a plan (M)
 
 Mark a plan as done, rate the night, and capture a moment from it. `moments.date_night_plan_id` exists and is validated, but no screen sets it.
 
@@ -215,7 +215,7 @@ Mark a plan as done, rate the night, and capture a moment from it. `moments.date
 
 ---
 
-### - [ ] 5.3 Regenerate a plan with a steer (M)
+### - [x] 5.3 Regenerate a plan with a steer (M)
 
 "Not quite right?" plus one line of direction. Builds on "Try again with AI" (`RetryDateNightPlanWithAiAction`, `DateNightGeneratorService::retryEnhancement()`).
 
@@ -248,7 +248,7 @@ Mark a plan as done, rate the night, and capture a moment from it. `moments.date
 
 ---
 
-### - [ ] 5.4 Shared daily challenge with a couple streak (M)
+### - [x] 5.4 Shared daily challenge with a couple streak (M)
 
 Each partner can already mark today's challenge done. This adds a streak that grows on days when **both** did.
 
@@ -281,9 +281,18 @@ Each partner can already mark today's challenge done. This adds a streak that gr
 
 ---
 
+**Sub-phase 5B was completed on 2026-11-25.** PHPUnit (533 tests), PHPStan, Pint, ESLint, Prettier, `vue-tsc` and the build pass. Nothing was clicked through by hand, and no real AI call was made: the steer was tested against a stand-in provider. As built:
+
+- **5.2** One rating per person (1 to 5 stars, optional note); the partner is told the first time. The plan page lists both ratings and the moments captured from it; History and Favourites show "Done". Ratings feed the weekly reflection context and the data export. Not built: a "done" filter on History, and a rating-based achievement.
+- **5.3** Either participant, three changes per plan, in place, only when the AI is on and everyone in the plan has agreed to it. The steer travels inside the prompt context as `requested_change`, and the three plan prompts gained a rule to honour it (v12, v2, v2). Not built: passing low-rated past themes as "avoid" (step 10, optional).
+- **5.4** UTC day, couples only, stored on both users, reset on disconnect with the longest kept. No reset command: the streak is read through `User::currentChallengeStreak()`. Two achievements: 7 and 30 days.
+- **Deploy:** `php artisan migrate`, `php artisan datenight:sync-prompts`, re-run `AchievementSeeder`.
+
+---
+
 ## Sub-phase 5C: calendar and invitations
 
-### - [ ] 5.7 Recurring anniversaries and birthdays with a countdown (M)
+### - [x] 5.7 Recurring anniversaries and birthdays with a countdown (M)
 
 **Decide first**
 
@@ -312,7 +321,7 @@ Left out on purpose: timeline and search still show only the original date.
 
 ---
 
-### - [ ] 5.8 Invite by shareable link or QR code (M)
+### - [x] 5.8 Invite by shareable link or QR code (M)
 
 The confirm screen already exists (Phase 0.4: `GET invite/{token}` shows it, `POST invite/{token}/accept` connects). What is missing is making an invitation without an email address and handing the link to the sender.
 
@@ -345,9 +354,17 @@ The confirm screen already exists (Phase 0.4: `GET invite/{token}` shows it, `PO
 
 ---
 
+**Sub-phase 5C was completed on 2026-11-25.** PHPUnit (552 tests), PHPStan, Pint, ESLint, Prettier, `vue-tsc` and the build pass. Nothing was clicked through by hand; copy and share use browser features that the automated tests do not exercise. As built:
+
+- **5.7** Yearly only. New anniversaries and birthdays default to repeating; existing events were left alone and can be edited to repeat. Countdown and "3rd · every year" badges on the calendar and the event page; the hub shows repeating events; each occurrence gets its own reminder. Timeline and search still use the original date.
+- **5.8** Copy and Share only: **the QR code was not built**, because it needs a new npm package and that needs the owner's approval (step 8). One pending invitation at a time, as before. The sender's own link is now sent to the Partner and onboarding pages for email invitations too.
+- **Deploy:** `php artisan migrate`.
+
+---
+
 ## Sub-phase 5D: preferences and support
 
-### - [ ] 5.10 Notification preferences (M)
+### - [x] 5.10 Notification preferences (M)
 
 Today there is one switch, `users.email_notifications`. `push_notifications` exists and nothing uses it.
 
@@ -381,7 +398,7 @@ Today there is one switch, `users.email_notifications`. `push_notifications` exi
 
 ---
 
-### - [ ] 5.11 Admin "view as user" (M)
+### - [x] 5.11 Admin "view as user" (M)
 
 Support cannot see what a user sees. This lets a super admin browse the app as a user, read-only, with every use audited.
 
@@ -417,9 +434,17 @@ Support cannot see what a user sees. This lets a super admin browse the app as a
 
 ---
 
+**Sub-phase 5D was completed on 2026-11-25.** PHPUnit (575 tests), PHPStan, Pint, ESLint, Prettier, `vue-tsc` and the build pass. Nothing was clicked through by hand. As built:
+
+- **5.10** Three email categories, not five: partner activity, love notes and moments. Reminders and challenges only ever notify in the app, so a toggle for them would have done nothing. `email_notifications` stays as the master switch. Reminder frequency (weekly, monthly, never) applies to the "plan a date night" reminder. Every notification email has a signed "Stop emails like this" link; it asks for confirmation first so that a mail scanner cannot unsubscribe anyone.
+- **5.11** The recommended defaults: super administrators only, never an administrator account, read-only, 30 minutes, both ends audited, banner with Stop. Security pages, the data export and the weekly reflection are closed while viewing. The privacy policy has a new section describing this access; like the rest of that page it is an unreviewed draft. **The owner should confirm this access is acceptable before release.**
+- **Deploy:** `php artisan migrate`.
+
+---
+
 ## Sub-phase 5E: pause or end a connection
 
-### - [ ] 5.12 Pause or end a connection, choosing what each person keeps (L)
+### - [x] 5.12 Pause or end a connection, choosing what each person keeps (L)
 
 **Needs**: 5.9 (`connected_at`). Do this last: it touches every place that acts on the partner.
 
@@ -484,6 +509,17 @@ Work it in four stages. Stages 1 and 2 can ship without 3 and 4.
 **Docs**: `onboarding-partner.md` (flows, data model, the ex-partner table), `love-notes.md`, `date-night.md`, `moments-timeline.md`, `dashboard-insights-search.md`, `auth-settings.md`, `events-jobs.md`, `notifications-activity-mail.md`.
 
 **Done when**: either person can pause without losing anything, and either can end the connection and decide what stays in their own account, without changing what the other person keeps.
+
+---
+
+**Sub-phase 5E was completed on 2026-11-25**, which completes Phase 5. PHPUnit (594 tests), PHPStan, Pint, ESLint, Prettier, `vue-tsc`, the build and the browser tests pass; the pause, resume and end flows are walked in a real browser by `tests/e2e/zz-connection.spec.ts`. As built, with the recommended answer taken for every Stage 1 decision:
+
+- **Stage 1** The table of what an ex-partner still sees is in `docs/modules/onboarding-partner.md`. It was read from the code, not checked screen by screen in a browser.
+- **Pause** Either partner can pause; only the person who paused can resume; the other is told once each way. The couple stays linked and keeps all shared history. Notifications and emails about each other, love notes, couple planning, sharing of new solo plans and the couple streak stop until it is resumed (the streak is frozen, not lost). **Not covered: the weekly reflection still describes both partners' week during a pause.**
+- **End** One dialog with the two choices, a link to the data export and the password (not two separate steps). Choices hide shared plans and love notes from that person only; nothing is deleted and a choice can be reversed. The other person chooses from the notification or the Partner page. `users.former_partner_id` remembers who that was.
+- **Hidden history** is left out of history, favourites, the plan page, love notes, dashboard, hub, insights, search and timeline. It is still counted by achievements, past weekly reflections and the data export of plans.
+- **Tidy** The delete-account dialog points to pause and end; admin disconnect clears a pause and applies no choices.
+- **Deploy:** `php artisan migrate`.
 
 ---
 

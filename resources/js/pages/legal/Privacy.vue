@@ -75,7 +75,25 @@ defineProps<{
             that week. Only you can change or delete your own records. After a
             disconnect, plans made together stay in both histories, love notes
             stay with sender and recipient, and your moments and calendar events
-            are no longer visible to the other person.
+            are no longer visible to the other person. When a connection ends,
+            each of you can choose to take the plans made together and the love
+            notes between you out of your own account; this hides them from you
+            only and does not delete them or change what the other person keeps.
+            You can also pause a connection: you stay linked and keep what you
+            have shared, but nothing new is shared and no notifications are sent
+            between you until it is resumed.
+        </p>
+
+        <h2>When our staff can see your account</h2>
+        <p>
+            To help with a support request or investigate a problem, a senior
+            administrator can open the app as you would see it. This shows them
+            what you see, including love notes, questionnaire answers and
+            private notes. They cannot change, send or delete anything while
+            doing so, each session ends by itself after 30 minutes, and every
+            use is recorded with who looked, at whose account and when. Your
+            password, two-factor and passkey settings and your data export are
+            not available to them.
         </p>
 
         <h2>AI processing, only with your agreement</h2>

@@ -25,7 +25,7 @@ final class DispatchDateNightPlanOnQuestionnaireCompleted implements ShouldQueue
             return;
         }
 
-        $partner = $event->user->partner;
+        $partner = $event->user->activePartner();
 
         if (! $partner) {
             return;

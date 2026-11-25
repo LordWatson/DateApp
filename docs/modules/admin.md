@@ -51,6 +51,7 @@ All: middleware `auth`, `verified`, `admin`; URI prefix `/admin`; name prefix `a
 |---|---|---|---|
 | `AdminDashboardController` | `dashboard`: GET `/` | Counts (users, couples, responses, plans, love notes, `jobs`/`failed_jobs`), newest users, 30-day series | – |
 | `AdminUserController` | `users.index/show/update/suspend/unsuspend/disconnect/destroy` | Search/filter users, edit name/email/`role_id`, suspend, unlink partner, delete | yes |
+| `AdminImpersonationController` | `users.view-as` POST `/users/{user}/view-as` (`can:super-admin`); `impersonation.stop` POST `/stop-viewing` (outside the admin group, `auth` only) | View the app as a user | yes (`user.view_as.started` / `.stopped`) |
 | `AdminCoupleController` | `couples.index`, `couples.disconnect` POST `/{user}/disconnect`, `couples.reconnect` POST `/reconnect` | Couples list (one row per pair via `id < partner_id`), link/unlink | yes |
 | `AdminQuestionnaireController` | `questionnaires.index/create/store/edit/update/destroy/duplicate/reorder` | Questionnaire CRUD incl. `is_solo`, `partner_optional`, `is_intimacy`; deep duplicate (questions + options, status `draft`); `reorder` saves `display_order` for questions, or for options with `type=options` | yes (reorder logs `questions.reordered` / `options.reordered` with the new order) |
 | `AdminQuestionController` | `questions.store` POST `/questionnaires/{questionnaire}/questions`, `questions.update/destroy` `/questions/{question}` | Questions (edited inside questionnaire Edit page) | yes |
@@ -103,13 +104,22 @@ Gate column intentionally absent: **no controller checks a gate** (see Rules). L
 - **Audit log and personal data**: `user.deleted` stores only `id`, `role_id`, `created_at`, `email_verified_at`. A migration cleared `before`/`after` on older `user.deleted` rows. `user.updated` rows still hold the name and email as they were at the time, also after the user is deleted.
 - **Suspected issue 8:** users filter `admins` is `whereNotNull('role_id')` (`AdminUserController.php:36`), which also matches users holding the non-admin `user` role.
 - `AdminUserController@disconnect` and `AdminCoupleController@disconnect` both unpair through `PartnerInvitationService::disconnectPartner()` and differ only in the audit action (`user.disconnected` / `couple.disconnected`) and the flash message. **Suspected issue 10:** neither they nor `reconnect` fire `PartnerDisconnected`/`PartnerConnected` events. `reconnect` does set `users.connected_at` on both users, and the disconnects clear it.
+- **View as user** (`App\Services\ImpersonationService`, `App\Http\Middleware\RestrictImpersonation` in the web group):
+  - Who: super administrators only, never on an administrator account or their own. The button on `admin/users/Show.vue` follows the `canViewAs` prop.
+  - How: the session is switched to the user and keeps `impersonator_id` and `impersonation_started_at`. The stop route sits outside the admin group because the session then belongs to a non-admin.
+  - Read-only: every request that is not GET or HEAD is refused (flash `error`, or 403 for JSON), except stop and logout.
+  - Closed pages: security, two-factor and passkey routes, password confirmation, the data export download, and the weekly reflection (opening it generates one and can call the AI).
+  - Pages that write when opened stay quiet: no "partner viewed your plan" notice, a love note is not marked read, a questionnaire attempt is not auto-started. **A new GET action that writes must check `ImpersonationService::isActive()` or be added to `RestrictImpersonation::CLOSED_ROUTES`.**
+  - Ends after 30 minutes (`ImpersonationService::MINUTES`) on the next request, returning to the admin's own session.
+  - `components/ImpersonationBanner.vue` (in `MobileLayout`) shows who is being viewed and a Stop button, from the shared prop `impersonating`.
+  - The privacy policy (`legal/Privacy.vue`) describes this access. The administrator sees everything the user sees, including love notes, answers and private notes.
 - No link to `/log-viewer` or to `/admin` exists anywhere in the UI.
 
 ## Related modules
 `auth-settings.md` (users, verification), `onboarding-partner.md` (partner links), `questionnaires.md`, `challenges-achievements-streaks.md`, `ai.md` (prompts, settings, providers), `notifications-activity-mail.md`, `frontend.md` (layouts, route helpers), `platform.md` (providers, seeding, tests).
 
 ## Tests
-`tests/Feature/Admin/*` cover: access per role, user index/show/update/suspend/unsuspend/delete/disconnect/search, challenge CRUD + archive, feature-flag view/toggle + `isEnabled` helper, log-viewer access. `AdminQuestionnaireEditorTest` covers the three mode flags, enum validation, duplicate titles, question and option updates, signals and both reorders; `AdminAiSettingsPageTest` covers the page and its super-admin gate; `tests/Feature/RuntimeSettingsTest.php` covers the wired flags and setting. Couples: only disconnect is covered. Not covered: achievements, the settings page, email templates, media, audit logs, analytics.
+`tests/Feature/Admin/*` cover: access per role, user index/show/update/suspend/unsuspend/delete/disconnect/search, challenge CRUD + archive, feature-flag view/toggle + `isEnabled` helper, log-viewer access. `AdminQuestionnaireEditorTest` covers the three mode flags, enum validation, duplicate titles, question and option updates, signals and both reorders; `AdminAiSettingsPageTest` covers the page and its super-admin gate; `tests/Feature/RuntimeSettingsTest.php` covers the wired flags and setting. Couples: only disconnect is covered. `AdminImpersonationTest` covers who may start, the audit entries, read-only enforcement, closed pages, quiet GETs, stop and the 30-minute limit. Not covered: achievements, the settings page, email templates, media, audit logs, analytics.
 
 ```
 npm run build                       # once; Inertia page responses need public/build/manifest.json
@@ -125,3 +135,4 @@ php artisan test tests/Feature/Admin
 - 2026-11-25 — Roadmap Phase 3 (3.4, 3.11, 3.14): media is images only on the uploads disk and served through `admin.media.show` (and `MediaLibrary` now points at the `media_library` table, so uploads work); media updates, reordering and AI test calls are audited; `user.deleted` keeps no personal data; analytics counts active users from the activity log and reads compatibility from couple plans.
 - 2026-11-26 — Roadmap Phase 4: (4.6) both admin disconnect routes share `PartnerInvitationService::disconnectPartner()`; routes, audit actions and messages unchanged.
 - 2026-11-25 — Roadmap Phase 5.9: admin reconnect and disconnect keep `users.connected_at` in step with `partner_id`.
+- 2026-11-25 — Roadmap Phase 5.11: "view as user" for super administrators: read-only, 30 minutes, audited.

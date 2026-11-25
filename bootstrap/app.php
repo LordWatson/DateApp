@@ -15,6 +15,7 @@ use App\Http\Middleware\EnsureUserIsNotSuspended;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectToPendingInvitation;
+use App\Http\Middleware\RestrictImpersonation;
 use App\Providers\EventServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel;
@@ -43,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             EnsureUserIsNotSuspended::class,
+            RestrictImpersonation::class,
             RedirectToPendingInvitation::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,

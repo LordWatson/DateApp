@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Events\MomentCreated;
 use App\Http\Requests\Moment\StoreMomentRequest;
+use App\Models\DateNightPlan;
 use App\Models\Moment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +37,34 @@ class MomentController extends Controller
             ],
             // The user's own "today", used as the default date of a new moment.
             'today' => $user->today()->toDateString(),
+            'prefill' => $this->prefillFromPlan($request),
         ]);
+    }
+
+    /**
+     * `?plan=` opens the form ready to capture a moment from that date night.
+     *
+     * @return array{date_night_plan_id: int, title: string, date: string}|null
+     */
+    private function prefillFromPlan(Request $request): ?array
+    {
+        $user = $request->user();
+        $plan = $request->filled('plan') ? DateNightPlan::find($request->integer('plan')) : null;
+
+        if (! $plan || $user->cannot('view', $plan)) {
+            return null;
+        }
+
+        $completedOn = DB::table('date_night_plan_completions')
+            ->where('date_night_plan_id', $plan->id)
+            ->where('user_id', $user->id)
+            ->value('completed_on');
+
+        return [
+            'date_night_plan_id' => $plan->id,
+            'title' => $plan->theme,
+            'date' => $completedOn ? substr((string) $completedOn, 0, 10) : $user->today()->toDateString(),
+        ];
     }
 
     public function show(Request $request, Moment $moment): Response

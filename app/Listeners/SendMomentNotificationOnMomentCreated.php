@@ -12,7 +12,7 @@ final class SendMomentNotificationOnMomentCreated implements ShouldQueue
 
     public function handle(MomentCreated $event): void
     {
-        $partner = $event->user->partner;
+        $partner = $event->user->activePartner();
 
         if ($partner === null) {
             return;

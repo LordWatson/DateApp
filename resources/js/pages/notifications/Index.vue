@@ -65,6 +65,9 @@ function typeEmoji(type: string): string {
         partner_nudge: '⏳',
         love_note_reaction: '💗',
         connection_anniversary: '💞',
+        partner_completed_plan: '🥂',
+        connection_paused: '⏸️',
+        connection_resumed: '▶️',
     };
 
     return map[type] ?? '🔔';
@@ -85,6 +88,7 @@ function destination(notification: NotificationItem): string | null {
         case 'date_night_plan_ready':
         case 'partner_liked_plan':
         case 'partner_viewed_plan':
+        case 'partner_completed_plan':
             return data.plan_id
                 ? `/date-night/${data.plan_id}`
                 : '/date-night/history';
@@ -104,9 +108,13 @@ function destination(notification: NotificationItem): string | null {
             return '/achievements';
         case 'daily_challenge':
             return '/dashboard';
+        case 'partner_left':
+            // The page sends on to /partner when there is nothing to choose.
+            return '/partner/after';
         case 'partner_connected':
         case 'connection_anniversary':
-        case 'partner_left':
+        case 'connection_paused':
+        case 'connection_resumed':
         case 'invitation_declined':
         case 'invitation_expired':
             return '/partner';

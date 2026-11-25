@@ -31,7 +31,7 @@ Three small gamification features. **Challenges** are a pool of short couple act
 | `app/Events/ChallengeCompleted.php` | Dispatched on a user's first completion of the day |
 | `bootstrap/app.php` (`withSchedule`) | Scheduling of both commands (`routes/console.php` has no schedule) |
 | `app/Http/Controllers/DashboardController.php` | Sends today's challenge with `completed_by_me` / `completed_by_partner`; exposes streak stats |
-| `database/seeders/ChallengeSeeder.php`, `database/seeders/AchievementSeeder.php` | 100 challenges, 18 achievements |
+| `database/seeders/ChallengeSeeder.php`, `database/seeders/AchievementSeeder.php` | 100 challenges, 20 achievements |
 | `database/factories/{Challenge,DailyChallenge,Achievement}Factory.php` | Factories |
 | **Frontend** | |
 | `resources/js/components/ChallengeCard.vue` | "Today's challenge" card: difficulty, who has done it, Done button |
@@ -50,6 +50,7 @@ Three small gamification features. **Challenges** are a pool of short couple act
 - `daily_challenge_completions` (no model): `daily_challenge_id`, `user_id` (both FK, cascade; **unique pair**, so one completion per user per day), `completed_at`.
 - `achievements`: `name`, `description`, `emoji`, `artwork?`, `category` (string), `points` (default 10), `hidden` (bool), `unlock_condition` (string), `unlock_value` (int, default 1).
 - `user_achievements` (pivot): `user_id`, `achievement_id` (unique pair, both cascade), `unlocked_at`, timestamps. Relation: `User::achievements()` / `Achievement::users()`.
+- Couple streak columns on `users` (written on both partners together): `challenge_streak`, `longest_challenge_streak` (unsigned int, default 0), `challenge_streak_date` (date, nullable). `PartnerInvitationService::disconnectPartner()` and `DeleteAccountAction` zero the current streak and keep the longest.
 - Streak columns live on `users` (`database/migrations/2026_07_12_000001_extend_users_table.php`): `last_completed_questionnaire_at` (datetime), `current_streak`, `longest_streak`, `monthly_completion_count` (all unsigned int, default 0).
 
 ## Routes
@@ -81,6 +82,7 @@ Scheduled (in `bootstrap/app.php`): `datenight:select-daily-challenge` daily at 
 | `calendar_events_created` | `$user->calendarEvents()->count()` >= value |
 | `moments_created` | `$user->moments()->count()` >= value |
 | `challenges_completed` | rows in `daily_challenge_completions` for the user >= value |
+| `challenge_streak_days` | `User::currentChallengeStreak()` (the couple streak) >= value |
 | `days_connected` | the user has a partner and `users.connected_at` is at least value days ago |
 | `perfect_compatibility` | any `DateNightPlan` linked to the user's responses has `compatibility_score = 100` (value ignored) |
 | `average_compatibility` | average `compatibility_score` over those plans >= value |
@@ -110,6 +112,9 @@ Scheduled (in `bootstrap/app.php`): `datenight:select-daily-challenge` daily at 
 3. The dashboard calls the same method, so the row is created on the first page load if the schedule has not run. Everyone sees the same challenge all day.
 4. "Done" on the card posts to `daily-challenge.complete`. `CompleteDailyChallengeAction` inserts into `daily_challenge_completions` with `insertOrIgnore`; a repeat does nothing. The first time, `ChallengeCompleted` fires: the partner gets a `daily_challenge` notification and `AchievementEvaluationJob` runs (`First Challenge` at 1, `Challenge Champion` at 10).
 5. The card shows your state and the partner's from `completed_by_me` / `completed_by_partner` (null with no partner). Completion cannot be undone.
+6. **Couple streak**: when a completion makes both partners done for the day, `CompleteDailyChallengeAction` updates both users in one transaction (rows locked): `challenge_streak` + 1 if `challenge_streak_date` was the day before, otherwise 1; the date becomes today; `longest_challenge_streak` keeps the maximum. A day already counted is skipped, so two requests arriving together count once. `AchievementEvaluationJob` is dispatched for the partner too (`A Week in Sync` at 7, `A Month in Sync` at 30).
+8. A paused connection freezes the couple streak: completions during the pause do not count, `currentChallengeStreak()` measures against the day the pause began, and resuming lets a streak that was alive carry on.
+7. Read the streak through `User::currentChallengeStreak()`: it returns 0 when the last shared day is older than yesterday (UTC), so no reset command is needed. The dashboard sends `couple_streak` and `longest_couple_streak` (null with no partner) and the card shows a flame badge and a "Both done" line.
 
 ## Rules and gotchas
 
@@ -159,3 +164,5 @@ Run: `php artisan test --filter="AchievementTest|ChallengeTest|DailyChallengeTes
 - 2026-11-25 — Roadmap Phase 3 (3.14): streak days are counted in the user's timezone.
 - 2026-11-26 — Roadmap Phase 4: removed the unused `ChallengeResource`.
 - 2026-11-25 — Roadmap Phase 5.9: `days_connected` condition and the seeded "One Year Together" (365); also evaluated by the daily anniversary command.
+- 2026-11-25 — Roadmap Phase 5.4: couple challenge streak (`challenge_streak*` columns, `currentChallengeStreak()`, `challenge_streak_days` achievements, dashboard badge).
+- 2026-11-25 — Roadmap Phase 5.12: the couple streak is frozen while a connection is paused.

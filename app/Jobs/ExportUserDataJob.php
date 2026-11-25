@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -103,10 +104,15 @@ final class ExportUserDataJob implements ShouldQueue
                 ->orWhere('partner_user_id', $user->id)
                 ->get()
                 ->toArray(),
+            'date_night_ratings' => DB::table('date_night_plan_completions')
+                ->where('user_id', $user->id)
+                ->get(['date_night_plan_id', 'rating', 'note', 'completed_on'])
+                ->map(fn (object $row): array => (array) $row)
+                ->all(),
             'moments' => $user->moments()->get()->toArray(),
             'calendar_events' => $user->calendarEvents()->get()->toArray(),
-            'love_notes_sent' => LoveNote::where('sender_id', $user->id)->get()->toArray(),
-            'love_notes_received' => LoveNote::where('recipient_id', $user->id)->get()->toArray(),
+            'love_notes_sent' => LoveNote::visibleTo($user)->where('sender_id', $user->id)->get()->toArray(),
+            'love_notes_received' => LoveNote::visibleTo($user)->where('recipient_id', $user->id)->get()->toArray(),
             'achievements' => $user->achievements()->get()->map(fn (Achievement $achievement): array => [
                 'name' => $achievement->name,
                 'description' => $achievement->description,

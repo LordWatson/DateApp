@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { Moon, Pencil, Plus, Star, Trash2, X } from '@lucide/vue';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -38,6 +38,8 @@ const props = defineProps<{
     pagination: Pagination;
     /** Today's date (YYYY-MM-DD) in the user's own timezone. */
     today: string;
+    /** Set by `?plan=`: capture a moment from that date night. */
+    prefill: { date_night_plan_id: number; title: string; date: string } | null;
 }>();
 
 const showForm = ref(false);
@@ -67,6 +69,7 @@ const form = useForm({
     tags: [] as string[],
     photo: null as File | null,
     remove_photo: false,
+    date_night_plan_id: null as number | null,
 });
 
 // What the form shows: the stored photo when editing, or the file just picked.
@@ -128,8 +131,19 @@ function openEdit(moment: Moment): void {
     form.is_favourite = moment.is_favourite;
     form.private_notes = moment.private_notes ?? '';
     form.tags = [...moment.tags];
+    // Sent on every save, so an edit must carry the link it already has.
+    form.date_night_plan_id = moment.date_night_plan?.id ?? null;
     showForm.value = true;
 }
+
+onMounted(() => {
+    if (props.prefill) {
+        openCreate();
+        form.title = props.prefill.title;
+        form.date = props.prefill.date;
+        form.date_night_plan_id = props.prefill.date_night_plan_id;
+    }
+});
 
 function addTag(): void {
     const tag = tagInput.value.trim();
@@ -415,6 +429,20 @@ const focusClass =
                         </div>
 
                         <form class="space-y-4" @submit.prevent="submit">
+                            <p
+                                v-if="
+                                    !editingMoment &&
+                                    prefill &&
+                                    form.date_night_plan_id
+                                "
+                                class="flex items-center gap-1.5 text-xs text-muted-foreground"
+                            >
+                                <Moon
+                                    class="size-3.5 text-gold"
+                                    aria-hidden="true"
+                                />
+                                From your date night: {{ prefill.title }}
+                            </p>
                             <div>
                                 <label :class="labelClass" for="moment-title"
                                     >Title *</label

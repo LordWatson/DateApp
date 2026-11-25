@@ -45,6 +45,8 @@ After registering, a user walks through a short wizard: fill in a profile (displ
 | Column | Notes |
 |---|---|
 | `partner_id` | nullable FK -> `users.id`, `nullOnDelete` (deleting a user un-partners the other side) |
+| `connection_paused_at`, `connection_paused_by` | nullable datetime and FK -> `users.id`: set on **both** rows while the connection is paused, cleared on resume and on any disconnect |
+| `former_partner_id` | nullable FK -> `users.id` (null on delete): who this person was last connected to, set on both rows by `disconnectPartner()`. Lets each of them still choose what to keep |
 | `connected_at` | nullable datetime: when the current couple connected. Written with `partner_id`, on both rows: set by `acceptInvitation()` and the admin reconnect, cleared by `disconnectPartner()` and `DeleteAccountAction`. The partner page's `connectedSince` reads it |
 | `onboarding_completed` | boolean, default `false`; gate for every route under the `onboarding` middleware |
 | `display_name` | nullable; set in the profile step (max 50) |
@@ -57,7 +59,7 @@ After registering, a user walks through a short wizard: fill in a profile (displ
 | Column | Notes |
 |---|---|
 | `sender_id` | FK -> `users.id`, cascade on delete |
-| `email` | address the invite was sent to (not checked on acceptance) |
+| `email` | address the invite was sent to (not checked on acceptance); **null for an invitation shared as a link** |
 | `token` | 64 random chars (`Str::random(64)`), unique, stored in plain text |
 | `accepted_at` | nullable datetime |
 | `expires_at` | datetime, created as now + the `invitation_expiry_days` system setting (default 7) |
@@ -77,9 +79,13 @@ There is no status column: pending = `accepted_at IS NULL AND expires_at > now()
 | `onboarding.complete` | POST `onboarding/complete` | `OnboardingController@complete` | `auth`, `verified` |
 | `partner.index` | GET `partner` | `PartnerController@index` | `auth`, `verified`, `onboarding` |
 | `partner.send-invite` | POST `partner/invite` | `PartnerController@sendInvite` | same |
+| `partner.create-link` | POST `partner/invite-link` | `PartnerController@createLink` | same, `throttle:invites` |
+| `onboarding.create-link` | POST `onboarding/invite-link` | `OnboardingController@createLink` | `auth`, `verified`, `throttle:invites` |
 | `partner.resend-invite` | POST `partner/resend` | `PartnerController@resendInvite` | same |
 | `partner.revoke-invite` | DELETE `partner/invite` | `PartnerController@revokeInvite` | same |
-| `partner.disconnect` | DELETE `partner/disconnect` | `PartnerController@disconnect` | same |
+| `partner.disconnect` | DELETE `partner/disconnect` | `PartnerController@disconnect` | same; `EndConnectionRequest` (`keep_plans`, `keep_notes` required booleans, `password` = current password) |
+| `partner.pause` / `partner.resume` | POST `partner/pause`, `partner/resume` | `PartnerController@pause` / `@resume` | same |
+| `partner.after` / `partner.apply-choices` | GET, POST `partner/after` | `PartnerController@after` / `@applyChoices` | same; only for someone with no partner and a `former_partner_id`, otherwise redirects to `partner.index` |
 
 ## Flows
 
@@ -96,6 +102,12 @@ There is no status column: pending = `accepted_at IS NULL AND expires_at > now()
 2. `PartnerInvitationService::createInvitation()` expires all of the sender's still-pending invitations (`expires_at = now()`), then creates a new one valid for 7 days. A sender therefore has at most one pending invitation.
 3. `SendInvitationEmailJob` (queue `emails`) is dispatched directly; it skips sending if the invitation is accepted or expired by the time it runs, otherwise sends `PartnerInvitationMail` with a link to `onboarding.accept-invite`.
 4. Resend (`partner.resend-invite`) re-dispatches the same job for the current pending invitation; token and expiry are unchanged.
+
+**Invite by link** (no email involved)
+1. `partner.create-link` or `onboarding.create-link` (`CreateInviteLinkRequest`: no fields, refuses a user who already has a partner with the error key `link`) calls `createInvitation($user)` with no email. No mail is sent. As with an emailed invitation, it replaces any pending one.
+2. Both pages receive `inviteUrl`: the `invite/{token}` link of the user's **own** pending invitation (email or link), or null. `components/InviteLink.vue` shows it with Copy (`navigator.clipboard`) and Share (`navigator.share`, hidden where the browser has none). There is no QR code: drawing one needs a library that has not been approved.
+3. The other person opens the link and gets the same confirmation page as for an emailed invitation; nothing connects until they press Connect.
+4. A link invitation cannot be resent (`partner.resend-invite` answers with an error and `SendInvitationEmailJob` returns early); the expiry and decline notices say "Your invitation link".
 
 **Accept invitation** (GET `invite/{token}`)
 1. `findValidInvitation()` (token matches, not accepted, not expired); otherwise render `onboarding/InvalidInvite`.
@@ -116,10 +128,37 @@ There is no status column: pending = `accepted_at IS NULL AND expires_at > now()
 | `LogActivityOnPartnerConnected` | sync | Two `ActivityLog` rows, action `partner_connected` |
 
 **Disconnect** (DELETE `partner/disconnect`)
-1. `PartnerInvitationService::disconnectPartner()` nulls `partner_id` on both users in a transaction.
-2. `PartnerDisconnected(user, formerPartner)` is dispatched if there was a partner; `NotifyFormerPartnerOnPartnerDisconnected` (queue `notifications`) creates a `partner_left` notification for the other partner.
-3. Redirect to `partner.index` with session `success`. Either partner can do this alone, after a `ConfirmDialog` on the Partner page that states what each person keeps.
+1. `PartnerInvitationService::disconnectPartner()` nulls `partner_id` and `connected_at` on both users in a transaction, and resets the couple challenge streak (each keeps their longest).
+0. The Partner page opens a dialog with two choices (keep the date nights planned together; keep the love notes), a link to the data export and a password field. `EndConnectionAction` applies the choices to the person ending it (`ApplyConnectionChoicesAction`), then disconnects, in one transaction.
+2. `PartnerDisconnected(user, formerPartner)` is dispatched if there was a partner; `NotifyFormerPartnerOnPartnerDisconnected` (queue `notifications`) creates a `partner_left` notification for the other partner, which opens `partner.after` so they can make their own choices.
+3. Redirect to `partner.index` with session `success`. Either partner can do this alone.
 4. What stays after a disconnect (nothing is deleted or reassigned): date night plans made together stay in both histories (access is by response ownership); love notes stay with sender and recipient but no new ones can be sent; moments and calendar events stay with their owner and are no longer visible to the other person (visibility follows `partner_id`, so reconnecting brings them back); weekly reflections stay with whoever generated them. The accepted invitation row stays in place.
+
+**Choosing what to keep** (`ApplyConnectionChoicesAction`)
+- Per person, never the other person's view, and nothing is deleted. Running it again reverses a choice, so `partner.after` works as often as wanted (linked from the Partner page while the user has no partner).
+- Plans: "shared" means plans the person can see that were built on the other's answers (made together, or the other's solo plan shared with them). Not keeping them adds rows to `date_night_plan_hidden`; `DateNightPlan::visibleTo()` and the plan policy then leave them out (see `date-night.md`). A person's own solo plans are never included.
+- Love notes: not keeping them sets `hidden_for_sender_at` / `hidden_for_recipient_at` on the notes between the two; `LoveNote::visibleTo()` leaves them out (see `love-notes.md`).
+- `summary()` gives the counts and the current choices for the dialog and the page.
+
+**Pause** ("Take a break")
+1. `partner.pause`: `PartnerInvitationService::pauseConnection()` sets `connection_paused_at` and `connection_paused_by` on both users; the other partner gets one `connection_paused` notification. Either partner can pause.
+2. While paused the two stay linked (`partner_id`) and keep all shared history: plans, moments, calendar events and love notes are still visible to both.
+3. Nothing new passes between them. Code that **does something to** the partner uses `User::activePartner()` (null while paused) instead of `partner`: partner notifications and emails (questionnaire completed, nudge, moment, challenge, plan liked, viewed, changed, marked done, added to calendar), calendar reminders (owner only), love notes (refused), couple mode on a questionnaire (refused) and couple plan generation, sharing a new solo plan with the partner, the couple challenge streak (frozen: completions do not count, and it is not lost), the weekly questionnaire reminder and the connection anniversary. **New code that notifies or shares with a partner must use `activePartner()`.**
+4. `partner.resume`: only the person who paused (`connection_paused_by`) can resume; the other is told once (`connection_resumed`). A couple streak that was alive when the pause began carries on.
+5. Not covered by the pause: the weekly reflection still describes both partners' week.
+
+**What an ex-partner still sees after a disconnect** (read from the code, not checked in a browser)
+
+| Screen | After a disconnect |
+|---|---|
+| Dashboard | Own stats; recent date nights still list plans made together unless hidden; "On this day" shows own moments only |
+| History, Favourites, plan page | Plans made together and the ex's solo plans shared with them stay, with both names and the comparison pages, unless hidden |
+| Love notes | All notes sent and received stay readable unless hidden; nothing new can be sent |
+| Moments, Calendar | Own items only; the ex's disappear at once (visibility follows `partner_id`) |
+| Timeline, Search | Own moments and events, plus shared plans and love notes unless hidden |
+| Insights, Hub | Counts and averages still include shared plans unless hidden; love notes received shows 0 (it counts the current partner's) |
+| Weekly reflection | Past reflections stay with whoever generated them and still mention the ex; new ones cover the user alone |
+| Achievements, streaks | Kept. The couple challenge streak resets; each keeps their longest |
 
 **Revoke** (DELETE `partner/invite`): closes the sender's pending invitation (`expires_at = now()`, same as a decline). The link stops working; nobody is notified.
 
@@ -129,7 +168,7 @@ There is no status column: pending = `accepted_at IS NULL AND expires_at > now()
 - **Accepting an invitation takes two steps** when logged in: GET `invite/{token}` renders `onboarding/AcceptInvite`; POST `invite/{token}/accept` (`onboarding.confirm-invite`) connects; POST `invite/{token}/decline` expires the invitation and notifies the sender (`NotificationType::InvitationDeclined`). A guest is still sent to register, and registering through the link connects straight away.
 - **No invitations for partnered users**: `SendInvitationRequest` rejects a sender who has a partner, `findValidInvitation` ignores invitations whose sender has since connected, and `acceptInvitation` throws `DomainException` if either side has a partner.
 - Invite and resend are limited to 10 per user per day (`throttle:invites`).
-- The Partner page receives the partner as `id`, `name`, `display_name`, `avatar` only, and no longer receives the invitation token. Onboarding receives an explicit list of the user's own fields.
+- The Partner page receives the partner as `id`, `name`, `display_name`, `avatar` only. It does not receive the raw token, but it does receive `inviteUrl`, the sender's own invitation link, which contains it; never send that for anyone else's invitation. Onboarding receives an explicit list of the user's own fields.
 
 - Always write both `partner_id` sides. Besides the service, only `Admin\AdminCoupleController` and `Admin\AdminUserController` write `partner_id` (see [admin.md](admin.md)); the admin "reconnect" path does not fire `PartnerConnected`.
 - The invitation is a bearer token: `email` on the invitation is not compared with the accepting user's email, so anyone with the link can accept it.
@@ -173,6 +212,10 @@ php artisan test --filter=PartnerConnectedEventTest
 
 `tests/Feature/ConnectionAnniversaryTest.php` covers `connected_at` on accept, disconnect and admin reconnect, the partner page, the anniversary command and the achievement.
 
+`tests/Feature/InviteLinkTest.php` covers link invitations: no email, the link only for its sender, confirm before connecting, partnered users refused, replacing an emailed invitation, no resend, the expiry notice, onboarding, and the rate limit.
+
+`tests/Feature/ConnectionPauseTest.php` and `EndConnectionTest.php` cover pausing, resuming, what stops and what stays, the frozen streak, ending with each choice, the other person's own choices, and reversing them. `tests/e2e/zz-connection.spec.ts` walks the same flows in a browser.
+
 Not covered by tests: acceptance during registration (`CreateNewUser`), resend, the `PartnerConnected` listeners, inviting while already partnered. `UserFactory` defaults to `onboarding_completed = true` and `partner_id = null`; there is no `PartnerInvitation` factory (tests create rows directly).
 
 ## Change log
@@ -184,3 +227,6 @@ Not covered by tests: acceptance during registration (`CreateNewUser`), resend, 
 - 2026-11-24 — Roadmap Phase 2 (2.13): invitation lifetime comes from the system setting `invitation_expiry_days` (default 7, minimum 1) through `RuntimeSettings`.
 - 2026-11-26 — Roadmap Phase 4: removed `PartnerInvitationCreated` and its unregistered listener, `UserRegistered`, `ProfileCompleted`, `PartnerResource` and the two cache-forgetting `PartnerConnected` listeners.
 - 2026-11-25 — Roadmap Phase 5.9: `users.connected_at` replaces the invitation lookup for "Since"; yearly `connection_anniversary` notification.
+- 2026-11-25 — Roadmap Phase 5.4: disconnecting resets the couple challenge streak.
+- 2026-11-25 — Roadmap Phase 5.8: invitations can be created as a link with no email (`partner.create-link`, `onboarding.create-link`, `inviteUrl`, `InviteLink.vue`); `partner_invitations.email` is nullable.
+- 2026-11-25 — Roadmap Phase 5.12: pause and resume (`User::activePartner()`), ending a connection with per-person choices (`EndConnectionAction`, `ApplyConnectionChoicesAction`, `partner.after`), `former_partner_id`, and the table of what an ex-partner still sees.

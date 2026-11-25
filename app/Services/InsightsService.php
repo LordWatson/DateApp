@@ -22,13 +22,13 @@ class InsightsService
         $plansQuery = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        });
+        })->notHiddenFor($user);
 
         $averageCompatibility = round((float) ($plansQuery->avg('compatibility_score') ?? 0));
         $totalPlans = $plansQuery->count();
 
-        $loveNotesSent = LoveNote::where('sender_id', $user->id)->count();
-        $loveNotesReceived = $partner ? LoveNote::where('sender_id', $partner->id)->where('recipient_id', $user->id)->count() : 0;
+        $loveNotesSent = LoveNote::visibleTo($user)->where('sender_id', $user->id)->count();
+        $loveNotesReceived = $partner ? LoveNote::visibleTo($user)->where('sender_id', $partner->id)->where('recipient_id', $user->id)->count() : 0;
 
         $mostCompletedMonth = Response::where('user_id', $user->id)
             ->where('status', 'completed')
@@ -40,7 +40,7 @@ class InsightsService
         $favouriteTheme = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        })
+        })->notHiddenFor($user)
             ->selectRaw('theme, COUNT(*) as count')
             ->groupBy('theme')
             ->orderByDesc('count')
@@ -49,7 +49,7 @@ class InsightsService
         $mostSelectedAtmosphere = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        })
+        })->notHiddenFor($user)
             ->whereNotNull('atmosphere')
             ->selectRaw('atmosphere, COUNT(*) as count')
             ->groupBy('atmosphere')
@@ -59,7 +59,7 @@ class InsightsService
         $compatibilityOverTime = DateNightPlan::where(function ($q) use ($user) {
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
-        })
+        })->notHiddenFor($user)
             ->selectRaw($this->extractYearMonth('created_at').' as month, AVG(compatibility_score) as avg_score')
             ->groupBy('month')
             ->orderBy('month')

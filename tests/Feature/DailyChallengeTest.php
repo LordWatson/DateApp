@@ -32,7 +32,8 @@ class DailyChallengeTest extends TestCase
 
     private function dashboardChallenge(User $user): ?array
     {
-        return $this->actingAs($user)->get(route('dashboard'))->assertOk()->inertiaProps('todayChallenge');
+        // Fresh: the streak is written to the database, not to the instance the test holds.
+        return $this->actingAs($user->fresh())->get(route('dashboard'))->assertOk()->inertiaProps('todayChallenge');
     }
 
     public function test_dashboard_shows_the_same_challenge_all_day(): void
@@ -126,6 +127,93 @@ class DailyChallengeTest extends TestCase
         $this->actingAs($this->user)->post(route('daily-challenge.complete'));
 
         $this->assertDatabaseCount('daily_challenge_completions', 2);
+    }
+
+    public function test_the_couple_streak_only_grows_on_days_both_partners_finish(): void
+    {
+        Challenge::factory()->count(3)->create();
+
+        $this->actingAs($this->user)->post(route('daily-challenge.complete'));
+        $this->assertSame(0, $this->dashboardChallenge($this->user)['couple_streak']);
+
+        $this->actingAs($this->partner)->post(route('daily-challenge.complete'));
+        // A second tap must not count the day twice.
+        $this->actingAs($this->partner)->post(route('daily-challenge.complete'));
+
+        $this->assertSame(1, $this->dashboardChallenge($this->user)['couple_streak']);
+        $this->assertSame(1, $this->dashboardChallenge($this->partner)['couple_streak']);
+
+        $this->travel(1)->days();
+        $this->actingAs($this->partner)->post(route('daily-challenge.complete'));
+        $this->actingAs($this->user)->post(route('daily-challenge.complete'));
+
+        $this->assertSame(2, $this->dashboardChallenge($this->user)['couple_streak']);
+        $this->assertSame(2, $this->user->fresh()->longest_challenge_streak);
+        $this->assertSame(2, $this->partner->fresh()->longest_challenge_streak);
+    }
+
+    public function test_a_missed_day_ends_the_couple_streak_and_the_next_shared_day_starts_at_one(): void
+    {
+        Challenge::factory()->count(3)->create();
+        $this->bothComplete();
+
+        $this->travel(2)->days();
+
+        $this->assertSame(0, $this->dashboardChallenge($this->user)['couple_streak']);
+
+        $this->bothComplete();
+
+        $this->assertSame(1, $this->dashboardChallenge($this->user)['couple_streak']);
+        $this->assertSame(1, $this->user->fresh()->longest_challenge_streak);
+    }
+
+    public function test_disconnecting_resets_the_couple_streak_but_keeps_the_best(): void
+    {
+        Challenge::factory()->create();
+        $this->bothComplete();
+
+        $this->actingAs($this->user)->delete(route('partner.disconnect'), ['keep_plans' => true, 'keep_notes' => true, 'password' => 'password']);
+
+        foreach ([$this->user->fresh(), $this->partner->fresh()] as $person) {
+            $this->assertSame(0, $person->challenge_streak);
+            $this->assertNull($person->challenge_streak_date);
+            $this->assertSame(1, $person->longest_challenge_streak);
+        }
+    }
+
+    public function test_someone_without_a_partner_has_no_couple_streak(): void
+    {
+        Challenge::factory()->create();
+        $loner = User::factory()->create(['onboarding_completed' => true]);
+
+        $this->actingAs($loner)->post(route('daily-challenge.complete'));
+
+        $this->assertNull($this->dashboardChallenge($loner)['couple_streak']);
+        $this->assertSame(0, $loner->fresh()->challenge_streak);
+    }
+
+    public function test_the_couple_streak_achievement_unlocks_for_both_partners(): void
+    {
+        Challenge::factory()->count(3)->create();
+        $achievement = Achievement::factory()->create([
+            'unlock_condition' => 'challenge_streak_days',
+            'unlock_value' => 2,
+        ]);
+
+        $this->bothComplete();
+        $this->assertFalse($this->user->achievements()->whereKey($achievement->id)->exists());
+
+        $this->travel(1)->days();
+        $this->bothComplete();
+
+        $this->assertTrue($this->user->achievements()->whereKey($achievement->id)->exists());
+        $this->assertTrue($this->partner->achievements()->whereKey($achievement->id)->exists());
+    }
+
+    private function bothComplete(): void
+    {
+        $this->actingAs($this->user)->post(route('daily-challenge.complete'));
+        $this->actingAs($this->partner)->post(route('daily-challenge.complete'));
     }
 
     public function test_completing_with_no_challenge_available_does_nothing(): void

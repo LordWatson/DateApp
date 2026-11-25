@@ -72,7 +72,8 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 
 ## Rules and gotchas
 
-- **Who can see**: only the sender and the recipient of each note.
+- **Who can see**: only the sender and the recipient of each note, and each of them only until they take it out of their own account: `hidden_for_sender_at` / `hidden_for_recipient_at` are set when a connection ends and that person chooses not to keep the love notes (see `onboarding-partner.md`). Read notes through `LoveNote::visibleTo($user)`; the index, `show` (404 when hidden), unread count, search, timeline, insights and the data export do. Nothing is deleted.
+- **Paused connection**: `store` refuses with the `partner` error, and the page shows a "connection is paused" message in place of the send form (`connection_paused` prop). Existing notes stay readable.
   - `index` filters by `sender_id` / `recipient_id` = current user.
   - `show` aborts with 403 otherwise (`app/Http/Controllers/LoveNoteController.php:68`). This is an inline check; there is no `LoveNotePolicy`.
   - Nobody can edit or delete a note: there are no update/destroy routes.
@@ -110,3 +111,4 @@ Not covered: `show` authorisation (403 for third parties), `unreadCount`, mail c
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Roadmap Phase 1: notes are marked read by `POST /love-notes/mark-read` when the Received tab opens (not on page load); the tab shows the unread count.
 - 2026-11-25 — Roadmap Phase 5.6: emoji reactions (`reaction`, `reacted_at`, `love-notes.react`, `love_note_reaction` notification) and a Reply shortcut.
+- 2026-11-25 — Roadmap Phase 5.12: per-side hiding of notes (`visibleTo()`), and no sending while the connection is paused.

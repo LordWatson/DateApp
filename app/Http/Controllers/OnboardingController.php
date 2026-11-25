@@ -6,6 +6,7 @@ use App\Actions\AcceptPartnerInvitationAction;
 use App\Actions\SendPartnerInvitationAction;
 use App\Enums\NotificationType;
 use App\Http\Requests\Onboarding\CompleteProfileRequest;
+use App\Http\Requests\Onboarding\CreateInviteLinkRequest;
 use App\Http\Requests\Onboarding\SendInvitationRequest;
 use App\Models\AppNotification;
 use App\Models\PartnerInvitation;
@@ -34,6 +35,7 @@ class OnboardingController extends Controller
             'user' => $request->user()->only([
                 'id', 'name', 'display_name', 'avatar', 'gender', 'date_of_birth', 'timezone', 'partner_id', 'onboarding_completed',
             ]),
+            'inviteUrl' => $this->invitationService->shareableUrl($request->user()),
         ]);
     }
 
@@ -47,6 +49,16 @@ class OnboardingController extends Controller
     public function sendInvite(SendInvitationRequest $request): RedirectResponse
     {
         $this->sendInvitation->execute($request->user(), $request->validated('email'));
+
+        return redirect()->route('onboarding.index');
+    }
+
+    /**
+     * An invitation with no email: the user passes the link on themselves.
+     */
+    public function createLink(CreateInviteLinkRequest $request): RedirectResponse
+    {
+        $this->invitationService->createInvitation($request->user());
 
         return redirect()->route('onboarding.index');
     }
@@ -111,7 +123,8 @@ class OnboardingController extends Controller
                 'user_id' => $invitation->sender_id,
                 'type' => NotificationType::InvitationDeclined,
                 'title' => 'Your partner invitation was declined',
-                'body' => "The invitation you sent to {$invitation->email} was declined. You can send a new one at any time.",
+                'body' => ($invitation->email === null ? 'Your invitation link' : "The invitation you sent to {$invitation->email}")
+                    .' was declined. You can send a new one at any time.',
                 'data' => [],
             ]);
         }

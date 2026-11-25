@@ -28,7 +28,8 @@ final class SendInvitationEmailJob implements ShouldQueue
 
     public function handle(): void
     {
-        if ($this->invitation->accepted_at !== null) {
+        // A link invitation has nowhere to be sent.
+        if ($this->invitation->accepted_at !== null || $this->invitation->email === null) {
             return;
         }
 

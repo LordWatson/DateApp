@@ -19,7 +19,8 @@ final class NotifyFormerPartnerOnPartnerDisconnected implements ShouldQueue
             'user_id' => $event->formerPartner->id,
             'type' => NotificationType::PartnerLeft,
             'title' => "{$name} has disconnected from you",
-            'body' => 'You are no longer connected. Date nights you planned together and the love notes you exchanged stay in both your histories. '
+            'body' => 'You are no longer connected. The date nights you planned together and your love notes are still in your account: '
+                .'open this to choose whether to keep them. '
                 ."You each keep your own moments and calendar events, and can no longer see each other's.",
             'data' => [],
         ]);

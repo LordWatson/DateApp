@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\AppNotification;
+use App\Services\ImpersonationService;
 use App\Services\RuntimeSettings;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -65,6 +66,10 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
             ],
+            // Set while an administrator is viewing the app as this user (read-only).
+            'impersonating' => $request->user() && app(ImpersonationService::class)->isActive()
+                ? ['name' => $request->user()->display_name ?? $request->user()->name]
+                : null,
             'registrationOpen' => app(RuntimeSettings::class)->flag('registration'),
         ];
     }

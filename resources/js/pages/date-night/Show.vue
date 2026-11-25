@@ -20,10 +20,13 @@ import MobileLayout from '@/layouts/MobileLayout.vue';
 import {
     answers,
     compatibility,
+    complete,
     exportMethod,
+    regenerate,
     retryAi,
     toggleFavourite as toggleFavouriteRoute,
 } from '@/routes/date-night';
+import { index as momentsIndex, show as showMoment } from '@/routes/moments';
 import { edit as editProfile } from '@/routes/profile';
 
 defineOptions({ layout: MobileLayout });
@@ -38,6 +41,20 @@ interface LocalSuggestion {
     name: string;
     category: string;
     description: string;
+}
+
+interface Completion {
+    name: string;
+    rating: number;
+    note: string | null;
+    completed_on: string;
+}
+
+interface PlanMoment {
+    id: number;
+    title: string;
+    mood: string | null;
+    photo: string | null;
 }
 
 interface Plan {
@@ -63,6 +80,12 @@ interface Plan {
     questionnaire: { id: number; title: string; slug: string } | null;
     partner_one: Partner | null;
     partner_two: Partner | null;
+    completion: { mine: Completion | null; partner: Completion | null };
+    moments: PlanMoment[];
+    last_steer: string | null;
+    regenerations_left: number;
+    can_regenerate: boolean;
+    ai_available: boolean;
 }
 
 const props = defineProps<{ plan: Plan }>();
@@ -222,6 +245,38 @@ function retryWithAi(): void {
             },
         },
     );
+}
+
+// "We did it": each person rates the night for themselves.
+const showDoneModal = ref(false);
+
+const doneForm = useForm({
+    rating: props.plan.completion.mine?.rating ?? 0,
+    note: props.plan.completion.mine?.note ?? '',
+});
+
+function submitDone(): void {
+    doneForm.post(complete(props.plan.id).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showDoneModal.value = false;
+        },
+    });
+}
+
+// "Not quite right?": one line of direction, and the AI rewrites the plan.
+const steerOpen = ref(false);
+const steerSuggestions = ['Cheaper', 'More active', 'Stay in', 'Less cooking'];
+const steerForm = useForm({ steer: '' });
+
+function submitSteer(): void {
+    steerForm.post(regenerate(props.plan.id).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            steerForm.reset();
+            steerOpen.value = false;
+        },
+    });
 }
 
 function toggleLike(): void {
@@ -675,6 +730,220 @@ function submitCalendar(): void {
                 </SecondaryButton>
             </section>
 
+            <!-- Not quite right? One line of direction -->
+            <section
+                v-if="plan.can_regenerate || plan.last_steer"
+                class="space-y-3 card-premium p-5"
+            >
+                <div class="space-y-1">
+                    <p class="font-medium text-foreground">Not quite right?</p>
+                    <p class="text-sm leading-relaxed text-muted-foreground">
+                        <template v-if="plan.last_steer">
+                            Last change asked for: "{{ plan.last_steer }}".
+                        </template>
+                        <template v-if="plan.can_regenerate">
+                            Tell us what to change and we will rewrite the plan
+                            ({{ plan.regenerations_left }} left).
+                        </template>
+                        <template v-else-if="plan.regenerations_left === 0">
+                            This plan has used all of its changes.
+                        </template>
+                    </p>
+                </div>
+
+                <template v-if="plan.can_regenerate">
+                    <SecondaryButton
+                        v-if="!steerOpen"
+                        variant="outline"
+                        full-width
+                        @click="steerOpen = true"
+                    >
+                        <Sparkles class="size-4" aria-hidden="true" />
+                        Change this plan
+                    </SecondaryButton>
+
+                    <form
+                        v-else
+                        class="space-y-3"
+                        @submit.prevent="submitSteer"
+                    >
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                v-for="suggestion in steerSuggestions"
+                                :key="suggestion"
+                                type="button"
+                                class="chip"
+                                :aria-pressed="steerForm.steer === suggestion"
+                                @click="steerForm.steer = suggestion"
+                            >
+                                {{ suggestion }}
+                            </button>
+                        </div>
+                        <div>
+                            <label for="plan-steer" class="sr-only"
+                                >What should change?</label
+                            >
+                            <input
+                                id="plan-steer"
+                                v-model="steerForm.steer"
+                                type="text"
+                                maxlength="200"
+                                required
+                                placeholder="e.g. somewhere quieter, vegetarian…"
+                                class="input-premium"
+                            />
+                            <InputError
+                                :message="steerForm.errors.steer"
+                                class="mt-1"
+                            />
+                        </div>
+                        <PrimaryButton
+                            type="submit"
+                            full-width
+                            :loading="steerForm.processing"
+                            :disabled="steerForm.steer.trim().length < 3"
+                        >
+                            Rewrite the plan
+                        </PrimaryButton>
+                        <p
+                            v-if="steerForm.processing"
+                            class="text-center text-xs text-muted-foreground"
+                            role="status"
+                        >
+                            This can take up to a minute.
+                        </p>
+                    </form>
+                </template>
+            </section>
+
+            <!-- We did it -->
+            <section class="space-y-3 card-premium p-5">
+                <template
+                    v-if="plan.completion.mine || plan.completion.partner"
+                >
+                    <p class="eyebrow">You did it</p>
+                    <ul class="space-y-2">
+                        <template
+                            v-for="entry in [
+                                plan.completion.mine,
+                                plan.completion.partner,
+                            ]"
+                            :key="entry?.name"
+                        >
+                            <li v-if="entry" class="space-y-0.5">
+                                <p
+                                    class="flex items-center gap-2 text-sm font-medium text-foreground"
+                                >
+                                    <span class="min-w-0 truncate">{{
+                                        entry === plan.completion.mine
+                                            ? 'You'
+                                            : entry.name
+                                    }}</span>
+                                    <span
+                                        class="flex shrink-0 text-gold"
+                                        role="img"
+                                        :aria-label="`${entry.rating} out of 5`"
+                                    >
+                                        <Star
+                                            v-for="n in 5"
+                                            :key="n"
+                                            class="size-4"
+                                            :class="
+                                                n <= entry.rating
+                                                    ? 'fill-current'
+                                                    : 'opacity-30'
+                                            "
+                                            aria-hidden="true"
+                                        />
+                                    </span>
+                                </p>
+                                <p
+                                    v-if="entry.note"
+                                    class="text-sm text-muted-foreground"
+                                >
+                                    {{ entry.note }}
+                                </p>
+                            </li>
+                        </template>
+                    </ul>
+
+                    <ul v-if="plan.moments.length > 0" class="space-y-1">
+                        <li v-for="moment in plan.moments" :key="moment.id">
+                            <Link
+                                :href="showMoment(moment.id).url"
+                                class="list-row"
+                            >
+                                <img
+                                    v-if="moment.photo"
+                                    :src="moment.photo"
+                                    alt=""
+                                    class="size-11 shrink-0 rounded-xl object-cover"
+                                />
+                                <span
+                                    v-else
+                                    class="icon-tile h-11 w-11 text-xl"
+                                    aria-hidden="true"
+                                    >{{ moment.mood || '📸' }}</span
+                                >
+                                <span
+                                    class="min-w-0 flex-1 truncate font-medium text-foreground"
+                                    >{{ moment.title }}</span
+                                >
+                                <ChevronRight
+                                    class="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                            </Link>
+                        </li>
+                    </ul>
+
+                    <div class="flex flex-col gap-2">
+                        <PrimaryButton
+                            full-width
+                            @click="
+                                router.visit(
+                                    momentsIndex({
+                                        query: { plan: plan.id },
+                                    }).url,
+                                )
+                            "
+                        >
+                            Capture a moment from it
+                        </PrimaryButton>
+                        <SecondaryButton
+                            variant="ghost"
+                            full-width
+                            @click="showDoneModal = true"
+                        >
+                            {{
+                                plan.completion.mine
+                                    ? 'Change my rating'
+                                    : 'Add my rating'
+                            }}
+                        </SecondaryButton>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <div class="space-y-1">
+                        <p class="font-medium text-foreground">
+                            Done this date night?
+                        </p>
+                        <p class="text-sm text-muted-foreground">
+                            Rate how it went and keep a memory of it.
+                        </p>
+                    </div>
+                    <SecondaryButton
+                        variant="outline"
+                        full-width
+                        @click="showDoneModal = true"
+                    >
+                        <Check class="size-4" aria-hidden="true" />
+                        We did it
+                    </SecondaryButton>
+                </template>
+            </section>
+
             <!-- Actions -->
             <section class="space-y-4">
                 <PrimaryButton full-width @click="openCalendarModal">
@@ -742,6 +1011,111 @@ function submitCalendar(): void {
                     </button>
                 </div>
             </section>
+        </div>
+
+        <!-- We did it modal -->
+        <div
+            v-if="showDoneModal"
+            class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="done-title"
+            @click.self="showDoneModal = false"
+        >
+            <div
+                class="w-full max-w-md card-premium rounded-b-none p-6 sm:rounded-3xl"
+            >
+                <div class="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                        <h2
+                            id="done-title"
+                            class="text-xl font-semibold text-foreground"
+                        >
+                            How was it?
+                        </h2>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Your rating is yours;
+                            <template v-if="!plan.is_solo"
+                                >your partner adds their own.</template
+                            >
+                            <template v-else>you can change it later.</template>
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="-mt-1 -mr-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                        aria-label="Close"
+                        @click="showDoneModal = false"
+                    >
+                        <X class="size-5" aria-hidden="true" />
+                    </button>
+                </div>
+
+                <form class="space-y-4" @submit.prevent="submitDone">
+                    <div role="group" aria-labelledby="done-rating-label">
+                        <p
+                            id="done-rating-label"
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                        >
+                            Rating
+                        </p>
+                        <div class="flex gap-1">
+                            <button
+                                v-for="n in 5"
+                                :key="n"
+                                type="button"
+                                class="flex size-11 items-center justify-center rounded-full text-gold transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                                :aria-label="`${n} out of 5`"
+                                :aria-pressed="doneForm.rating === n"
+                                @click="doneForm.rating = n"
+                            >
+                                <Star
+                                    class="size-7"
+                                    :class="
+                                        n <= doneForm.rating
+                                            ? 'fill-current'
+                                            : 'opacity-30'
+                                    "
+                                    aria-hidden="true"
+                                />
+                            </button>
+                        </div>
+                        <InputError
+                            :message="doneForm.errors.rating"
+                            class="mt-1"
+                        />
+                    </div>
+
+                    <div>
+                        <label
+                            for="done-note"
+                            class="mb-1.5 block text-sm font-medium text-foreground"
+                        >
+                            A line about it (optional)
+                        </label>
+                        <textarea
+                            id="done-note"
+                            v-model="doneForm.note"
+                            rows="3"
+                            maxlength="500"
+                            class="input-premium"
+                        />
+                        <InputError
+                            :message="doneForm.errors.note"
+                            class="mt-1"
+                        />
+                    </div>
+
+                    <PrimaryButton
+                        type="submit"
+                        full-width
+                        :loading="doneForm.processing"
+                        :disabled="doneForm.rating < 1"
+                    >
+                        Save
+                    </PrimaryButton>
+                </form>
+            </div>
         </div>
 
         <!-- Add to calendar modal -->

@@ -14,6 +14,7 @@ interface PlanSummary {
     theme_emoji: string | null;
     compatibility_score: number | null;
     is_favourite: boolean;
+    is_done: boolean;
     created_at: string;
     questionnaire_title: string | null;
 }
@@ -54,8 +55,15 @@ function formatDate(iso: string): string {
                         >{{ plan.theme_emoji ?? '❤️' }}</span
                     >
                     <div class="min-w-0 flex-1">
-                        <p class="truncate font-medium text-foreground">
-                            {{ plan.theme }}
+                        <p
+                            class="flex items-center gap-1.5 font-medium text-foreground"
+                        >
+                            <span class="truncate">{{ plan.theme }}</span>
+                            <span
+                                v-if="plan.is_done"
+                                class="badge-soft shrink-0"
+                                >Done</span
+                            >
                         </p>
                         <p class="truncate text-xs text-muted-foreground">
                             {{ formatDate(plan.created_at) }}

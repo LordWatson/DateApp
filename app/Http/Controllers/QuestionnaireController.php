@@ -14,6 +14,7 @@ use App\Models\Questionnaire;
 use App\Models\Response as QuestionnaireResponse;
 use App\Models\User;
 use App\Services\CompatibilityService;
+use App\Services\ImpersonationService;
 use App\Services\QuestionnaireService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -84,9 +85,11 @@ class QuestionnaireController extends Controller
     public function show(Request $request, Questionnaire $questionnaire): Response|RedirectResponse
     {
         $user = $request->user();
-        $partner = $user->partner;
+        $partner = $user->activePartner();
 
-        if ($partner && $this->questionnaireService->shouldAutoStartNewCycle($user, $partner, $questionnaire)) {
+        // Opening the page starts an attempt for a waiting partner; never on behalf of a user being viewed.
+        if ($partner && ! app(ImpersonationService::class)->isActive()
+            && $this->questionnaireService->shouldAutoStartNewCycle($user, $partner, $questionnaire)) {
             // The partner is waiting on a shared plan, so this attempt joins it.
             $this->questionnaireService->startNewResponse($user, $questionnaire, false);
 
@@ -216,7 +219,7 @@ class QuestionnaireController extends Controller
             return redirect()->route('date-night.show', $plan);
         }
 
-        $partner = $user->partner;
+        $partner = $user->activePartner();
         $partnerCompleted = $partner
             ? $this->questionnaireService->partnerHasFreshCompletedResponse($user, $partner, $questionnaire)
             : false;

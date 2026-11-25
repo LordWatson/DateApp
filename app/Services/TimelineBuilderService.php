@@ -92,6 +92,7 @@ final class TimelineBuilderService
             $q->whereHas('partnerOneResponse', fn ($r) => $r->where('user_id', $user->id))
                 ->orWhereHas('partnerTwoResponse', fn ($r) => $r->where('user_id', $user->id));
         })
+            ->notHiddenFor($user)
             ->latest()
             ->limit(self::PER_TYPE_LIMIT)
             ->get()
@@ -142,8 +143,7 @@ final class TimelineBuilderService
             return collect();
         }
 
-        return LoveNote::where('sender_id', $user->id)
-            ->orWhere('recipient_id', $user->id)
+        return LoveNote::visibleTo($user)
             ->latest()
             ->limit(self::PER_TYPE_LIMIT)
             ->get()

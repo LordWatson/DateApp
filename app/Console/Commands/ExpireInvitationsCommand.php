@@ -37,7 +37,8 @@ final class ExpireInvitationsCommand extends Command
                     'user_id' => $sender->id,
                     'type' => NotificationType::InvitationExpired,
                     'title' => 'Your partner invitation expired',
-                    'body' => "The invitation you sent to {$invitation->email} was not accepted in time. You can send a new one from the Partner page.",
+                    'body' => ($invitation->email === null ? 'Your invitation link' : "The invitation you sent to {$invitation->email}")
+                        .' was not accepted in time. You can send a new one from the Partner page.',
                     'data' => [],
                 ]);
 
