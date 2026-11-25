@@ -36,7 +36,7 @@ class RuntimeSettingsTest extends TestCase
      */
     private function spyOnAiProvider(): object
     {
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
         $provider = new class implements AIProvider
         {
@@ -172,7 +172,7 @@ class RuntimeSettingsTest extends TestCase
         $this->setFlag('ai_generation', false);
         $provider = $this->spyOnAiProvider();
 
-        $response = app(AIService::class)->generateConversationPrompt(['mood' => 'cosy'], []);
+        $response = app(AIService::class)->generateDateNightPlan(['mood' => 'cosy'], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('ai_disabled', $response->errorCode);
@@ -184,7 +184,7 @@ class RuntimeSettingsTest extends TestCase
     {
         $provider = $this->spyOnAiProvider();
 
-        $response = app(AIService::class)->generateConversationPrompt(['mood' => 'cosy'], []);
+        $response = app(AIService::class)->generateDateNightPlan(['mood' => 'cosy'], []);
 
         $this->assertTrue($response->successful);
         $this->assertSame(1, $provider->calls);

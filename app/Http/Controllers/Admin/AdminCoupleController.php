@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
 use App\Services\AdminAuditService;
+use App\Services\PartnerInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,10 @@ use Inertia\Response;
 
 class AdminCoupleController extends AdminController
 {
-    public function __construct(private readonly AdminAuditService $audit) {}
+    public function __construct(
+        private readonly AdminAuditService $audit,
+        private readonly PartnerInvitationService $partners,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -40,10 +44,7 @@ class AdminCoupleController extends AdminController
 
     public function disconnect(User $user): RedirectResponse
     {
-        $partner = $user->partner;
-
-        $user->update(['partner_id' => null]);
-        $partner?->update(['partner_id' => null]);
+        $this->partners->disconnectPartner($user);
 
         $this->audit->logModel('couple.disconnected', $user);
 

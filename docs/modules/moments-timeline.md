@@ -1,6 +1,6 @@
 # Moments and Timeline
 
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 
@@ -21,10 +21,8 @@
 | `app/Mail/MomentCreatedMail.php`, `resources/views/emails/moment-created.blade.php` | Email to partner |
 | `app/Listeners/LogActivityOnMomentCreated.php` | Sync; activity log `moment_created` |
 | `app/Listeners/EvaluateAchievementsOnMomentCreated.php` | Queued (`analytics`); see challenges-achievements-streaks.md |
-| `app/Http/Resources/MomentResource.php` | Unused (controller formats arrays itself) |
 | `app/Http/Controllers/TimelineController.php` | `timeline.index`; passes filter list |
 | `app/Services/TimelineBuilderService.php` | Builds the merged feed at request time |
-| `app/Models/TimelineEntry.php` | Model for `timeline_entries` table - unused (see gotchas) |
 | `database/factories/MomentFactory.php` | Factory |
 | **Frontend** | |
 | `resources/js/pages/moments/Index.vue` | Card list + create/edit bottom-sheet form |
@@ -36,7 +34,6 @@
 ## Data model
 
 - `moments`: `user_id` (FK, cascade), `date_night_plan_id?` (FK, null on delete), `title`, `description?`, `mood?` (free string, UI offers emojis), `photo?` (path on the uploads disk, `config('filesystems.uploads')`), `date` (cast `date`), `is_favourite` (bool), `private_notes?`, `tags?` (JSON, cast `array`). Indexes: `(user_id, date)`, `is_favourite`.
-- `timeline_entries`: `user_id`, `type`, `title`, `description?`, `emoji?`, morph `subject`, `occurred_at`. Table and model exist (`User::timelineEntries()`), but nothing writes or reads them.
 - A moment belongs to one user. "Shared with partner" is derived from `users.partner_id` at read time; there is no couple id.
 
 ## Routes
@@ -96,7 +93,6 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
 - Suspected issue: `date_night_plan_id` is validated with `exists` only, not ownership, so a moment can be linked to another couple's plan and its `theme` is then echoed back in `formatMoment`. The current UI never sends this field.
 - Suspected issue: timeline `occurred_at` mixes formats (ISO-8601 for responses/plans/notes, `Y-m-d` for moments/calendar, raw DB string for achievement `unlocked_at`) and is sorted as strings (`app/Services/TimelineBuilderService.php:49`), so ordering within a day is unreliable.
 - Suspected issue: timeline plan entries only match plans via the user's responses (`TimelineBuilderService.php:88-91`); `DashboardController` additionally matches `partner_user_id`, so some plans may be missing from the timeline. Completed questionnaires use `updated_at`, not `completed_at`.
-- Dead code: `TimelineEntry` model + `timeline_entries` table, and `MomentResource`.
 
 ## Related modules
 
@@ -125,3 +121,4 @@ Not covered: partner visibility, `private_notes` hiding, notification/mail, non-
 - 2026-11-24 — Roadmap Phase 1: delete and favourite work (Wayfinder), delete asks first, edit/delete/star only on your own moments, pager added; timeline includes the partner's moments and past events only, links every entry and uses one ISO date format.
 - 2026-11-24 — Roadmap Phase 2 (2.5): photo upload with preview and remove on the create/edit form; edits post with `_method: 'put'`; photo URL comes from the `public` disk; an edit without a new file no longer clears the photo.
 - 2026-11-25 — Roadmap Phase 3 (3.4, 3.14): photos are private on the configurable uploads disk and served by the new `moments.photo` route; `datenight:move-uploads` moves old files; the default date comes from the user's timezone.
+- 2026-11-26 — Roadmap Phase 4: removed `MomentResource`, the `TimelineEntry` model and `User::timelineEntries()`; a new migration drops the never-used `timeline_entries` table. The timeline is still built on the fly.

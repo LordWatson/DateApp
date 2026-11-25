@@ -9,7 +9,7 @@ How the SPA shell is wired: entry point, layouts, shared props, route helpers, U
 |---|---|
 | `resources/js/app.ts` | `createInertiaApp` (title, default layout resolver, progress bar), `initializeTheme()`, `initializeFlashToast()`. No manual page resolver — `@inertiajs/vite` handles it |
 | `resources/views/app.blade.php` | Root view: dark-class bootstrap script, inline `html` background colours (keep in sync with `--background` in `app.css`), Inter + Fraunces fonts (Google Fonts), `@fonts`, `@vite([app.css, app.ts, "resources/js/pages/{component}.vue"])`, `<x-inertia::head>`, `<x-inertia::app />` |
-| `vite.config.ts` | Plugins: `laravel` (inputs `resources/css/app.css`, `resources/js/app.ts`; bunny font "Instrument Sans"), `inertia()`, `tailwindcss()`, `vue`, `wayfinder({ formVariants: true })` |
+| `vite.config.ts` | Plugins: `laravel` (inputs `resources/css/app.css`, `resources/js/app.ts`), `inertia()`, `tailwindcss()`, `vue`, `wayfinder({ formVariants: true })` |
 | `tsconfig.json` | `strict`, `moduleResolution: bundler`, alias `@/*` -> `resources/js/*` |
 | `components.json` | shadcn-vue config: style `new-york-v4`, base color `neutral`, CSS variables, icon library `lucide`, aliases `@/components`, `@/components/ui`, `@/lib/utils`, `@/composables` |
 | `app/Http/Middleware/HandleInertiaRequests.php` | Root view `app`; shared props |
@@ -39,7 +39,6 @@ Resolution order (Inertia): a page's own `defineOptions({ layout })` wins; other
 | `layouts/AuthLayout.vue` | Wrapper around `GuestLayout` | `auth/*`. Auth pages pass layout props with `defineOptions({ layout: { title, description } })` (or `setLayoutProps` in `TwoFactorChallenge`) |
 | `layouts/settings/Layout.vue` | `PageHeader`, horizontal `chip` links (Profile, Security, Appearance), the page slot, and the **Log out** button (it lives here, not in the header) | `settings/*` |
 | `layouts/AdminLayout.vue` | Admin sidebar shell | `admin/*` via `defineOptions` — see `admin.md` |
-| `layouts/app/AppHeaderLayout.vue`, `app/AppSidebarLayout.vue`, `auth/AuthCardLayout.vue`, `auth/AuthSplitLayout.vue` | Starter-kit leftovers, not referenced by anything. `auth/AuthSimpleLayout.vue` wraps `GuestLayout` but is also unreferenced | – |
 
 ## Shared props and types
 `HandleInertiaRequests::share()` adds to every page:
@@ -48,7 +47,6 @@ Resolution order (Inertia): a page's own `defineOptions({ layout })` wins; other
 |---|---|---|
 | `name` | `config('app.name')` | `global.d.ts` `sharedPageProps` |
 | `auth.user` | Full `User` model or null (hidden: `password`, `two_factor_secret`, `two_factor_recovery_codes`, `remember_token`) | `auth.ts` `User`, `Auth` |
-| `sidebarOpen` | from `sidebar_state` cookie | `global.d.ts` |
 | `unreadNotificationsCount` | unread `AppNotification` count (one query per request) | **not typed** — read with a cast in `MobileLayout` |
 | `flash.success`, `flash.error` | session flash from `->with('success'|'error', ...)` | **not typed** — pages declare it locally |
 
@@ -82,8 +80,8 @@ Types: `types/auth.ts` (`User`, `Auth`, `Passkey`, `TwoFactorConfigContent`), `t
 Dark mode: `HandleAppearance` passes the `appearance` cookie to Blade (class `dark` on first paint, inline script handles `system`); the `appearance` and `sidebar_state` cookies are excluded from encryption in `bootstrap/app.php`. CSS variant: `@custom-variant dark (&:is(.dark *))`.
 
 ## Components and styling
-- **UI kit** (`components/ui/<kit>`, import from the kit's index, e.g. `@/components/ui/button`): alert, avatar, badge, breadcrumb, button, card, checkbox, collapsible, dialog, dropdown-menu, input, input-otp, label, navigation-menu, select, separator, sheet, sidebar, skeleton, sonner, spinner, tooltip. Built on `reka-ui` + `class-variance-authority`. Excluded from Prettier and ESLint — treat as vendored.
-- **App components most used**: `PrimaryButton` (props `type`, `disabled`, `loading`, `size`, `fullWidth`), `SecondaryButton`, `EmptyState` (props `emoji`, `title`, `description`, `actionLabel`; emits `action`), `InputError`, `Heading`, `PasswordInput`, `FloatingHearts`, `AnimatedBackground`, `AppLogoIcon`, `ProgressBar`, `SuccessAnimation`, `OptionCard`, `StatCard`, `ChallengeCard`, `CompatibilityCard`, `StepIndicator`; `components/questions/*` (`SingleChoice`, `MultipleChoice`, `Slider`, `Text`, `Textarea` question inputs).
+- **UI kit** (`components/ui/<kit>`, import from the kit's index, e.g. `@/components/ui/button`): alert, badge, button, checkbox, collapsible, dialog, input, input-otp, label, select, sonner, spinner. Kits nothing used were removed in Phase 4; add one back with shadcn-vue when needed. Built on `reka-ui` + `class-variance-authority`. Excluded from Prettier and ESLint — treat as vendored.
+- **App components most used**: `PrimaryButton` (props `type`, `disabled`, `loading`, `size`, `fullWidth`), `SecondaryButton`, `EmptyState` (props `emoji`, `title`, `description`, `actionLabel`; emits `action`), `InputError`, `Heading`, `PasswordInput`, `FloatingHearts`, `AppLogoIcon`, `ProgressBar`, `SuccessAnimation`, `OptionCard`, `StatCard`, `ChallengeCard`, `StepIndicator`; `components/questions/*` (`SingleChoice`, `MultipleChoice`, `Slider`, `Text`, `Textarea` question inputs).
 - **Icons**: `@lucide/vue` (`import { Bell } from '@lucide/vue'`), in the app and in admin.
 - **Tailwind v4**, CSS-first (no `tailwind.config.js`). `resources/css/app.css`: `@theme inline` maps `--color-*` to CSS variables defined in `:root` / `.dark`; custom `@utility` classes `gradient-primary`, `gradient-primary-soft`, `gradient-text`, `shadow-glow`, `card-premium`, `card-hover`, `btn-primary`, `btn-secondary`, `btn-outline`, `focus-ring`; animation classes `animate-page-fade-in`, `animate-pulse-glow`, `animate-float-heart`, `animate-success-pop`, etc. Use semantic tokens (`bg-background`, `text-foreground`, `text-muted-foreground`, `text-primary`) so dark mode works.
 - The full visual language (tokens, primitives, components, rules) is in **Design system** below.
@@ -213,11 +211,9 @@ Style rules enforced: Prettier 4-space, single quotes, semicolons, Tailwind clas
 - **Suspected issue:** `SavedProfileController.php:26` renders `saved-profiles/Index` and `AdminAiSettingController.php:40` renders `admin/ai-settings/Index`; neither page file exists.
 - `animate-page-fade-in` (on `<main>`) uses `animation-fill-mode: backwards` on purpose: a transform left on `<main>` would make it the containing block for `position: fixed` modals in pages.
 - Content inside `MobileLayout` needs about `pb-24` so the floating tab bar does not cover the last element; a page-level sticky action bar should sit at `bottom-24` (see `questionnaires/Question.vue`).
-- `AnimatedBackground` is no longer mounted anywhere (it painted behind the `body` background and was invisible); the ambient glow comes from `body` in `app.css`.
 - Do not nest a `<button>` inside a `<button>` (for example row actions inside a clickable card): browsers re-parent the inner one and the layout collapses. Make the outer element a `div` with `role="button"` and `tabindex="0"`, as `calendar/Index.vue` does.
 - Custom utilities can be overridden by a single Tailwind utility on the same element (`card-premium rounded-2xl`, `badge-soft bg-success/10 text-success`); for the `border` shorthand in `card-premium` use the important flag (`border-destructive/30!`).
-- **Dead code:** `AppSidebar.vue` (its nav items all point at `dashboard()`), `NavMain`, `NavFooter`, `NavUser`, `AppHeader`, `AppShell`, `AppContent`, `AppSidebarHeader` are reachable only from the unused starter layouts; `LoadingSpinner`, `PlaceholderPattern`, `ProfileCard`, `QuestionCard` are imported nowhere. Edit `MobileLayout`, not `AppSidebar`, to change navigation.
-- **Suspected issue:** `vite.config.ts:15` bundles "Instrument Sans", which no CSS references (the app uses Inter and Fraunces from Google Fonts in `app.blade.php`). `components.json:5` points at a non-existent `tailwind.config.js`.
+- **Suspected issue:** `components.json:5` points at a non-existent `tailwind.config.js`.
 - `auth.user` shares the whole user row (minus hidden fields) with every page.
 
 ## Related modules
@@ -235,3 +231,4 @@ No JS unit/e2e test runner is configured. Frontend checks are `npm run lint:chec
 - 2026-11-24 — Roadmap Phase 2 (2.1, 2.13): pages `saved-profiles/Index` and `Maintenance`; shared prop `registrationOpen` (typed in `types/global.d.ts`) hides sign-up on Welcome and Login.
 - 2026-11-25 — Roadmap Phase 3 (3.4, 3.14): `calendar/Index.vue` and `moments/Index.vue` take a `today` prop instead of the browser's UTC date; moment photo URLs point at the `moments.photo` route.
 - 2026-11-25 — Roadmap Phase 3 (3.3, 3.5, 3.6): pages `Error`, `legal/Privacy`, `legal/Terms`; components `LegalDocument`, `LegalLinks`, `AiConsentCard`; shared prop `auth.user.ai_consent`; terms checkbox on Register.
+- 2026-11-26 — Roadmap Phase 4 (4.5): removed the starter layouts (`layouts/app`, `layouts/auth`), the sidebar/header components, six unused components, the UI kits only they used, the `sidebarOpen` shared prop and the unused "Instrument Sans" font.

@@ -1,5 +1,5 @@
 # Date Night Plans
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 When both partners finish the same questionnaire (or one user finishes a solo questionnaire), the app generates a "date night plan": a theme plus meal, atmosphere, activity, conversation prompt and romantic challenge. A deterministic rule engine always produces a plan; the AI layer then optionally rewrites the wording. Users can view, favourite, like, print and add a plan to their calendar, compare both partners' answers from the plan, and ask the AI again when a plan was saved without it.
@@ -30,9 +30,6 @@ When both partners finish the same questionnaire (or one user finishes a solo qu
 | `app/Http/Controllers/QuestionnaireController.php` (`complete`, `planStatus`) | Completion page props and the polling endpoint |
 | `database/seeders/DateNightThemeSeeder.php` | 12 themes, `firstOrCreate` by name |
 | `database/factories/DateNightPlanFactory.php`, `DateNightThemeFactory.php` | Factories |
-| `app/Jobs/EnhanceDateNightPlanWithAIJob.php` | Not dispatched anywhere (see gotchas) |
-| `app/Http/Resources/PlanResource.php` | Not used anywhere (see gotchas) |
-| `config/datenight.php` | Not read anywhere (see gotchas) |
 | **Frontend** | |
 | `resources/js/pages/date-night/Show.vue` | Plan page: favourite, like, print, add-to-calendar modal, "How you matched" links (couple plans), "Try again with AI" (fallback plans) |
 | `resources/js/pages/date-night/History.vue` | Paginated list with search, theme and compatibility filters |
@@ -149,7 +146,7 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - Suspected issue: `Complete.vue` polls forever; there is no attempt cap or error state if generation never produces a plan.
 - Suspected issue: solo plans show "100%" compatibility in the plan-ready email.
 - Suspected issue: `Show.vue` has the theme emoji commented out and renders a fixed heart.
-- Dead code: `EnhanceDateNightPlanWithAIJob` is only referenced by tests. `PlanResource` is unused and reads non-existent `activities` and `is_favourite` attributes. `config/datenight.php` is not read by any code. `DateNightPlanPolicy::update` is not called.
+- Dead code: `DateNightPlanPolicy::update` is not called.
 
 ## Related modules
 - `questionnaires.md`: completion, responses, compatibility, the completion page.
@@ -165,7 +162,7 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - `php artisan test --filter=GenerateDateNightPlanJobTest`
 - `php artisan test --filter=DateNightEngineTest`
 - `php artisan test --filter=DateNightPlanFinishesTest`
-- AI fallback and the unused enhance job are covered in `tests/Feature/AI/AIIntegrationTest.php`.
+- AI fallback is covered in `tests/Feature/AI/AIIntegrationTest.php`.
 
 ## Change log
 - 2026-11-24 — Initial doc.
@@ -173,3 +170,5 @@ AI failures are logged as warnings and never fail the job. Timeouts and retries 
 - 2026-11-24 — Roadmap Phase 1: `summary()` sends `is_solo` and a null score for solo plans; a failed generation job notifies both people.
 - 2026-11-24 — Roadmap Phase 2 (2.7, 2.9, 2.10, 2.16): date-out rule-based plans with solo wording; option signals drive the rule engine; plan-scoped answers and compatibility pages; per-person favourites; print page with location, local ideas and solo handling; history theme filter and pagination; "Try again with AI".
 - 2026-11-25 — Roadmap Phase 3 (3.6): AI enhancement only runs when everyone whose answers are in the plan has agreed to AI processing.
+- 2026-11-26 — Roadmap Phase 4: removed `EnhanceDateNightPlanWithAIJob`, `PlanResource` and `config/datenight.php`.
+- 2026-11-26 — Plan page (`date-night/Show.vue`) redesigned: theme emoji and an animated compatibility ring in the hero, the plan sections as a swipeable step-by-step deck with dots and arrows, the romantic challenge sealed behind a reveal button, local ideas as a swipe row. Presentation only; props are unchanged.

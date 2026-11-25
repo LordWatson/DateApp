@@ -93,7 +93,7 @@ class AIInfrastructureTest extends TestCase
 
     public function test_ai_service_loads_prompt_template_and_interpolates_context(): void
     {
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create([
             'system_prompt' => 'system rules',
             'user_prompt_template' => 'Hello {{name}}, context: {{payload}}',
         ]);
@@ -118,7 +118,7 @@ class AIInfrastructureTest extends TestCase
 
         /** @var AIService $service */
         $service = $this->app->make(AIService::class);
-        $response = $service->generateConversationPrompt([
+        $response = $service->generateDateNightPlan([
             'name' => 'Alex',
             'payload' => ['mood' => 'calm'],
         ], []);
@@ -126,7 +126,7 @@ class AIInfrastructureTest extends TestCase
         $this->assertTrue($response->successful);
         $this->assertSame(['ok' => true], $response->data);
         $this->assertNotNull($captured);
-        $this->assertSame(AIUseCase::ConversationPrompt, $captured->useCase);
+        $this->assertSame(AIUseCase::DateNightPlan, $captured->useCase);
         $this->assertSame('system rules', $captured->systemPrompt);
         $this->assertStringContainsString('Hello Alex', $captured->userPrompt);
         $this->assertStringContainsString('"mood":"calm"', $captured->userPrompt);
@@ -137,22 +137,22 @@ class AIInfrastructureTest extends TestCase
 
     public function test_ai_service_throws_when_no_active_template_exists(): void
     {
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::MomentCaption)->inactive()->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->inactive()->create();
 
         $this->app->instance(AIProvider::class, new NullAIProvider);
 
         $this->expectException(RuntimeException::class);
 
-        $this->app->make(AIService::class)->generateMomentCaption([], []);
+        $this->app->make(AIService::class)->generateDateNightPlan([], []);
     }
 
     public function test_ai_service_uses_highest_active_version(): void
     {
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ThemeDescription)->create([
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create([
             'version' => 1,
             'user_prompt_template' => 'v1',
         ]);
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ThemeDescription)->create([
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create([
             'version' => 3,
             'user_prompt_template' => 'v3',
         ]);
@@ -175,7 +175,7 @@ class AIInfrastructureTest extends TestCase
             }
         });
 
-        $this->app->make(AIService::class)->enhanceThemeDescription([], []);
+        $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertSame('v3', $captured->userPrompt);
     }
@@ -192,9 +192,9 @@ class AIInfrastructureTest extends TestCase
             ], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertTrue($response->successful);
         $this->assertSame(['prompt' => 'Hi'], $response->data);
@@ -213,9 +213,9 @@ class AIInfrastructureTest extends TestCase
             ], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('invalid_json', $response->errorCode);
@@ -240,9 +240,9 @@ class AIInfrastructureTest extends TestCase
             ], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('response_truncated', $response->errorCode);
@@ -257,11 +257,11 @@ class AIInfrastructureTest extends TestCase
             ], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create([
             'max_tokens' => 3000,
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         Http::assertSent(static fn ($request): bool => $request->data()['max_tokens'] === 3000);
     }
@@ -274,11 +274,11 @@ class AIInfrastructureTest extends TestCase
             ], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create([
             'max_tokens' => null,
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         Http::assertSent(static fn ($request): bool => $request->data()['max_tokens'] === 1200);
     }
@@ -289,9 +289,9 @@ class AIInfrastructureTest extends TestCase
             'api.deepseek.test/*' => Http::response(['unexpected' => true], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('invalid_payload', $response->errorCode);
@@ -305,9 +305,9 @@ class AIInfrastructureTest extends TestCase
 
         config()->set('ai.defaults.retry_attempts', 1);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('http_error', $response->errorCode);
@@ -318,9 +318,9 @@ class AIInfrastructureTest extends TestCase
         config()->set('ai.providers.deepseek.api_key', '');
         Http::fake();
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertFalse($response->successful);
         $this->assertSame('missing_api_key', $response->errorCode);
@@ -335,12 +335,12 @@ class AIInfrastructureTest extends TestCase
             ], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create([
             'system_prompt' => 'sys',
             'user_prompt_template' => 'usr',
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         Http::assertSent(function ($request): bool {
             $body = $request->data();
@@ -391,7 +391,7 @@ class AIInfrastructureTest extends TestCase
 
     public function test_ai_response_failure_factory_produces_typed_error(): void
     {
-        $response = AIResponse::failure(AIUseCase::MomentCaption, 'boom', 'went wrong');
+        $response = AIResponse::failure(AIUseCase::DateNightPlan, 'boom', 'went wrong');
 
         $this->assertFalse($response->successful);
         $this->assertSame([], $response->data);
@@ -413,12 +413,12 @@ class AIInfrastructureTest extends TestCase
         $this->useAnthropic();
         Http::fake(['api.anthropic.test/*' => Http::response($this->anthropicBody('{"prompt":"ok"}'), 200)]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create([
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create([
             'system_prompt' => 'sys',
             'user_prompt_template' => 'usr',
         ]);
 
-        $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         Http::assertSent(function ($request): bool {
             $body = $request->data();
@@ -452,9 +452,9 @@ class AIInfrastructureTest extends TestCase
             ], 200),
         ]);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertTrue($response->successful);
         $this->assertSame(['prompt' => 'Hi'], $response->data);
@@ -475,11 +475,11 @@ class AIInfrastructureTest extends TestCase
             ->push(['unexpected' => true], 200)
             ->push(['type' => 'error'], 400);
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
         $service = $this->app->make(AIService::class);
 
         foreach (['response_truncated', 'refused', 'invalid_json', 'invalid_payload', 'http_error'] as $expected) {
-            $response = $service->generateConversationPrompt([], []);
+            $response = $service->generateDateNightPlan([], []);
 
             $this->assertFalse($response->successful);
             $this->assertSame($expected, $response->errorCode);
@@ -492,9 +492,9 @@ class AIInfrastructureTest extends TestCase
         config()->set('ai.providers.anthropic.api_key', '');
         Http::fake();
 
-        AiPromptTemplate::factory()->forUseCase(AIUseCase::ConversationPrompt)->create();
+        AiPromptTemplate::factory()->forUseCase(AIUseCase::DateNightPlan)->create();
 
-        $response = $this->app->make(AIService::class)->generateConversationPrompt([], []);
+        $response = $this->app->make(AIService::class)->generateDateNightPlan([], []);
 
         $this->assertSame('missing_api_key', $response->errorCode);
         Http::assertNothingSent();

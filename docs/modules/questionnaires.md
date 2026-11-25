@@ -1,6 +1,6 @@
 # Questionnaires
 
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-26
 
 ## Purpose
 
@@ -14,16 +14,13 @@ The questionnaire engine. A user picks a questionnaire, answers it one question 
 | `app/Http/Controllers/QuestionnaireController.php` | All user-facing actions (see Routes) |
 | `app/Services/QuestionnaireService.php` | Response lifecycle, answer storage, pairing/"fresh" logic, completion + event dispatch |
 | `app/Services/CompatibilityService.php` | Deterministic match score between the two partners |
-| `app/Actions/SummariseCoupleAnswersAction.php` | Prompt-friendly answer summary; used only by `app/Jobs/EnhanceDateNightPlanWithAIJob.php` |
 | `app/Http/Presenters/QuestionnairePresenter.php` | Shapes every Inertia prop array for this module |
 | `app/Models/{Questionnaire,Question,QuestionOption,Response,Answer}.php` | Models |
 | `app/Enums/{QuestionType,QuestionnaireStatus,QuestionnaireVisibility,CompletionStatus}.php` | Enums |
 | `app/Http/Requests/Questionnaire/{SaveAnswerRequest,FinishQuestionnaireRequest,StartQuestionnaireRequest}.php` | Validation. `SaveAnswerRequest` resolves the question (`question()`) and validates `value` per question type. `StartQuestionnaireRequest` validates `mode` (`solo`/`couple`) and exposes `solo(): ?bool` |
-| `app/Policies/ResponsePolicy.php` | Owner-only view/update/delete (not called anywhere, see gotchas) |
-| `app/Http/Resources/{Questionnaire,Question,Response}Resource.php` | JSON resources (not used anywhere) |
-| `app/Events/{QuestionnaireStarted,QuestionAnswered,QuestionnaireCompleted,CompatibilityCalculated}.php` | Events (only `QuestionnaireCompleted` is dispatched by app code) |
+| `app/Events/QuestionnaireCompleted.php` | The only questionnaire event |
 | `app/Listeners/*OnQuestionnaireCompleted.php`, `app/Listeners/UpdateStreakOnQuestionnairCompleted.php` | The 7 completion listeners (note the typo in the last filename) |
-| `app/Jobs/{GenerateCompatibilityJob,GenerateCompatibilitySummaryJob,SendQuestionnaireCompletedNotificationJob}.php` | Jobs |
+| `app/Jobs/SendQuestionnaireCompletedNotificationJob.php` | Job |
 | `app/Mail/QuestionnaireCompletedMail.php` | "Partner completed" email, view `emails.questionnaire-completed` |
 | `database/seeders/{QuestionnaireSeeder,SeasonalQuestionnaireSeeder,IntimacyQuestionnaireSeeder,SoloDatePlannerQuestionnaireSeeder}.php` | Content |
 | `database/factories/{Questionnaire,Question,QuestionOption,Response,Answer}Factory.php` | Factories (`draft()`, `archived()`, `singleChoice()`, `slider()`, `completed()` ...) |
@@ -37,10 +34,8 @@ The questionnaire engine. A user picks a questionnaire, answers it one question 
 | `resources/js/pages/questionnaires/Compatibility.vue` | Score + matched/different lists |
 | `resources/js/components/questions/{SingleChoice,MultipleChoice,Slider,Text,Textarea}Question.vue` | One input component per question type |
 | `resources/js/components/OptionCard.vue` | Option tile used by the two choice components |
-| `resources/js/components/ProgressBar.vue` | Used by `Question.vue` (also achievements and `CompatibilityCard`) |
-| `resources/js/components/CompatibilityCard.vue` | Used by `pages/Dashboard.vue`, not by this module's pages |
+| `resources/js/components/ProgressBar.vue` | Used by `Question.vue` (also achievements) |
 | `resources/js/components/StepIndicator.vue` | Used only by `pages/onboarding/Index.vue` |
-| `resources/js/components/QuestionCard.vue` | Not imported anywhere |
 | **Tests** | see Tests |
 
 ## Data model
@@ -118,9 +113,7 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 | `NotifyPartnerOnQuestionnaireCompleted` | `notifications` | Skips solo attempts / no partner. Creates `AppNotification` (`PartnerCompleted`): "{name} wants to plan a date with you" when the partner still has to answer, the older "completed the questionnaire" copy when they already have. Then dispatches `SendQuestionnaireCompletedNotificationJob` (queue `notifications`) which queues `QuestionnaireCompletedMail` |
 | `DispatchDateNightPlanOnQuestionnaireCompleted` | `default` | Solo attempt: always dispatches `GenerateDateNightPlanJob(user, null, q)`. Couple: only if partner has a fresh completed response. See `date-night.md` |
 | `EvaluateAchievementsOnQuestionnaireCompleted` | `analytics` | `AchievementEvaluationJob` |
-| `RefreshDashboardOnQuestionnaireCompleted` | `analytics` | `RefreshRelationshipStatisticsJob` |
 | `LogActivityOnQuestionnaireCompleted` | sync | Activity log entry `questionnaire_completed` |
-| `InvalidateCacheOnQuestionnaireCompleted` | `default` | Forgets `dashboard:{id}` and `compatibility:{id}` for user and partner |
 
 **Couple cycles (the "fresh" rule)**
 
@@ -163,13 +156,12 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 - `saveAnswer` falls through to the single-row text branch for any type that is not single or multiple choice.
 - A required slider has no answer until the user moves it (the component shows the minimum but emits nothing).
 - `QuestionnairePresenter::progress` percentage is based on the current position, not on answered count.
-- `SummariseCoupleAnswersAction` outputs option titles, or the raw value when there is no option (so `custom_amount:50` reaches the AI prompt as-is; the prompt template in `AiPromptTemplateSeeder` explains the format).
 - Seeders: `SoloDatePlannerQuestionnaireSeeder` is idempotent (`updateOrCreate` then deletes and recreates questions, which nulls `answers.question_option_id` and cascades answers). Seasonal and intimacy seeders use `firstOrCreate` (existing rows are never updated, except that an option whose `signals` is still null gets the seeded signals). `QuestionnaireSeeder` does nothing when `tonight` exists apart from the same signals backfill (matched by question title and option value). `SeasonalQuestionnaireSeeder` also seeds non-seasonal ones (`weekend-away`, `staycation`, `rainy-day`).
 - Option signals: all four seeders set `signals` where the meaning is clear. A new option without signals still works through the engine's keyword fallback. The admin editor does not expose the column yet.
 - `bootstrap/cache/events.php` can exist locally (gitignored). If listeners seem stale, run `php artisan event:clear`.
 - Suspected issue: `CompatibilityService::calculate` loads each partner's latest response by id regardless of status, so an in-progress restart is compared instead of the completed one. `app/Services/CompatibilityService.php:21-31`.
 - Suspected issue: `getAnswerValues` uses `->filter()`, which drops an option value of `"0"`. `app/Services/CompatibilityService.php:158-165`.
-- Dead code: `QuestionnaireStarted`, `QuestionAnswered` are never dispatched. `GenerateCompatibilityJob` (the only dispatcher of `CompatibilityCalculated`) is never dispatched. `GenerateCompatibilitySummaryJob` is dispatched only in `tests/Feature/AI/AIIntegrationTest.php` and its cache key `ai:compat_summary:plan:{id}` is never read. The three `*Resource` classes and `ResponsePolicy` are unused. `responses.compatibility_score` is never written by app code (only read by `AdminAnalyticsController`). The `compatibility:{id}` cache key is only ever forgotten, never set. `resources/js/components/QuestionCard.vue` is not imported.
+- Dead code: `responses.compatibility_score` is never written by app code (only read by `AdminAnalyticsController`).
 - Admin: `AdminQuestionController` validates `type` as any string (an invalid value would break the enum cast; the admin form's select offers the five valid ones), and `AdminQuestionnaireController` validates `is_seasonal` but not `is_solo` / `is_intimacy`. See `admin.md`.
 
 ### Adding a new question type
@@ -192,7 +184,6 @@ Admin CRUD for questionnaires and questions lives in `routes/admin.php` (see `ad
 
 - `date-night.md` — plan generation after completion, `GenerateDateNightPlanJob`, rule engine.
 - `saved-profiles.md` — save/apply answer sets (UI lives in this module's pages).
-- `ai.md` — `SummariseCoupleAnswersAction` consumer, compatibility summary use case.
 - `events-jobs.md`, `notifications-activity-mail.md`, `challenges-achievements-streaks.md`, `dashboard-insights-search.md` — listener side effects.
 - `intimacy.md` — lists `is_intimacy` questionnaires. `admin.md` — questionnaire/question CRUD. `onboarding-partner.md` — partner link used by all pairing logic.
 
@@ -224,3 +215,4 @@ No dedicated tests for: `restart`, `pastAttempt`, `planStatus`, solo location sa
 - 2026-11-24 — `questionnaires/Question.vue`: Back / Continue moved from a fixed block (hidden behind the tab bar) to a sticky pill bar above it.
 - 2026-11-24 — Roadmap Phase 1: only `start`/`restart` create an attempt; completed summary is read-only; completion screen redirects to an existing plan, handles no partner and stops polling after 90s; saved profiles apply via axios and only to their own questionnaire; slider emits its starting value; no invented location; `whereNumber('order')`.
 - 2026-11-24 — Roadmap Phase 2 (2.7, 2.10, 2.11): `question_options.signals`; per-type answer validation; `finish` refuses unanswered required questions; comparison pages are driven from the plan and the old routes redirect to them.
+- 2026-11-26 — Roadmap Phase 4: removed `QuestionnaireStarted`, `QuestionAnswered`, `CompatibilityCalculated`, `GenerateCompatibilityJob`, `GenerateCompatibilitySummaryJob`, `SummariseCoupleAnswersAction`, the three `*Resource` classes, `ResponsePolicy` and the two cache-forgetting `QuestionnaireCompleted` listeners.

@@ -2,8 +2,6 @@
 
 namespace App\Providers;
 
-use App\AI\NullAIProvider;
-use App\Contracts\AIProvider;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -23,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(AIProvider::class, NullAIProvider::class);
+        //
     }
 
     /**

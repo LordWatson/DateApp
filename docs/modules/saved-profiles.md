@@ -1,6 +1,6 @@
 # Saved Profiles
 
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-26
 
 ## Purpose
 
@@ -17,7 +17,6 @@ Lets a user save the answers of a questionnaire attempt as a named profile (name
 | `app/Policies/SavedProfilePolicy.php` | `view` / `update` / `delete`: owner only |
 | `app/Http/Requests/SavedProfile/StoreSavedProfileRequest.php` | Validation for `store` |
 | `app/Http/Presenters/QuestionnairePresenter.php` | `savedProfiles()` prop shape (id, name, emoji, colour) |
-| `app/Events/SavedProfileCreated.php`, `app/Events/SavedProfileApplied.php` | Declared, never dispatched |
 | `database/factories/SavedProfileFactory.php`, `SavedProfileAnswerFactory.php` | Factories |
 | **Frontend** | |
 | `resources/js/pages/saved-profiles/Index.vue` | Manage page: list, rename and restyle (dialog), delete (`ConfirmDialog`) |
@@ -81,7 +80,6 @@ A profile has no `questionnaire_id`; the link to a questionnaire exists only thr
 - Suspected issue: `Show.vue` calls `apply` with Inertia `router.post`, but the endpoint returns plain JSON, so the `onSuccess` callback (close picker, start questionnaire) is not expected to run. `resources/js/pages/questionnaires/Show.vue:107-118`.
 - Suspected issue: `applyProfile` does not check that the profile's questions belong to the target questionnaire; applying a profile saved from questionnaire A to questionnaire B writes answers for A's questions onto B's response. `app/Services/QuestionnaireService.php:146-165`.
 - Suspected issue: `Summary.vue` `saveProfile` closes the modal without checking the response status, and the page's `saved_profiles` prop is not refreshed. `resources/js/pages/questionnaires/Summary.vue:402-429`.
-- Dead code: `SavedProfileCreated` and `SavedProfileApplied` are registered with empty listener lists in `app/Providers/EventServiceProvider.php` and never dispatched.
 
 ## Related modules
 
@@ -104,3 +102,4 @@ php artisan test --filter=QuestionnaireFlowTest
 
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Roadmap Phase 2 (2.1): manage page `saved-profiles/Index` (list, rename, restyle, delete); dashboard rows and a "Manage" link go to it; a missing emoji or colour is stored as null.
+- 2026-11-26 — Roadmap Phase 4: removed the never-dispatched `SavedProfileCreated` and `SavedProfileApplied` events.

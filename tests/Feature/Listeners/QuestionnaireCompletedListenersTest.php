@@ -9,7 +9,6 @@ use App\Jobs\SendQuestionnaireCompletedNotificationJob;
 use App\Listeners\DispatchDateNightPlanOnQuestionnaireCompleted;
 use App\Listeners\EvaluateAchievementsOnQuestionnaireCompleted;
 use App\Listeners\NotifyPartnerOnQuestionnaireCompleted;
-use App\Listeners\RefreshDashboardOnQuestionnaireCompleted;
 use App\Listeners\UpdateStreakOnQuestionnairCompleted;
 use App\Models\AppNotification;
 use App\Models\DateNightPlan;
@@ -40,7 +39,6 @@ class QuestionnaireCompletedListenersTest extends TestCase
 
         Event::assertListening(QuestionnaireCompleted::class, UpdateStreakOnQuestionnairCompleted::class);
         Event::assertListening(QuestionnaireCompleted::class, EvaluateAchievementsOnQuestionnaireCompleted::class);
-        Event::assertListening(QuestionnaireCompleted::class, RefreshDashboardOnQuestionnaireCompleted::class);
         Event::assertListening(QuestionnaireCompleted::class, DispatchDateNightPlanOnQuestionnaireCompleted::class);
     }
 

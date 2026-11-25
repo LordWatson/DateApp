@@ -1,6 +1,6 @@
 # Calendar
 
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 
@@ -15,8 +15,8 @@ A simple shared event list for a couple: date nights, anniversaries, birthdays, 
 | `app/Models/CalendarEvent.php` | Model; `user()` |
 | `app/Policies/CalendarEventPolicy.php` | `view` (owner or partner), `update`/`delete` (owner) |
 | `app/Http/Requests/CalendarEvent/StoreCalendarEventRequest.php`, `UpdateCalendarEventRequest.php` | Identical rule sets |
-| `app/Enums/CalendarEventType.php` | 8 types with `label()` / `emoji()` - not referenced by any code (see gotchas) |
-| `app/Events/CalendarEventCreated.php` | Defined, registered with no listeners, never dispatched |
+| `app/Enums/CalendarEventType.php` | The 8 types with `label()` / `emoji()`: the only list. Validation (`Rule::enum`) and the `eventTypes` prop come from it |
+| `app/Events/CalendarEventCreated.php` | Dispatched by `store`; `EvaluateAchievementsOnActivity` listens |
 | `app/Actions/AddDateNightPlanToCalendarAction.php` | Creates an event from a plan - owned by date-night.md |
 | `app/Console/Commands/SendCalendarRemindersCommand.php` | `datenight:send-calendar-reminders` - sends due reminders (hourly) |
 | `database/migrations/2026_07_14_000001_create_calendar_events_table.php` | Schema |
@@ -78,13 +78,12 @@ All inside `auth`, `verified`, `onboarding` middleware (`routes/web.php`).
   - The payload carries `is_mine` and `owner` (owner's `name`); both Vue pages use `is_mine` to hide edit/delete.
   - Policies rely on Laravel's auto-discovery (no explicit registration).
 - Validation: `title` required max 255; `type` required and in the list above; `date` required; `time` must be `H:i`; `description` max 1000; `notes` max 2000; `location` max 255; `emoji` max 10; `colour` max 20 (not validated as a colour); `reminder` nullable and in the list above.
-- The type list is duplicated in three places that must be kept in sync: the two request classes (`in:` rule), `CalendarEventController::eventTypes()` and `CalendarEventType`.
+- Event types live only in `CalendarEventType`: add a case (with label and emoji) and both request classes and the page pick it up. The model does not cast `type`; it stays a string.
 - Upcoming vs past is split in the browser using the client's date (`calendar/Index.vue:57-69`).
 - **Today is the user's own day**: `calendar.index` sends `today` (`User::today()`, from `users.timezone`); the page uses it for the upcoming/past split and as the default date of a new event. The relationship hub's upcoming events and the timeline's calendar entries use the same date. Event dates stay plain dates.
 - Reminders are whole-day: `time` is never used to decide when to send (it is nullable and has no timezone), only shown in the text. The reminder appears within an hour of the due day starting in the owner's timezone; the partner gets it at the same moment. An event created after its due day has started is reminded on the next hourly run; a past event never is. In-app only, no email.
-- Suspected issue: `CalendarEventCreated` is never dispatched (not in `store`, not in `AddDateNightPlanToCalendarAction`) and has an empty listener list in `app/Providers/EventServiceProvider.php:96`. As a result `calendar_events_created` achievements are only awarded on the next questionnaire completion or moment creation (see challenges-achievements-streaks.md).
+- `CalendarEventCreated` is dispatched by `store` only, not by `AddDateNightPlanToCalendarAction`: an event added from a plan counts towards `calendar_events_created` achievements at the next evaluation (see challenges-achievements-streaks.md).
 - Suspected issue: `time` is validated as `H:i`, but the column is `TIME` and is not cast, so on databases that return `HH:MM:SS` the edit form would send back a value that fails validation. Not verified against the production database driver.
-- Dead code: `App\Enums\CalendarEventType` (the model does not cast `type`), `App\Events\CalendarEventCreated`.
 - `StoreCalendarEventRequest` and `UpdateCalendarEventRequest` are byte-for-byte the same rules.
 
 ## Related modules
@@ -113,3 +112,4 @@ Not covered: partner visibility on index/show, validation limits.
 - 2026-11-24 — Roadmap Phase 1: delete asks first; `CalendarEventCreated` is dispatched on create and re-evaluates achievements.
 - 2026-11-24 — Roadmap Phase 2 (2.3): reminders are sent. New hourly `datenight:send-calendar-reminders` notifies the owner and partner (`calendar_reminder`) and sets `reminder_sent`; changing the date or reminder re-arms it.
 - 2026-11-25 — Roadmap Phase 3 (3.14): the upcoming/past split and the default date use the user's timezone (`today` prop).
+- 2026-11-26 — Roadmap Phase 4: (4.6) the two request classes and `CalendarEventController::eventTypes()` use `CalendarEventType` instead of their own copies of the list.

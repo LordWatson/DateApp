@@ -50,7 +50,7 @@ Do **not** re-run `db:seed` on a live database: the "Plan a Date Out" seeder rec
 php artisan queue:work --queue=default,notifications,emails,analytics,ai,exports --tries=3 --timeout=120
 ```
 
-**Scheduler.** One cron entry; seven commands depend on it (daily challenge, streaks, invitation expiry, reminders, calendar reminders, statistics, export clean-up):
+**Scheduler.** One cron entry; six commands depend on it (daily challenge, streaks, invitation expiry, reminders, calendar reminders, export clean-up):
 
 ```cron
 * * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1

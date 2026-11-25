@@ -1,6 +1,6 @@
 # Onboarding and Partner Linking
 
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-26
 
 ## Purpose
 
@@ -23,12 +23,11 @@ After registering, a user walks through a short wizard: fill in a profile (displ
 | `app/Actions/SendPartnerInvitationAction.php` | Create invitation + dispatch `SendInvitationEmailJob` |
 | `app/Actions/AcceptPartnerInvitationAction.php` | Accept + dispatch `PartnerInvitationAccepted` and `PartnerConnected` |
 | `app/Actions/Fortify/CreateNewUser.php` | Accepts a session-stored invitation during registration |
-| `app/Events/PartnerConnected.php`, `PartnerDisconnected.php`, `PartnerInvitationAccepted.php`, `PartnerInvitationCreated.php` | Events |
+| `app/Events/PartnerConnected.php`, `PartnerDisconnected.php`, `PartnerInvitationAccepted.php` | Events |
 | `app/Listeners/*OnPartnerConnected.php` | Five listeners, see Flows |
 | `app/Jobs/SendInvitationEmailJob.php`, `SendPartnerConnectedEmailJob.php` | Mail jobs (queue `emails`, 3 tries, 30s timeout) |
 | `app/Mail/PartnerInvitationMail.php`, `PartnerConnectedMail.php` | Mailables; views `resources/views/emails/partner-invitation.blade.php`, `partner-connected.blade.php` |
 | `app/Console/Commands/ExpireInvitationsCommand.php` | `datenight:expire-invitations`, scheduled daily 00:10 in `bootstrap/app.php`; tells each sender once that their invitation ran out |
-| `app/Http/Resources/PartnerResource.php` | Slim partner payload (currently unused) |
 | `app/Providers/EventServiceProvider.php` | Explicit listener map (event discovery is off) |
 | **Frontend** | |
 | `resources/js/pages/onboarding/Index.vue` | 4-step wizard (client-side step state) |
@@ -113,9 +112,7 @@ There is no status column: pending = `accepted_at IS NULL AND expires_at > now()
 |---|---|---|
 | `SendPartnerConnectedEmailsOnPartnerConnected` | `emails` | Dispatches `SendPartnerConnectedEmailJob` per user -> `PartnerConnectedMail` (skipped if `email_notifications` is false) |
 | `CreatePartnerConnectedNotificationOnPartnerConnected` | `notifications` | One `AppNotification` per user, type `NotificationType::PartnerCompleted` |
-| `RefreshDashboardOnPartnerConnected` | `analytics` | Dispatches `RefreshRelationshipStatisticsJob` per user |
 | `LogActivityOnPartnerConnected` | sync | Two `ActivityLog` rows, action `partner_connected` |
-| `InvalidateCacheOnPartnerConnected` | `default` | Forgets `dashboard:{id}` cache keys |
 
 **Disconnect** (DELETE `partner/disconnect`)
 1. `PartnerInvitationService::disconnectPartner()` nulls `partner_id` on both users in a transaction.
@@ -144,12 +141,11 @@ There is no status column: pending = `accepted_at IS NULL AND expires_at > now()
 - Suspected issue: the sender is never checked for an existing partner. `partner.send-invite` / `onboarding.send-invite` work while connected, and `PartnerInvitationService::acceptInvitation()` (`app/Services/PartnerInvitationService.php:44`) overwrites `sender.partner_id`; the sender's previous partner keeps pointing at the sender, leaving a one-sided link. Only the recipient is guarded (`OnboardingController.php:64`).
 - Suspected issue: `PartnerInvitationMail` subject uses `sender->display_name` without the `?? name` fallback (`app/Mail/PartnerInvitationMail.php:23`), producing a subject with an empty name for senders who have no display name; the body does use the fallback.
 - Suspected issue: `PartnerController@index` sets `connectedSince` to the partner's `created_at` (`app/Http/Controllers/PartnerController.php:34-36`), i.e. when the partner registered, not when the couple connected. No connection timestamp is stored on users; the accepted invitation's `accepted_at` is the closest record.
-- Suspected issue: the `dashboard:{id}` and `compatibility:{id}` cache keys forgotten by `InvalidateCacheOnPartnerConnected` and `RefreshRelationshipStatisticsJob` are never written anywhere in `app/`, so those two listeners currently have no effect.
 - Suspected issue: session `error` flashes from `acceptInvite` are effectively never shown. `Dashboard.vue` and `MobileLayout.vue` do not render `flash`, and `onboarding/Index.vue` only renders `flashError` inside the "invite" sub-panel, which is closed on page load (`OnboardingController.php:65,70`).
 - Suspected issue: the "I Have an Invite" step says "Paste the invitation link or token" but `submitJoin()` builds `/invite/${token}` from the raw input (`resources/js/pages/onboarding/Index.vue:73-75`), so pasting a full link produces a broken URL; only a bare token works.
 - Suspected issue: `partner.resend-invite` always flashes "Invitation resent!" even when there is no pending invitation (`PartnerController.php:47-56`), and has no throttle.
 - `avatar` is validated as `max:255` (the column length) in onboarding and settings. Only the emoji picker exists; the wizard's "upload" avatar mode was never built.
-- Dead code: `PartnerInvitationCreated` is never dispatched and `SendInvitationEmailOnPartnerInvitationCreated` is not registered in `EventServiceProvider` (registering it without removing the direct dispatch in `SendPartnerInvitationAction` would send two emails). `PartnerInvitationAccepted` has no listeners; `UserRegistered` and `ProfileCompleted` are registered with no listeners and never dispatched. `PartnerResource` and `PartnerInvitation::isExpired()/isAccepted()/isPending()` have no callers in `app/`.
+- Dead code: `PartnerInvitationAccepted` is dispatched but has no listeners. `PartnerInvitation::isExpired()/isAccepted()/isPending()` have no callers in `app/`.
 
 ## Related modules
 
@@ -183,3 +179,4 @@ Not covered by tests: acceptance during registration (`CreateNewUser`), resend, 
 - 2026-11-24 — Roadmap Phase 1: pasted invitation links work, "Since" uses the accepted invitation date, resend reports when there is nothing to resend, invitation email subject falls back to the name.
 - 2026-11-24 — Roadmap Phase 2 (2.14): an invitation opened while logged out survives logging in; senders can revoke and are told once when an invitation expires; the other partner is notified of a disconnect and the confirmation says what each person keeps; avatar limit matches the column.
 - 2026-11-24 — Roadmap Phase 2 (2.13): invitation lifetime comes from the system setting `invitation_expiry_days` (default 7, minimum 1) through `RuntimeSettings`.
+- 2026-11-26 — Roadmap Phase 4: removed `PartnerInvitationCreated` and its unregistered listener, `UserRegistered`, `ProfileCompleted`, `PartnerResource` and the two cache-forgetting `PartnerConnected` listeners.

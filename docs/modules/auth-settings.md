@@ -1,6 +1,6 @@
 # Auth and Settings
 
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 
@@ -151,7 +151,7 @@ Fortify / passkeys (vendor-registered, `web` middleware; names matter because th
 - Suspected issue: `profile.edit` / `profile.update` are behind `auth` only while the rest of settings needs `verified` (`routes/settings.php:8-13`); harmless today because `verified` is inert (see above).
 - `push_notifications` and `dark_mode` have no UI (appearance is cookie/localStorage based; there is no push channel). `date_of_birth` can only be set in onboarding.
 - A data export file is not removed when the account is deleted; the nightly clean-up removes it within 24 hours.
-- Dead code: `User::hasRole()` (`app/Models/User.php:120`) and `Role::toEnum()` (`app/Models/Role.php:29`) have no callers in `app/`; `App\Http\Resources\UserResource` is not used anywhere.
+- Dead code: `User::hasRole()` (`app/Models/User.php:120`) and `Role::toEnum()` (`app/Models/Role.php:29`) have no callers in `app/`.
 
 ## Related modules
 
@@ -181,3 +181,4 @@ Tests use sqlite `:memory:`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array` (`phpu
 - 2026-11-24 — Roadmap Phase 2 (2.13): feature flag `registration` off makes `CreateNewUser` refuse with a validation error on `email`, and the shared prop `registrationOpen` hides sign-up on Welcome and Login (see `admin.md`).
 - 2026-11-25 — Roadmap Phase 3 (3.14): `User::today()` gives the start of the current day in `users.timezone`; streaks, the dashboard month, calendar and moment defaults use it. Avatars are emoji strings, not files, so the uploads disk does not apply to them.
 - 2026-11-25 — Roadmap Phase 3 (3.5, 3.6): registration requires the terms checkbox (`users.terms_accepted_at`); public `/privacy` and `/terms`; AI consent columns, `PUT settings/ai-consent` and the consent card. Tests: `LegalPagesTest`, `AI/AiConsentTest`.
+- 2026-11-26 — Roadmap Phase 4: removed the unused `UserResource` (all of `app/Http/Resources` is gone).

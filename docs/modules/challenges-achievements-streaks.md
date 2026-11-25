@@ -1,6 +1,6 @@
 # Challenges, Achievements and Streaks
 
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 
@@ -29,7 +29,6 @@ Three small gamification features. **Challenges** are a pool of short couple act
 | `app/Console/Commands/SelectDailyChallengeCommand.php` | `datenight:select-daily-challenge` - dispatches `DailyChallengeSelectionJob` |
 | `app/Jobs/DailyChallengeSelectionJob.php` | Creates today's `daily_challenges` row |
 | `app/Events/ChallengeCompleted.php` | Dispatched on a user's first completion of the day |
-| `app/Http/Resources/ChallengeResource.php` | Defined but unused |
 | `bootstrap/app.php` (`withSchedule`) | Scheduling of both commands (`routes/console.php` has no schedule) |
 | `app/Http/Controllers/DashboardController.php` | Sends today's challenge with `completed_by_me` / `completed_by_partner`; exposes streak stats |
 | `database/seeders/ChallengeSeeder.php`, `database/seeders/AchievementSeeder.php` | 100 challenges, 17 achievements |
@@ -115,7 +114,7 @@ Scheduled (in `bootstrap/app.php`): `datenight:select-daily-challenge` daily at 
 
 - **Visibility**: achievements and streaks are per user, not per couple. `AchievementController` only reads `$request->user()`; there is no policy and no partner view. Challenges are global content.
 - Adding a new achievement type requires a new arm in `AchievementService::conditionMet()`; a row with an unknown `unlock_condition` silently never unlocks.
-- Achievements are only evaluated on questionnaire completion and moment creation. Love-note and calendar achievements therefore unlock late (on the next questionnaire/moment), because `LoveNoteSent` has no evaluation listener and `CalendarEventCreated` is never dispatched.
+- Achievements are evaluated (`AchievementEvaluationJob`) on questionnaire completion, moment creation, a sent love note, a created calendar event and a completed daily challenge. An event added to the calendar from a plan does not dispatch `CalendarEventCreated`, so it counts at the next evaluation.
 - Achievements are never revoked (e.g. deleting moments does not remove the badge).
 - Hidden achievements are sent to the page but locked+hidden ones are not rendered (`resources/js/pages/achievements/Index.vue:51`).
 - Streak days are days in the user's timezone (`users.timezone` through `User::today()`), in both `UpdateStreakAction` and `datenight:evaluate-streaks`. The daily challenge deliberately stays on the UTC day.
@@ -126,7 +125,7 @@ Scheduled (in `bootstrap/app.php`): `datenight:select-daily-challenge` daily at 
 - Suspected issue: `monthly_completion_count` is only ever incremented (`app/Actions/UpdateStreakAction.php:28`); nothing resets it at month end, yet the dashboard labels it with the current month.
 - Suspected issue: `getUserProgress()` (`app/Services/AchievementService.php:86-94`) counts `total` over non-hidden achievements but `unlocked` over all, so unlocking a hidden one can push the percentage over 100.
 - Suspected issue: `AchievementController@index` runs one extra pivot query per unlocked achievement (`app/Http/Controllers/AchievementController.php:31`).
-- Dead code: `ChallengeResource` is never used; `EvaluateStreaksCommand::handle()` injects `UpdateStreakAction` but does not use it (line 16).
+- Dead code: `EvaluateStreaksCommand::handle()` injects `UpdateStreakAction` but does not use it (line 16).
 - `artwork` exists on `achievements` but is not in the model's `#[Fillable]` list (`app/Models/Achievement.php:24`); see admin.md.
 - `AchievementSeeder` is idempotent (`firstOrCreate` on name + condition); `ChallengeSeeder` uses `create` and will duplicate rows if run twice.
 
@@ -157,3 +156,4 @@ Run: `php artisan test --filter="AchievementTest|ChallengeTest|DailyChallengeTes
 - 2026-11-24 — Roadmap Phase 1: `EvaluateAchievementsOnActivity` re-checks achievements on `LoveNoteSent` and `CalendarEventCreated`; the achievement notification uses the achievement name and its own type.
 - 2026-11-24 — Roadmap Phase 2 (2.4): the dashboard shows today's `DailyChallenge` (lazy, active and non-archived only); completion table, `daily-challenge.complete` route and Done control with partner state; `ChallengeCompleted` notifies the partner and unlocks the new `challenges_completed` achievements.
 - 2026-11-25 — Roadmap Phase 3 (3.14): streak days are counted in the user's timezone.
+- 2026-11-26 — Roadmap Phase 4: removed the unused `ChallengeResource`.

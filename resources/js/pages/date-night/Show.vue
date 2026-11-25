@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     CalendarPlus,
     Check,
+    ChevronLeft,
     ChevronRight,
     Heart,
     Printer,
@@ -10,7 +11,7 @@ import {
     Star,
     X,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import FloatingHearts from '@/components/FloatingHearts.vue';
 import InputError from '@/components/InputError.vue';
 import PrimaryButton from '@/components/PrimaryButton.vue';
@@ -80,31 +81,109 @@ const generatedDate = new Date(props.plan.created_at).toLocaleDateString([], {
 const planSections = computed(() =>
     [
         {
-            label: 'Meal suggestion',
+            label: 'On the menu',
             emoji: '🍽️',
             text: props.plan.meal_suggestion,
             quoted: false,
         },
         {
-            label: 'Atmosphere',
+            label: 'Set the scene',
             emoji: '🕯️',
             text: props.plan.atmosphere,
             quoted: false,
         },
         {
-            label: 'Activity',
+            label: 'The main event',
             emoji: '✨',
             text: props.plan.activity,
             quoted: false,
         },
         {
-            label: 'Conversation prompt',
+            label: 'Something to talk about',
             emoji: '💬',
             text: props.plan.conversation_prompt,
             quoted: true,
         },
     ].filter((section) => section.text),
 );
+
+// The evening is a swipeable deck: one card on screen at a time.
+const deck = ref<HTMLElement | null>(null);
+const activeStep = ref(0);
+
+function onDeckScroll(): void {
+    const el = deck.value;
+
+    if (!el) {
+        return;
+    }
+
+    const centre = el.scrollLeft + el.clientWidth / 2;
+    const distances = Array.from(el.children).map((child) => {
+        const card = child as HTMLElement;
+
+        return Math.abs(card.offsetLeft + card.offsetWidth / 2 - centre);
+    });
+
+    activeStep.value = distances.indexOf(Math.min(...distances));
+}
+
+function goToStep(index: number): void {
+    const card = deck.value?.children[index] as HTMLElement | undefined;
+
+    card?.scrollIntoView({ block: 'nearest', inline: 'center' });
+}
+
+const challengeOpen = ref(false);
+
+// Compatibility ring: counts up once when the page opens.
+const RING_RADIUS = 52;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+const shownScore = ref(0);
+
+const matchLabel = computed(() => {
+    const score = props.plan.compatibility_score;
+
+    if (score >= 85) {
+        return 'A dreamy match';
+    }
+
+    if (score >= 70) {
+        return 'Beautifully in sync';
+    }
+
+    if (score >= 50) {
+        return 'Opposites attract';
+    }
+
+    return 'Plenty to discover together';
+});
+
+onMounted(() => {
+    const target = props.plan.compatibility_score ?? 0;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        shownScore.value = target;
+
+        return;
+    }
+
+    const start = performance.now();
+    const tick = (now: number): void => {
+        const progress = Math.min((now - start) / 1200, 1);
+
+        shownScore.value = Math.round(target * (1 - (1 - progress) ** 3));
+
+        if (progress < 1) {
+            requestAnimationFrame(tick);
+        }
+    };
+
+    requestAnimationFrame(tick);
+});
+
+const stepButtonClass =
+    'flex size-10 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-30';
 
 const actionChipClass =
     'chip focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
@@ -208,22 +287,75 @@ function submitCalendar(): void {
 
         <div class="relative z-10 space-y-8 px-4 pt-6 pb-28">
             <!-- Hero -->
-            <section class="card-feature px-6 py-8 text-center">
+            <section
+                class="card-feature px-6 py-8 text-center motion-safe:animate-in motion-safe:duration-500 motion-safe:zoom-in-95 motion-safe:fade-in"
+            >
+                <span
+                    v-if="plan.theme_emoji"
+                    class="mx-auto mb-4 flex size-16 items-center justify-center rounded-3xl bg-white/10 text-4xl ring-1 ring-white/20"
+                    style="animation: success-pop 0.6s ease-out both"
+                    aria-hidden="true"
+                    >{{ plan.theme_emoji }}</span
+                >
                 <p class="eyebrow text-gold-soft">Your perfect evening</p>
                 <h1 class="mt-3 text-4xl leading-tight font-medium">
                     {{ plan.theme }}
                 </h1>
                 <p class="mt-2 text-xs text-white/80">{{ generatedDate }}</p>
 
-                <!-- Compatibility score (couple plans only) -->
+                <!-- Compatibility ring (couple plans only) -->
                 <template v-if="!plan.is_solo">
                     <div class="my-6 hairline-gold opacity-60" />
-                    <p
-                        class="font-display text-6xl leading-none font-medium tabular-nums"
+                    <div
+                        class="relative mx-auto size-36"
+                        role="img"
+                        :aria-label="`${plan.compatibility_score}% compatible. ${matchLabel}`"
                     >
-                        {{ plan.compatibility_score }}%
+                        <svg
+                            viewBox="0 0 120 120"
+                            class="size-full -rotate-90"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                cx="60"
+                                cy="60"
+                                :r="RING_RADIUS"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="8"
+                                class="text-white/15"
+                            />
+                            <circle
+                                cx="60"
+                                cy="60"
+                                :r="RING_RADIUS"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="8"
+                                stroke-linecap="round"
+                                class="text-gold-soft"
+                                :stroke-dasharray="RING_LENGTH"
+                                :stroke-dashoffset="
+                                    RING_LENGTH * (1 - shownScore / 100)
+                                "
+                            />
+                        </svg>
+                        <div
+                            class="absolute inset-0 flex flex-col items-center justify-center"
+                            aria-hidden="true"
+                        >
+                            <span
+                                class="font-display text-4xl leading-none font-medium tabular-nums"
+                                >{{ shownScore }}%</span
+                            >
+                            <span class="mt-1 eyebrow text-gold-soft"
+                                >Match</span
+                            >
+                        </div>
+                    </div>
+                    <p class="mt-4 font-display text-lg" aria-hidden="true">
+                        {{ matchLabel }}
                     </p>
-                    <p class="mt-2 eyebrow text-gold-soft">Compatible</p>
                 </template>
 
                 <!-- Partners -->
@@ -246,7 +378,7 @@ function submitCalendar(): void {
                         </div>
                         <Heart
                             v-if="!plan.is_solo && plan.partner_two"
-                            class="size-4 fill-current text-gold-soft"
+                            class="size-4 fill-current text-gold-soft motion-safe:animate-pulse"
                             aria-hidden="true"
                         />
                         <div
@@ -274,104 +406,200 @@ function submitCalendar(): void {
                 {{ plan.summary }}
             </p>
 
-            <!-- The plan -->
-            <section class="space-y-3">
-                <div
-                    v-for="section in planSections"
-                    :key="section.label"
-                    class="flex items-start gap-4 card-premium p-5"
-                >
-                    <span
-                        class="icon-tile h-11 w-11 text-xl"
-                        aria-hidden="true"
-                        >{{ section.emoji }}</span
+            <!-- The evening, one card at a time -->
+            <section
+                v-if="planSections.length > 0"
+                class="space-y-4"
+                aria-labelledby="evening-title"
+            >
+                <div class="flex items-baseline justify-between">
+                    <h2 id="evening-title" class="eyebrow">
+                        Your evening, step by step
+                    </h2>
+                    <p
+                        v-if="planSections.length > 1"
+                        class="text-xs text-muted-foreground tabular-nums"
+                        aria-live="polite"
                     >
-                    <div class="min-w-0 flex-1 space-y-1.5">
-                        <p class="eyebrow">{{ section.label }}</p>
-                        <p
-                            v-if="section.quoted"
-                            class="text-[15px] leading-relaxed text-foreground italic"
-                        >
-                            "{{ section.text }}"
-                        </p>
-                        <p
-                            v-else
-                            class="text-[15px] leading-relaxed text-foreground"
-                        >
-                            {{ section.text }}
-                        </p>
-                    </div>
+                        {{ activeStep + 1 }} of {{ planSections.length }}
+                    </p>
                 </div>
 
-                <!-- Romantic challenge, highlighted -->
-                <div
-                    v-if="plan.romantic_challenge"
-                    class="card-premium p-6 text-center"
+                <ol
+                    ref="deck"
+                    class="-mx-4 flex snap-x snap-mandatory [scrollbar-width:none] gap-3 overflow-x-auto scroll-smooth px-4 pb-2 [&::-webkit-scrollbar]:hidden"
+                    @scroll.passive="onDeckScroll"
                 >
-                    <span
-                        class="mx-auto icon-tile h-12 w-12 text-2xl"
-                        aria-hidden="true"
-                        >🌹</span
+                    <li
+                        v-for="(section, index) in planSections"
+                        :key="section.label"
+                        class="flex shrink-0 basis-[86%] snap-center flex-col card-premium p-6 transition-all duration-300"
+                        :class="
+                            index === activeStep
+                                ? 'opacity-100'
+                                : 'scale-[0.97] opacity-60'
+                        "
                     >
-                    <p class="mt-4 eyebrow">Tonight's romantic challenge</p>
-                    <div class="mx-auto my-4 hairline-gold w-24" />
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="icon-tile h-14 w-14 text-3xl"
+                                aria-hidden="true"
+                                >{{ section.emoji }}</span
+                            >
+                            <span
+                                class="font-display text-5xl leading-none text-primary/15 tabular-nums"
+                                aria-hidden="true"
+                                >{{ index + 1 }}</span
+                            >
+                        </div>
+                        <h3
+                            class="mt-5 font-display text-2xl font-medium text-foreground"
+                        >
+                            {{ section.label }}
+                        </h3>
+                        <div class="my-3 hairline-gold w-16" />
+                        <p
+                            class="text-[15px] leading-relaxed text-foreground"
+                            :class="section.quoted && 'italic'"
+                        >
+                            <template v-if="section.quoted"
+                                >"{{ section.text }}"</template
+                            >
+                            <template v-else>{{ section.text }}</template>
+                        </p>
+                    </li>
+                </ol>
+
+                <!-- Step controls -->
+                <div
+                    v-if="planSections.length > 1"
+                    class="flex items-center justify-center gap-3"
+                >
+                    <button
+                        type="button"
+                        :class="stepButtonClass"
+                        :disabled="activeStep === 0"
+                        aria-label="Previous step"
+                        @click="goToStep(activeStep - 1)"
+                    >
+                        <ChevronLeft class="size-4" aria-hidden="true" />
+                    </button>
+                    <div class="flex items-center gap-1.5">
+                        <button
+                            v-for="(section, index) in planSections"
+                            :key="section.label"
+                            type="button"
+                            class="flex size-6 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                            :aria-label="`Go to ${section.label}`"
+                            :aria-current="
+                                index === activeStep ? 'step' : undefined
+                            "
+                            @click="goToStep(index)"
+                        >
+                            <span
+                                class="h-2 rounded-full transition-all duration-300"
+                                :class="
+                                    index === activeStep
+                                        ? 'w-6 bg-primary'
+                                        : 'w-2 bg-primary/25'
+                                "
+                            />
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        :class="stepButtonClass"
+                        :disabled="activeStep === planSections.length - 1"
+                        aria-label="Next step"
+                        @click="goToStep(activeStep + 1)"
+                    >
+                        <ChevronRight class="size-4" aria-hidden="true" />
+                    </button>
+                </div>
+            </section>
+
+            <!-- Romantic challenge: sealed until opened -->
+            <section
+                v-if="plan.romantic_challenge"
+                class="card-feature px-6 py-8 text-center"
+            >
+                <span
+                    class="mx-auto flex size-14 items-center justify-center rounded-3xl bg-white/10 text-3xl ring-1 ring-white/20"
+                    aria-hidden="true"
+                    >{{ challengeOpen ? '🌹' : '💌' }}</span
+                >
+                <p class="mt-4 eyebrow text-gold-soft">
+                    Tonight's romantic challenge
+                </p>
+                <div class="mx-auto my-4 hairline-gold w-24 opacity-60" />
+
+                <div v-if="challengeOpen" role="status">
                     <p
-                        class="font-display text-xl leading-snug font-medium text-foreground"
+                        class="font-display text-xl leading-snug font-medium motion-safe:animate-in motion-safe:duration-500 motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
                     >
                         {{ plan.romantic_challenge }}
                     </p>
                 </div>
+                <template v-else>
+                    <p class="text-sm text-white/80">
+                        Sealed until you are ready.<template
+                            v-if="!plan.is_solo"
+                        >
+                            Open it together.</template
+                        >
+                    </p>
+                    <button
+                        type="button"
+                        class="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-primary shadow-lg transition-transform hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary focus-visible:outline-none active:scale-95"
+                        @click="challengeOpen = true"
+                    >
+                        <Sparkles class="size-4" aria-hidden="true" />
+                        Reveal the challenge
+                    </button>
+                </template>
+            </section>
 
-                <!-- Local ideas (plans built around a place) -->
-                <div
-                    v-if="plan.local_suggestions.length > 0"
-                    class="space-y-4 card-premium p-5"
-                >
-                    <div class="flex items-start gap-4">
-                        <span
-                            class="icon-tile h-11 w-11 text-xl"
-                            aria-hidden="true"
-                            >📍</span
+            <!-- Local ideas (plans built around a place) -->
+            <section
+                v-if="plan.local_suggestions.length > 0"
+                class="space-y-3"
+                aria-labelledby="local-title"
+            >
+                <div>
+                    <h2 id="local-title" class="eyebrow">
+                        Local ideas<span v-if="plan.location_label">
+                            near {{ plan.location_label }}</span
                         >
-                        <div class="min-w-0 flex-1 space-y-1.5">
-                            <p class="eyebrow">
-                                Local ideas<span v-if="plan.location_label">
-                                    near {{ plan.location_label }}</span
-                                >
-                            </p>
-                            <p class="text-xs text-muted-foreground">
-                                A few starting points to explore — always
-                                double-check opening times.
-                            </p>
-                        </div>
-                    </div>
-                    <ul class="space-y-2">
-                        <li
-                            v-for="(
-                                suggestion, index
-                            ) in plan.local_suggestions"
-                            :key="index"
-                            class="rounded-2xl bg-muted p-4"
-                        >
-                            <div
-                                class="flex items-baseline justify-between gap-2"
-                            >
-                                <p class="text-sm font-medium text-foreground">
-                                    {{ suggestion.name }}
-                                </p>
-                                <span
-                                    v-if="suggestion.category"
-                                    class="badge-soft shrink-0"
-                                >
-                                    {{ suggestion.category }}
-                                </span>
-                            </div>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                {{ suggestion.description }}
-                            </p>
-                        </li>
-                    </ul>
+                    </h2>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        Swipe for a few starting points. Always double-check
+                        opening times.
+                    </p>
                 </div>
+                <ul
+                    class="-mx-4 flex snap-x snap-mandatory [scrollbar-width:none] gap-3 overflow-x-auto px-4 pb-2 [&::-webkit-scrollbar]:hidden"
+                >
+                    <li
+                        v-for="(suggestion, index) in plan.local_suggestions"
+                        :key="index"
+                        class="flex shrink-0 basis-[72%] snap-center flex-col gap-2 card-premium p-5"
+                    >
+                        <span
+                            v-if="suggestion.category"
+                            class="badge-soft self-start"
+                        >
+                            {{ suggestion.category }}
+                        </span>
+                        <p class="font-display text-lg text-foreground">
+                            {{ suggestion.name }}
+                        </p>
+                        <p
+                            class="text-sm leading-relaxed text-muted-foreground"
+                        >
+                            {{ suggestion.description }}
+                        </p>
+                    </li>
+                </ul>
             </section>
 
             <!-- How you matched (couple plans only) -->

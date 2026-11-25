@@ -401,13 +401,24 @@ Decisions made, for the product owner to confirm:
 
 Do this after Phases 1 and 2, because several of these are things those phases wire up. Delete what is left.
 
-- [ ] **4.1 Events nobody dispatches**: `QuestionnaireStarted`, `QuestionAnswered`, `CompatibilityCalculated`, `SavedProfileCreated`, `SavedProfileApplied`, `NotificationCreated`, `PartnerInvitationCreated`, `ProfileCompleted`, `UserRegistered`. (`CalendarEventCreated`, `ChallengeCompleted` and `ExportRequested` are wired in Phases 1 and 2.)
-- [ ] **4.2 Jobs nobody dispatches**: `GenerateCompatibilityJob`, `EnhanceDateNightPlanWithAIJob`, `GenerateConversationPromptJob`, `GenerateRelationshipInsightJob`, `GenerateCompatibilitySummaryJob`, with their tests, unless a Phase 5 feature adopts them.
-- [ ] **4.3 Caching that only forgets**: `RefreshStatisticsCommand`, `RefreshRelationshipStatisticsJob` and the `RefreshDashboardOn*` and `InvalidateCacheOn*` listeners clear cache keys nothing writes. Delete them or add the caching.
-- [ ] **4.4 Unused backend classes**: the `*Resource` classes, `ResponsePolicy`, `config/datenight.php`, the legacy `App\Contracts\AIProvider` with its null provider and binding, `AiPrompt` and the `ai_prompts` table, `TimelineEntry` and the `timeline_entries` table, `ExpireInvitationsCommand` (it only counts), unused `NotificationService` methods, and `AIService::generateChallengeVariation`, `enhanceThemeDescription` and `generateMomentCaption`.
-- [ ] **4.5 Unused frontend**: the starter layouts under `layouts/app` and `layouts/auth`, `AppSidebar`, `AppHeader`, `NavMain`, `NavFooter`, `NavUser`, `AppShell`, `AppContent`, `AppSidebarHeader`, `AnimatedBackground`, `LoadingSpinner`, `PlaceholderPattern`, `ProfileCard`, `QuestionCard`, `CompatibilityCard`, and the unused "Instrument Sans" font in `vite.config.ts`.
-- [ ] **4.6 Duplicates**: the calendar event type list is written out three times while `CalendarEventType` sits unused; `AdminUserController@disconnect` duplicates `AdminCoupleController@disconnect`.
+- [x] **4.1 Events nobody dispatches**: `QuestionnaireStarted`, `QuestionAnswered`, `CompatibilityCalculated`, `SavedProfileCreated`, `SavedProfileApplied`, `NotificationCreated`, `PartnerInvitationCreated`, `ProfileCompleted`, `UserRegistered`. (`CalendarEventCreated`, `ChallengeCompleted` and `ExportRequested` are wired in Phases 1 and 2.)
+- [x] **4.2 Jobs nobody dispatches**: `GenerateCompatibilityJob`, `EnhanceDateNightPlanWithAIJob`, `GenerateConversationPromptJob`, `GenerateRelationshipInsightJob`, `GenerateCompatibilitySummaryJob`, with their tests, unless a Phase 5 feature adopts them.
+- [x] **4.3 Caching that only forgets**: `RefreshStatisticsCommand`, `RefreshRelationshipStatisticsJob` and the `RefreshDashboardOn*` and `InvalidateCacheOn*` listeners clear cache keys nothing writes. Delete them or add the caching.
+- [x] **4.4 Unused backend classes**: the `*Resource` classes, `ResponsePolicy`, `config/datenight.php`, the legacy `App\Contracts\AIProvider` with its null provider and binding, `AiPrompt` and the `ai_prompts` table, `TimelineEntry` and the `timeline_entries` table, `ExpireInvitationsCommand` (it only counts), unused `NotificationService` methods, and `AIService::generateChallengeVariation`, `enhanceThemeDescription` and `generateMomentCaption`.
+- [x] **4.5 Unused frontend**: the starter layouts under `layouts/app` and `layouts/auth`, `AppSidebar`, `AppHeader`, `NavMain`, `NavFooter`, `NavUser`, `AppShell`, `AppContent`, `AppSidebarHeader`, `AnimatedBackground`, `LoadingSpinner`, `PlaceholderPattern`, `ProfileCard`, `QuestionCard`, `CompatibilityCard`, and the unused "Instrument Sans" font in `vite.config.ts`.
+- [x] **4.6 Duplicates**: the calendar event type list is written out three times while `CalendarEventType` sits unused; `AdminUserController@disconnect` duplicates `AdminCoupleController@disconnect`.
 - Then update the module docs: every "Suspected issue" and "Dead code" line that this roadmap closes should be removed from `docs/modules/*.md`.
+
+**Phase 4 was completed on 2026-11-26.** PHPUnit (491 tests), PHPStan, Pint, ESLint, Prettier, `vue-tsc`, the build and the 17 browser tests pass. Every item was checked against the code as it is now, not against this list:
+
+- **4.1** Ten events deleted. `ExportRequested` went too: the export controller dispatches the job directly, so the event was never used. `CalendarEventCreated` and `ChallengeCompleted` are live and stay.
+- **4.2** The five jobs are deleted with `SummariseCoupleAnswersAction`, six `AIUseCase` cases, their `AIService` methods and seeded prompts. The `ai` queue now has no jobs but stays in the worker list.
+- **4.3** Deleted, not replaced: no caching was added. The 03:00 statistics command is off the schedule.
+- **4.4** All nine `*Resource` classes, `ResponsePolicy`, `config/datenight.php`, the legacy AI contract, `AiPrompt` and `TimelineEntry` are gone. A migration drops the `ai_prompts` and `timeline_entries` tables and deletes the prompt rows of the removed AI features. `ExpireInvitationsCommand` stays: Phase 2 gave it a real job.
+- **4.5** The starter layouts, sidebar and header components, six unused components, the UI kits only they used (avatar, breadcrumb, card, dropdown-menu, navigation-menu, separator, sheet, sidebar, skeleton, tooltip), the `sidebarOpen` prop and the "Instrument Sans" font are gone.
+- **4.6** Calendar event types come from `CalendarEventType`; both admin disconnect routes call `PartnerInvitationService::disconnectPartner()`.
+- **Left in place, doubtful:** `PartnerInvitationAccepted` (dispatched, no listeners), the `AchievementCategory` enum, the starter `inspire` command, `FeatureFlag::isEnabled()`, `SystemSetting::get/set`, `User::hasRole()`, `Role::toEnum()`, `DateNightPlanPolicy::update`, the `PartnerInvitation` state helpers, and the `CompatibilityReady` and `DailyChallenge` notification types.
+- **Deploy:** `php artisan migrate`, then `php artisan optimize`. Queued `RefreshRelationshipStatisticsJob` entries from before the deploy will fail once as "class not found"; ignore them.
 
 ---
 

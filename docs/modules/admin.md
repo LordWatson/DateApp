@@ -1,5 +1,5 @@
 # Admin panel
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 Back-office under `/admin` for staff roles: user/couple management, content CRUD (questionnaires, challenges, achievements, AI prompts), runtime config (feature flags, system settings, AI settings), media uploads, audit trail, analytics. Plus the third-party log viewer at `/log-viewer`.
@@ -102,14 +102,14 @@ Gate column intentionally absent: **no controller checks a gate** (see Rules). L
 - **Analytics definitions**: a user is *active* in a period when they have a row in `activity_logs` in it (questionnaire completed, moment created, love note sent, achievement unlocked, partner connected). Logins are not recorded anywhere, so someone who only browses is not counted; the page says so. Average compatibility is `AVG(date_night_plans.compatibility_score)` over couple plans (`is_solo = false`); `responses.compatibility_score` is never written. Sign-up counts are no longer on this page.
 - **Audit log and personal data**: `user.deleted` stores only `id`, `role_id`, `created_at`, `email_verified_at`. A migration cleared `before`/`after` on older `user.deleted` rows. `user.updated` rows still hold the name and email as they were at the time, also after the user is deleted.
 - **Suspected issue 8:** users filter `admins` is `whereNotNull('role_id')` (`AdminUserController.php:36`), which also matches users holding the non-admin `user` role.
-- **Suspected issue 10:** `AdminUserController@disconnect` and `AdminCoupleController@disconnect` are duplicates; neither they nor `reconnect` fire `PartnerDisconnected`/`PartnerConnected` events.
+- `AdminUserController@disconnect` and `AdminCoupleController@disconnect` both unpair through `PartnerInvitationService::disconnectPartner()` and differ only in the audit action (`user.disconnected` / `couple.disconnected`) and the flash message. **Suspected issue 10:** neither they nor `reconnect` fire `PartnerDisconnected`/`PartnerConnected` events.
 - No link to `/log-viewer` or to `/admin` exists anywhere in the UI.
 
 ## Related modules
 `auth-settings.md` (users, verification), `onboarding-partner.md` (partner links), `questionnaires.md`, `challenges-achievements-streaks.md`, `ai.md` (prompts, settings, providers), `notifications-activity-mail.md`, `frontend.md` (layouts, route helpers), `platform.md` (providers, seeding, tests).
 
 ## Tests
-`tests/Feature/Admin/*` cover: access per role, user index/show/update/suspend/unsuspend/delete/disconnect/search, challenge CRUD + archive, feature-flag view/toggle + `isEnabled` helper, log-viewer access. `AdminQuestionnaireEditorTest` covers the three mode flags, enum validation, duplicate titles, question and option updates, signals and both reorders; `AdminAiSettingsPageTest` covers the page and its super-admin gate; `tests/Feature/RuntimeSettingsTest.php` covers the wired flags and setting. Not covered: couples, achievements, the settings page, email templates, media, audit logs, analytics.
+`tests/Feature/Admin/*` cover: access per role, user index/show/update/suspend/unsuspend/delete/disconnect/search, challenge CRUD + archive, feature-flag view/toggle + `isEnabled` helper, log-viewer access. `AdminQuestionnaireEditorTest` covers the three mode flags, enum validation, duplicate titles, question and option updates, signals and both reorders; `AdminAiSettingsPageTest` covers the page and its super-admin gate; `tests/Feature/RuntimeSettingsTest.php` covers the wired flags and setting. Couples: only disconnect is covered. Not covered: achievements, the settings page, email templates, media, audit logs, analytics.
 
 ```
 npm run build                       # once; Inertia page responses need public/build/manifest.json
@@ -123,3 +123,4 @@ php artisan test tests/Feature/Admin
 - 2026-11-24 — Roadmap Phase 1: every admin page uses Wayfinder helpers (`import admin from '@/routes/admin'`); the pages that crashed on load render again.
 - 2026-11-24 — Roadmap Phase 2 (2.2, 2.8, 2.13): AI settings page and nav entry; questionnaire editor sets solo / partner optional / intimacy, edits and reorders questions and options, edits option signals, validates enums and generates unique slugs; `RuntimeSettings` wires the `registration`, `maintenance_mode` and `ai_generation` flags and the `invitation_expiry_days` setting; everything else is labelled "Not in use" and Email templates left the nav.
 - 2026-11-25 — Roadmap Phase 3 (3.4, 3.11, 3.14): media is images only on the uploads disk and served through `admin.media.show` (and `MediaLibrary` now points at the `media_library` table, so uploads work); media updates, reordering and AI test calls are audited; `user.deleted` keeps no personal data; analytics counts active users from the activity log and reads compatibility from couple plans.
+- 2026-11-26 — Roadmap Phase 4: (4.6) both admin disconnect routes share `PartnerInvitationService::disconnectPartner()`; routes, audit actions and messages unchanged.

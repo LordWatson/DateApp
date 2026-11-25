@@ -1,5 +1,5 @@
 # Platform (bootstrap, config, console, tooling, tests)
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 Everything cross-cutting on the backend: how the app boots, providers, config, database/seeding, scheduled commands, health check, starter-kit tooling, quality tooling, CI, and test conventions.
@@ -11,7 +11,7 @@ Everything cross-cutting on the backend: how the app boots, providers, config, d
 | `bootstrap/providers.php` | `AppServiceProvider`, `AIServiceProvider`, `FortifyServiceProvider` |
 | `app/Providers/*` | See Providers |
 | `routes/web.php`, `routes/admin.php`, `routes/settings.php`, `routes/console.php` | `settings.php` is `require`d at the end of `web.php`; `console.php` only defines `inspire` |
-| `config/datenight.php`, `config/ai.php`, `config/log-viewer.php`, `config/inertia.php`, `config/fortify.php` | Non-framework config |
+| `config/ai.php`, `config/log-viewer.php`, `config/inertia.php`, `config/fortify.php` | Non-framework config |
 | `app/Console/Commands/*` | Artisan commands |
 | `app/Http/Controllers/HealthController.php` | `GET /health` |
 | `app/Jobs/ExportUserDataJob.php` | User data export job |
@@ -32,17 +32,16 @@ Everything cross-cutting on the backend: how the app boots, providers, config, d
 ## Providers
 | Provider | Does |
 |---|---|
-| `AppServiceProvider` | Gates (`access-admin`, `manage-users`, `manage-content`, `view-analytics`, `super-admin`, `viewLogViewer` — see `admin.md`); `Date::use(CarbonImmutable)`; `DevCommands::except('logs')` when `pcntl` is missing; `DB::prohibitDestructiveCommands()` in production; `Password::defaults()` = min 12, mixed case, letters, numbers, symbols, uncompromised in production, `null` (no default rule) otherwise; binds legacy `App\Contracts\AIProvider` |
+| `AppServiceProvider` | Gates (`access-admin`, `manage-users`, `manage-content`, `view-analytics`, `super-admin`, `viewLogViewer` — see `admin.md`); `Date::use(CarbonImmutable)`; `DevCommands::except('logs')` when `pcntl` is missing; `DB::prohibitDestructiveCommands()` in production; `Password::defaults()` = min 12, mixed case, letters, numbers, symbols, uncompromised in production, `null` (no default rule) otherwise |
 | `AIServiceProvider` | Singleton `AISettingsService`; singleton `App\Contracts\AI\AIProvider` chosen by `config('ai.provider')` (`anthropic` by default, `deepseek`, `null`); on boot overlays admin-saved `ai.*` system settings onto config. Details in `ai.md` |
 | `FortifyServiceProvider` | Fortify actions (`CreateNewUser`, `ResetUserPassword`), Inertia auth views, rate limiters `login` (5/min), `two-factor` (5/min), `passkeys` (10/min). Details in `auth-settings.md` |
 | `EventServiceProvider` | Explicit event -> listener map; discovery off |
 
 ## Configuration
-- `config/datenight.php` keys: `challenge_frequency`, `invitation_expiry_days`, `compatibility.{high,medium,low}`, `default_questionnaire_slug`, `love_note_max_length`, `reminder_hours`, `cache.{dashboard,compatibility,challenge,questionnaire}_ttl`, `queues.{emails,notifications,exports,analytics,default}`.
 - `config/ai.php`: `provider`, `defaults` (temperature, max_tokens, timeout, retry_attempts, retry_delay_ms, response_format), `providers.anthropic`, `providers.deepseek`, `safety.system_rules`, `logging`.
 - Config defaults when env is unset: DB `sqlite`, queue `database`, cache `database`, session `database`, mail `log`, filesystem `local`, uploads disk `local` (`filesystems.uploads`, env `UPLOADS_DISK`; must be a private disk, `s3` needs `league/flysystem-aws-s3-v3`, which is not installed), log channel `daily`. Mail transports include `resend` (`resend/resend-laravel`).
 - `.env.example` variable groups (names only): **App** `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_LOCALE`, `APP_FALLBACK_LOCALE`, `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`, `BCRYPT_ROUNDS`; **Logging** `LOG_CHANNEL`, `LOG_STACK`, `LOG_DEPRECATIONS_CHANNEL`, `LOG_LEVEL`; **Database** `DB_CONNECTION` (+ commented `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`); **Session** `SESSION_DRIVER`, `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_PATH`, `SESSION_DOMAIN`; **Infra** `BROADCAST_CONNECTION`, `FILESYSTEM_DISK`, `QUEUE_CONNECTION`, `CACHE_STORE`, `MEMCACHED_HOST`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`; **Mail** `MAIL_MAILER`, `MAIL_SCHEME`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`; **AWS** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, `AWS_USE_PATH_STYLE_ENDPOINT`; **Frontend** `VITE_APP_NAME`; **AI** `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, `AI_PROVIDER`, `AI_TEMPERATURE`, `AI_MAX_TOKENS`, `AI_TIMEOUT`, `AI_RETRY_ATTEMPTS`.
-- Read by config but absent from `.env.example`: `RESEND_API_KEY`, `AI_RETRY_DELAY_MS`, `AI_LOG_CHANNEL`, `AI_LOG_PROMPTS`, `LOG_VIEWER_*`, and every env key in `config/datenight.php`.
+- Read by config but absent from `.env.example`: `RESEND_API_KEY`, `AI_RETRY_DELAY_MS`, `AI_LOG_CHANNEL`, `AI_LOG_PROMPTS`, `LOG_VIEWER_*`.
 
 ## Database
 - Default connection `sqlite` (`config/database.php`; `.env.example` also sets sqlite). Tests force sqlite `:memory:`.
@@ -58,7 +57,6 @@ Everything cross-cutting on the backend: how the app boots, providers, config, d
 | `datenight:move-uploads {--from=public}` | **not scheduled** — run once after deploying Phase 3, and after any change of `UPLOADS_DISK` | Moves moment photos from the old disk to the uploads disk; safe to run again |
 | `datenight:expire-invitations` | daily 00:10 | Only counts expired, unaccepted invitations and prints the number — writes nothing |
 | `datenight:clean-exports` | daily 02:00 | Deletes files in `exports/` (default disk) older than 24h |
-| `datenight:refresh-statistics` | daily 03:00 | Dispatches `RefreshRelationshipStatisticsJob` per partnered user |
 | `datenight:send-reminders` | daily 09:00 | Creates an in-app `AppNotification` for onboarded, partnered users with no completion in 7 days |
 | `datenight:sync-prompts` | **not scheduled** — run it on every deploy | Inserts AI prompt template versions that are missing; never updates a row (see `ai.md`) |
 | `inspire` (closure, `routes/console.php`) | **not scheduled** | Framework default |
@@ -125,8 +123,6 @@ One workflow, `tests.yml` (job `ci`), on push/PR to `develop`, `main`, `master`.
 - New scheduled work goes in `withSchedule` in `bootstrap/app.php`.
 - Dates are `CarbonImmutable` app-wide — reassign results (`$d = $d->addDay()`).
 - Jobs use named queues (`ai`, `analytics`, `emails`, `notifications`, `exports`, `default`) hard-coded in each job's constructor. `AppServiceProvider` re-registers the dev `queue` command with `--queue=default,notifications,emails,analytics,ai,exports`, so `composer dev` works every queue. Production workers still need the same list.
-- **Suspected issue (dead config):** `config/datenight.php` is never read — no `config('datenight...')` call exists. Queue names, cache TTLs, thresholds etc. are hard-coded elsewhere.
-- **Suspected issue (dead code):** `AppServiceProvider.php:23` binds `App\Contracts\AIProvider` to `App\AI\NullAIProvider`; nothing else references that contract (the live one is `App\Contracts\AI\AIProvider`).
 - **Suspected issue:** `EvaluateStreaksCommand.php:16` injects `UpdateStreakAction` and never uses it.
 - **Proxies**: `config/trustedproxy.php` reads `TRUSTED_PROXIES` (addresses or `*`); the framework's `TrustProxies` middleware picks it up, so nothing is set in `bootstrap/app.php`.
 - **SSR** is off by default (`INERTIA_SSR_ENABLED`, `config/inertia.php`). Turning it on needs `npm run build:ssr` and the `inertia:start-ssr` process.
@@ -154,3 +150,4 @@ php artisan test tests/Feature/Health tests/Feature/Commands tests/Feature/Facto
 - 2026-11-25 — Roadmap Phase 3 (3.1, 3.2, 3.7, 3.8, 3.12, 3.13, 3.14): deploy checklist and production env example, `TRUSTED_PROXIES`, starter-kit installer removed, one checking CI workflow, `/health` throttled with an optional token, SSR off by default, `opcodesio/log-viewer` pinned, dependencies updated, streak evaluation hourly.
 - 2026-11-25 — Roadmap Phase 3 (3.9): `vendor/bin/phpstan analyse` is clean at level 7 with no baseline; every model relation has a generic `@return` type.
 - 2026-11-25 — Roadmap 3.10: browser tests with Playwright (`npm run test:e2e`), run against a throwaway SQLite database.
+- 2026-11-26 — Roadmap Phase 4: removed `config/datenight.php`, the legacy AI provider binding and the `datenight:refresh-statistics` command with its 03:00 schedule entry; migration `drop_ai_prompts_and_timeline_entries_tables` drops two never-used tables.

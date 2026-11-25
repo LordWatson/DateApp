@@ -1,5 +1,5 @@
 # Notifications, Activity Log and Mail
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-26
 
 ## Purpose
 Three ways the app records or announces that something happened: in-app notifications (bell icon + `/notifications` list), an append-only activity log (written, never read by any UI), and outbound email. All three are driven almost entirely by domain events; see [events-jobs.md](events-jobs.md) for the full event/listener/job catalog.
@@ -13,8 +13,6 @@ Three ways the app records or announces that something happened: in-app notifica
 | `app/Services/NotificationService.php` | Helper methods that create notifications; only 3 of 6 methods are called |
 | `app/Http/Controllers/NotificationController.php` | `index`, `markRead`, `markAllRead`, `unreadCount` |
 | `app/Http/Middleware/HandleInertiaRequests.php` | Shares `unreadNotificationsCount` on every Inertia response (line 45) |
-| `app/Http/Resources/NotificationResource.php` | Unused (controller maps the array by hand) |
-| `app/Events/NotificationCreated.php` | Unused (never dispatched, not registered) |
 | `app/Console/Commands/SendRemindersCommand.php` | `datenight:send-reminders`, daily 09:00, creates reminder notifications |
 | **Backend - activity log** | |
 | `app/Models/ActivityLog.php` | Model on table `activity_log`; `user()`, morph `subject()` |
@@ -112,7 +110,7 @@ There are no routes for the activity log. Email template admin routes live in `r
 - **Blade views, not DB templates.** Editing an `EmailTemplate` row in admin changes nothing that is sent. To change an email, edit the Mailable and its Blade view.
 - `Mail::to()->send()` with a `ShouldQueue` Mailable still queues it (framework behaviour), so every email except the invitation takes three queue hops: listener -> job -> mailable.
 - Queue names matter: see the worker warning in [events-jobs.md](events-jobs.md). With the stock `composer dev` worker only the `default` queue is processed, so notifications/emails created on the `notifications` and `emails` queues do not appear locally unless a worker listens to those queues. Tests use `QUEUE_CONNECTION=sync` and `MAIL_MAILER=array` (`phpunit.xml`).
-- Notifications are created in three different styles: `NotificationService`, direct `AppNotification::create()` in listeners/jobs/commands, and nothing fires `NotificationCreated`. Follow the nearest existing example for the feature you touch.
+- Notifications are created in two styles: `NotificationService` (plan viewed, plan liked, plan added to calendar) and direct `AppNotification::create()` in listeners/jobs/commands. Follow the nearest existing example for the feature you touch.
 - `QuestionnaireService::wipeOverhangingPendingResponses()` deletes the partner's `partner_completed` notifications whose `data->questionnaire_id` matches, when a user re-completes a questionnaire before the partner answered.
 - Authorization is a manual owner check in `markRead`; there is no policy.
 - `LogActivityOn*` listeners are synchronous: a DB failure in the activity log will throw inside the request (or job) that dispatched the event.
@@ -122,7 +120,7 @@ There are no routes for the activity log. Email template admin routes live in `r
 - Suspected issue: `SendRemindersCommand` has no "already reminded" check, so an inactive couple gets a new reminder every day.
 - Suspected issue: `app/Mail/PartnerInvitationMail.php:23` builds the subject from `sender->display_name` with no fallback to `name` (the body on line 32 has the fallback).
 - Suspected issue: `notifications/Index.vue` has no click target for `partner_viewed_plan` or `partner_added_date_night_to_calendar` even though both carry `plan_id`, and `typeEmoji` has no entry for the calendar type.
-- Dead code: `NotificationResource`, `NotificationCreated`, `NotificationService::notifyPartnerCompleted/notifyDateNightPlanReady/notifyLoveNoteReceived`, enum cases `CompatibilityReady` and `DailyChallenge`, route `notifications.unread-count`, `SendInvitationEmailOnPartnerInvitationCreated` (unregistered; invitation mail is dispatched directly).
+- Dead code: enum cases `CompatibilityReady` and `DailyChallenge`, route `notifications.unread-count`.
 - Dead data: nothing reads `activity_log`. `AppNotification` and `ActivityLog` use `HasFactory` but have no factory class in `database/factories`.
 
 ## Related modules
@@ -142,3 +140,4 @@ There are no routes for the activity log. Email template admin routes live in `r
 - 2026-11-24 — Roadmap Phase 1: new types `partner_connected`, `achievement_unlocked`, `questionnaire_reminder`, `plan_failed`; every type links somewhere (`destination()` in `notifications/Index.vue`); "partner viewed plan" is sent once per plan; the weekly reminder is sent at most once every 7 days.
 - 2026-11-24 — Roadmap Phase 2 (2.3, 2.4): new type `calendar_reminder` (hourly `SendCalendarRemindersCommand`, links to the event); `daily_challenge` is now sent to the partner when a daily challenge is completed.
 - 2026-11-24 — Roadmap Phase 2 (2.6, 2.12, 2.14): love note, moment and questionnaire-completed emails honour `email_notifications` (settable in settings); new types `invitation_expired` and `data_export_ready`; `partner_left` is also sent on disconnect.
+- 2026-11-26 — Roadmap Phase 4: removed `NotificationResource`, `NotificationCreated`, the three uncalled `NotificationService` methods and the unregistered invitation listener.

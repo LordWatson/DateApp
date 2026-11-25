@@ -56,27 +56,6 @@ final class NullAIProvider implements AIProvider
             AIUseCase::DateNightPlanOutCouple => [
                 'summary' => 'An easy evening out that gives each of you something you asked for.',
             ],
-            AIUseCase::ConversationPrompt => [
-                'prompt' => 'What made you smile this week?',
-            ],
-            AIUseCase::RelationshipInsight => [
-                'headline' => 'You value quality time together.',
-                'body' => 'Consider a distraction-free evening this week.',
-            ],
-            AIUseCase::CompatibilitySummary => [
-                'summary' => 'You share many values around connection.',
-                'strengths' => [],
-                'growth_areas' => [],
-            ],
-            AIUseCase::ChallengeVariation => [
-                'variation' => 'Swap the activity for a shared playlist.',
-            ],
-            AIUseCase::ThemeDescription => [
-                'description' => 'A warm, romantic and playful theme.',
-            ],
-            AIUseCase::MomentCaption => [
-                'caption' => 'A little moment worth remembering.',
-            ],
         };
     }
 }

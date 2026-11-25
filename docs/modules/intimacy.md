@@ -1,5 +1,5 @@
 # Intimacy
-> Last verified against code: 2026-11-24
+> Last verified against code: 2026-11-26
 
 ## Purpose
 An adult-themed corner of the app: a landing page that lists intimacy questionnaires and a catalog of couple games, plus a game page that shows the rules and draws shuffled prompt cards. It is read-only on the server; the only thing kept is the undrawn part of the deck, in the browser.
@@ -50,7 +50,7 @@ No events, listeners, jobs, notifications or mail are involved.
 - **No gating.** There is no feature flag, age check, opt-in or consent setting for this module: any onboarded, verified user (with or without a partner) can open it. `FeatureFlagSeeder` has no intimacy flag. The only consent wording is a static footer line in `Index.vue` (line 192).
 - Game content is managed only through `IntimacyGameSeeder`; no admin controller or page references `IntimacyGame`. Because the seeder uses `firstOrCreate`, editing a seeded game's text in the seeder does not update existing rows.
 - Intimacy questionnaires also appear in the main questionnaire list (`QuestionnaireController` filter `intimacy`, and under `all`; excluded from `couples`).
-- `is_intimacy` is passed to the plan generator and AI summary context (`app/Services/DateNightGeneratorService.php:215`, `app/Actions/SummariseCoupleAnswersAction.php:45`); see [date-night.md](date-night.md) and [ai.md](ai.md).
+- `is_intimacy` is passed to the plan generator and its AI context (`app/Services/DateNightGeneratorService.php`); see [date-night.md](date-night.md) and [ai.md](ai.md).
 - `AIUseCase::IntimacyGame` (`intimacy_game`) exists in `app/Enums/AI/AIUseCase.php` and its template (version 2) asks for one new prompt card as `{ "prompt": string }`, but nothing calls it.
 - The migration stores `intensity`/`category` as plain strings; a value outside the enum will throw when the model is read.
 - Intensity badge classes are duplicated in `Index.vue` and `Game.vue`; adding an intensity means touching the enum and both pages.
@@ -68,3 +68,4 @@ No events, listeners, jobs, notifications or mail are involved.
 ## Change log
 - 2026-11-24 — Initial doc.
 - 2026-11-24 — Roadmap Phase 2 (2.15): cards are drawn from a shuffled deck without repeats, with progress, and the deck survives a reload; the `intimacy_game` prompt template (v2) now asks for `{ "prompt": string }`.
+- 2026-11-26 — Roadmap Phase 4: `SummariseCoupleAnswersAction` is gone (only a deleted job used it).

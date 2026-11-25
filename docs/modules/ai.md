@@ -1,5 +1,5 @@
 # AI Layer
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 A thin, provider-agnostic layer for text generation. Features call `AIService` with a use case and a context array; the service loads the prompt template from the database, calls the configured provider (Anthropic Claude by default; DeepSeek and a no-op provider are kept and selectable), returns a typed `AIResponse` and records one analytics row per call. AI is always optional: every caller has a deterministic fallback.
@@ -23,20 +23,11 @@ A thin, provider-agnostic layer for text generation. Features call `AIService` w
 | `app/Models/AiPromptTemplate.php`, `app/Models/AiGeneration.php` | Models |
 | `database/seeders/AiPromptTemplateSeeder.php` | One template per use case |
 | `database/factories/AiPromptTemplateFactory.php` | Factory (`forUseCase()`, `inactive()`) |
-| **Backend (legacy, unused)** | |
-| `app/Contracts/AIProvider.php` | Old contract (`isConfigured()`, `enhancePlan()`). Nothing calls it |
-| `app/AI/NullAIProvider.php` | Old no-op implementation of the old contract |
-| `app/Providers/AppServiceProvider.php` (line 23) | Binds the old contract to the old null provider |
-| `app/Models/AiPrompt.php`, table `ai_prompts` | Older prompt storage; not referenced by any code |
 | **Frontend** | None in this module. Admin screens are in `admin.md` |
 | **Tests** | |
 | `tests/Feature/AI/AIInfrastructureTest.php` | Config, bindings, seeder, service, Anthropic and DeepSeek payloads and error codes, settings overlay, DTOs |
 | `tests/Feature/AI/AIIntegrationTest.php` | Analytics rows, AI jobs, admin settings endpoints, generator fallback |
 
-### Which contract and which binding wins?
-There are two interfaces with the same short name in different namespaces, so the two container bindings do not collide:
-- `App\Contracts\AI\AIProvider` is bound as a singleton in `AIServiceProvider` and is the one `AIService` and the admin controller inject. This is the real one.
-- `App\Contracts\AIProvider` is bound in `AppServiceProvider` to `App\AI\NullAIProvider`. No class injects it. Treat it as dead code and do not build on it.
 
 ## Data model
 
@@ -46,7 +37,7 @@ There are two interfaces with the same short name in different namespaces, so th
 
 **`system_settings`** rows with keys `ai.provider`, `ai.model`, `ai.temperature`, `ai.max_tokens`, `ai.timeout`, `ai.retry_attempts` hold admin overrides (table owned by `admin.md`).
 
-**`AIUseCase` values**: `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple`, `conversation_prompt`, `relationship_insight`, `compatibility_summary`, `challenge_variation`, `theme_description`, `moment_caption`, `intimacy_game`, `weekly_reflection`.
+**`AIUseCase` values**: `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple`, `intimacy_game`, `weekly_reflection`. The contract is `App\Contracts\AI\AIProvider`, bound as a singleton in `AIServiceProvider`.
 
 ## Routes
 None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-settings.*` (`routes/admin.php`) are documented in `admin.md`.
@@ -86,12 +77,7 @@ None in this module. The admin routes `admin.ai-prompts.*` and `admin.ai-setting
 | `app/Services/DateNightGeneratorService.php` | `date_night_plan`, `date_night_plan_solo`, `date_night_plan_out_couple` | Inside `GenerateDateNightPlanJob`, and synchronously from the plan page's "Try again with AI" (`date-night.retry-ai`, `throttle:ai`; see `date-night.md`) |
 | `app/Services/WeeklyReflectionService.php` | `weekly_reflection` | Web request (see `weekly-reflection.md`) |
 | `app/Http/Controllers/Admin/AdminAiSettingController.php` | Any (test connection, preview) | Admin UI (see `admin.md`). Exempt from consent: test connection calls the provider directly with a fixed probe, preview passes `people: []` because the admin types the context |
-| `app/Jobs/EnhanceDateNightPlanWithAIJob.php` | `date_night_plan` | Never dispatched in app code (queue `ai`) |
-| `app/Jobs/GenerateCompatibilitySummaryJob.php` | `compatibility_summary` | Never dispatched in app code (queue `ai`, result cached) |
-| `app/Jobs/GenerateConversationPromptJob.php` | `conversation_prompt` | Never dispatched in app code (queue `ai`, result cached) |
-| `app/Jobs/GenerateRelationshipInsightJob.php` | `relationship_insight` | Never dispatched in app code (queue `ai`, result cached) |
 
-`challenge_variation`, `theme_description`, `moment_caption` and `intimacy_game` have templates (and the first three have `AIService` methods) but no caller.
 
 ### How to add a new use case
 1. Add a case to `AIUseCase`.
@@ -122,11 +108,9 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 - **Analytics attribution**: `user_id` and `subject` are only stored when the caller uses `AIService::generate()` with those arguments. Date night generation uses the semantic methods, so its rows have neither.
 - **Worst-case duration** of one call is roughly `timeout` x `retry_attempts` (180s with defaults) because timeouts are retried. Keep this in mind for job timeouts and web requests.
 - **Tests** set `ai.provider` to `deepseek` (or call the `useAnthropic()` helper in `AIInfrastructureTest`) with a fake key and `Http::fake()`, or swap the contract with an anonymous class via `$this->app->instance(AIProvider::class, ...)`. `phpunit.xml` does not set `AI_PROVIDER`.
-- Suspected issue: placeholder mismatch. Every seeded template uses `{{context}}`, but `GenerateCompatibilitySummaryJob` (line 65), `GenerateConversationPromptJob` (line 54) and `GenerateRelationshipInsightJob` (line 55) do not pass a `context` key. The literal text `{{context}}` is sent to the model and the real data is not.
 - **Null provider**: `NullAIProvider::stubData()` has an arm for every `AIUseCase` (a test loops over the cases), and the plan stubs return only keys the generator accepts. With `AI_PROVIDER=null` every plan therefore gets the canned summary and `ai_enhanced = true`; that is what the provider is for.
 - Suspected issue: `config('ai.logging.*')` (`AI_LOG_CHANNEL`, `AI_LOG_PROMPTS`) is not read anywhere.
 - Suspected issue: the comment in `AiPromptTemplateSeeder` (line 68) says the schema has 9 fields; it has 7 since drink and music were removed.
-- Dead code: the legacy contract, legacy null provider and its binding; `AiPrompt` and the `ai_prompts` table; the four `ai`-queue jobs listed above (covered by tests but never dispatched); `AIService::generateChallengeVariation()`, `enhanceThemeDescription()`, `generateMomentCaption()`.
 
 ## Related modules
 - `admin.md`: prompt template CRUD, AI settings, test connection, previews, analytics view.
@@ -151,3 +135,4 @@ Set `AI_PROVIDER` to `anthropic`, `deepseek` or `null` (and run `php artisan opt
 - 2026-11-24 — Roadmap Phase 2 (2.13, 2.16): feature flag `ai_generation` off short-circuits `AIService` with `ai_disabled`; new command `datenight:sync-prompts` adds missing prompt versions without touching existing rows (`AiPromptTemplateSeeder::templates()` is public for it); the admin AI settings page exists.
 - 2026-11-24 — `config/ai.php` turns a null `AI_PROVIDER` back into the provider name `null`: Laravel parses the text "null" in `.env` as a real null, which previously left the provider empty and unresolvable.
 - 2026-11-25 — Roadmap Phase 3 (3.6): per-user AI consent. `AIService` methods require `$people` and refuse with `ai_consent_missing` unless all of them agreed; callers pass the people whose content is sent.
+- 2026-11-26 — Roadmap Phase 4: removed the legacy `App\Contracts\AIProvider`, `App\AI\NullAIProvider` and their binding, `AiPrompt` (new migration drops `ai_prompts`), the four never-dispatched `ai`-queue jobs, and the six use cases only they or nobody used (`conversation_prompt`, `relationship_insight`, `compatibility_summary`, `challenge_variation`, `theme_description`, `moment_caption`) with their `AIService` methods, null-provider stubs and seeded templates. Rows for those templates already in a database are left alone and are no longer read.

@@ -66,60 +66,6 @@ final readonly class AIService
     }
 
     /**
-     * @param  array<string, mixed>  $context
-     * @param  list<User>  $people
-     */
-    public function generateConversationPrompt(array $context, array $people): AIResponse
-    {
-        return $this->run(AIUseCase::ConversationPrompt, $context, $people);
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @param  list<User>  $people
-     */
-    public function generateRelationshipInsight(array $context, array $people): AIResponse
-    {
-        return $this->run(AIUseCase::RelationshipInsight, $context, $people);
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @param  list<User>  $people
-     */
-    public function generateChallengeVariation(array $context, array $people): AIResponse
-    {
-        return $this->run(AIUseCase::ChallengeVariation, $context, $people);
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @param  list<User>  $people
-     */
-    public function enhanceThemeDescription(array $context, array $people): AIResponse
-    {
-        return $this->run(AIUseCase::ThemeDescription, $context, $people);
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @param  list<User>  $people
-     */
-    public function generateMomentCaption(array $context, array $people): AIResponse
-    {
-        return $this->run(AIUseCase::MomentCaption, $context, $people);
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @param  list<User>  $people
-     */
-    public function generateCompatibilitySummary(array $context, array $people): AIResponse
-    {
-        return $this->run(AIUseCase::CompatibilitySummary, $context, $people);
-    }
-
-    /**
      * Public entry point that lets callers attach a subject model and
      * user id for analytics without changing the semantic methods above.
      *

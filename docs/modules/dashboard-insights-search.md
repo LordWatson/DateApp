@@ -1,5 +1,5 @@
 # Dashboard, Relationship Hub, Insights and Search
-> Last verified against code: 2026-11-25
+> Last verified against code: 2026-11-26
 
 ## Purpose
 The read-only "overview" screens. The Dashboard is the post-login home (partner status, streak stats, a challenge, recent date nights, saved profiles). The Relationship Hub is a card menu into the other modules with a few live numbers. Insights shows lifetime statistics computed from the user's data. Search is a site-wide `LIKE` search over the user's own content.
@@ -14,17 +14,12 @@ The read-only "overview" screens. The Dashboard is the post-login home (partner 
 | `app/Services/InsightsService.php` | All insight aggregates; SQLite/MySQL date helpers |
 | `app/Http/Controllers/SearchController.php` | `index` - trims `q`, delegates to the service |
 | `app/Services/GlobalSearchService.php` | Per-type search; `PER_TYPE_LIMIT = 5`, `MIN_QUERY_LENGTH = 2` |
-| `app/Jobs/RefreshRelationshipStatisticsJob.php` | Forgets `dashboard:*` / `compatibility:*` cache keys (no-op today) |
-| `app/Console/Commands/RefreshStatisticsCommand.php` | `datenight:refresh-statistics`, scheduled 03:00, dispatches the job above per partnered user |
-| `app/Jobs/GenerateRelationshipInsightJob.php`, `app/Jobs/GenerateConversationPromptJob.php` | AI jobs that cache a result under a caller-supplied key; never dispatched by app code |
 | **Frontend** | |
 | `resources/js/pages/Dashboard.vue` | Home page (`MobileLayout`) |
 | `resources/js/pages/relationship-hub/Index.vue` | Card grid with hard-coded hrefs |
 | `resources/js/pages/insights/Index.vue` | Stat grid, compatibility-over-time, highlights, entry to Weekly Reflection |
 | `resources/js/pages/search/Index.vue` | Debounced search box + grouped results |
 | `resources/js/components/StatCard.vue` | Used by Dashboard (props `label`, `value`, `emoji`, `description`, `variant`) |
-| `resources/js/components/CompatibilityCard.vue` | Imported by Dashboard but its usage is commented out |
-| `resources/js/components/ProfileCard.vue` | Not imported anywhere |
 | **Tests** | |
 | `tests/Feature/DashboardTest.php`, `tests/Feature/InsightsTest.php`, `tests/Feature/SearchTest.php` | See Tests |
 
@@ -66,8 +61,7 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 ## Rules and gotchas
 - The dashboard shows `components/AiConsentCard.vue` under the hero while `auth.user.ai_consent` is null (the user has not answered the AI question yet). See `auth-settings.md`.
 - **Time zones**: the dashboard's `stats.monthly_completions` counts from the start of the month in the user's timezone, and the hub's `upcoming_events` start at the user's own today (`User::today()`). A `today()` value compared with a timestamp column must be converted with `->utc()` first, because query bindings are not converted.
-- **There is no caching.** Nothing in these controllers/services calls `Cache::remember` or `Cache::put`. The keys `dashboard:{userId}` and `compatibility:{userId}` are only ever *forgotten* (`InvalidateCacheOnPartnerConnected`, `InvalidateCacheOnQuestionnaireCompleted`, `RefreshRelationshipStatisticsJob`), so those listeners, the job and the nightly `datenight:refresh-statistics` command are no-ops. If you add caching, those are the intended keys and invalidation points; note they are not triggered by plan generation, love notes, moments or disconnect.
-- Insights is not AI-backed: `GenerateRelationshipInsightJob` and `GenerateConversationPromptJob` are never dispatched and nothing reads their cache keys.
+- **There is no caching.** Nothing in these controllers/services calls `Cache::remember` or `Cache::put`. Every page load queries the database. If you add caching, add the invalidation with it (partner connect and disconnect, questionnaire completion, plan generation, love notes, moments).
 - Feature flag `insights` is seeded (`FeatureFlagSeeder`) but `FeatureFlag::isEnabled()` is not called by any non-admin code, so it does not gate anything.
 - `InsightsService` branches on `DB::getDriverName()`: `strftime` for SQLite, `MONTH()` / `DATE_FORMAT()` otherwise (MySQL syntax; other drivers are not handled).
 - Search uses raw `LIKE "%{$query}%"` with bindings; `%` and `_` typed by the user act as wildcards.
@@ -80,7 +74,7 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 - Suspected issue: `app/Http/Controllers/DashboardController.php:67` sends the whole partner `User` model to the browser (everything except the `#[Hidden]` fields, so including email). The hub sends only `id`, `name`, `avatar`.
 - Suspected issue: `InsightsService` `most_completed_month` groups by `created_at` month number across all years, not `completed_at`.
 - Suspected issue: hub `recent_moments` are only the user's own while `moments_count` includes the partner's.
-- Dead code: `RelationshipHubController` injects `InsightsService` (line 19) but never uses it; `CompatibilityCard` import in `Dashboard.vue`; `ProfileCard.vue`; the Dashboard "Add new" saved-profile button (line 355) and saved-profile rows have no click handler.
+- Dead code: the Dashboard "Add new" saved-profile button (line 355) and saved-profile rows have no click handler.
 - Hub and Dashboard templates use hard-coded URL strings (`'/insights'`, `'/love-notes'`, ...) rather than route helpers; renaming a route will not break the build.
 
 ## Related modules
@@ -103,3 +97,4 @@ All under middleware `auth`, `verified`, `onboarding` (`routes/web.php`).
 - 2026-11-24 — Roadmap Phase 2 (2.1): dashboard saved profile rows and a "Manage" link open `/saved-profiles`, which now exists (also the target of saved profile search results).
 - 2026-11-25 — Roadmap Phase 3 (3.14): "this month" on the dashboard and upcoming events on the hub follow the user's timezone.
 - 2026-11-25 — Roadmap Phase 3 (3.6): AI consent card on the dashboard until the user answers.
+- 2026-11-26 — Roadmap Phase 4: removed the cache-forgetting listeners, `RefreshRelationshipStatisticsJob`, `datenight:refresh-statistics` and the two never-dispatched AI insight jobs. Still no caching.

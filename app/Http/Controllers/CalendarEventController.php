@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CalendarEventType;
 use App\Events\CalendarEventCreated;
 use App\Http\Requests\CalendarEvent\StoreCalendarEventRequest;
 use App\Http\Requests\CalendarEvent\UpdateCalendarEventRequest;
@@ -109,15 +110,9 @@ class CalendarEventController extends Controller
     /** @return list<array{value: string, label: string, emoji: string}> */
     private function eventTypes(): array
     {
-        return [
-            ['value' => 'date_night', 'label' => 'Date Night', 'emoji' => '💕'],
-            ['value' => 'anniversary', 'label' => 'Anniversary', 'emoji' => '💍'],
-            ['value' => 'birthday', 'label' => 'Birthday', 'emoji' => '🎂'],
-            ['value' => 'holiday', 'label' => 'Holiday', 'emoji' => '✈️'],
-            ['value' => 'weekend_away', 'label' => 'Weekend Away', 'emoji' => '🏨'],
-            ['value' => 'movie_night', 'label' => 'Movie Night', 'emoji' => '🎬'],
-            ['value' => 'dinner_reservation', 'label' => 'Dinner Reservation', 'emoji' => '🍽️'],
-            ['value' => 'custom', 'label' => 'Custom Event', 'emoji' => '📅'],
-        ];
+        return array_map(
+            static fn (CalendarEventType $type): array => ['value' => $type->value, 'label' => $type->label(), 'emoji' => $type->emoji()],
+            CalendarEventType::cases(),
+        );
     }
 }

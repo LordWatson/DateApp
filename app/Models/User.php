@@ -225,10 +225,4 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             ->withPivot('unlocked_at')
             ->withTimestamps();
     }
-
-    /** @return HasMany<TimelineEntry, $this> */
-    public function timelineEntries(): HasMany
-    {
-        return $this->hasMany(TimelineEntry::class);
-    }
 }

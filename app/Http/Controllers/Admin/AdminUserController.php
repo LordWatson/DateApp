@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AdminAuditService;
+use App\Services\PartnerInvitationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,6 +19,7 @@ class AdminUserController extends AdminController
     public function __construct(
         private readonly AdminAuditService $audit,
         private readonly DeleteAccountAction $deleteAccount,
+        private readonly PartnerInvitationService $partners,
     ) {}
 
     public function index(Request $request): Response
@@ -133,10 +135,7 @@ class AdminUserController extends AdminController
 
     public function disconnect(User $user): RedirectResponse
     {
-        $partner = $user->partner;
-
-        $user->update(['partner_id' => null]);
-        $partner?->update(['partner_id' => null]);
+        $this->partners->disconnectPartner($user);
 
         $this->audit->logModel('user.disconnected', $user);
 
