@@ -28,10 +28,7 @@ class DatabaseSeeder extends Seeder
             DateNightThemeSeeder::class,
             AchievementSeeder::class,
             AiPromptTemplateSeeder::class,
+            DemoCoupleSeeder::class,
         ]);
-
-        if (app()->environment('local', 'testing')) {
-            $this->call(DemoCoupleSeeder::class);
-        }
     }
 }
